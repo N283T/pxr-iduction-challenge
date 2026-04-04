@@ -14,7 +14,12 @@ import psycopg2
 from scipy.optimize import minimize
 
 from data import DB_PARAMS, load_test_smiles, load_train_smiles_target
-from evaluate import compute_metrics, print_metrics, load_oof_predictions, record_experiment
+from evaluate import (
+    compute_metrics,
+    print_metrics,
+    load_oof_predictions,
+    record_experiment,
+)
 from splits import scaffold_split_indices
 
 SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
@@ -28,8 +33,7 @@ def find_single_feature_experiments() -> list[dict]:
         SELECT e.id, e.name, e.feature_set, avg(cv.rae) AS avg_rae
         FROM experiments e
         JOIN experiment_cv_results cv ON cv.experiment_id = e.id
-        WHERE e.name LIKE 'single_%'
-          AND EXISTS (SELECT 1 FROM experiment_oof_predictions oof WHERE oof.experiment_id = e.id)
+        WHERE EXISTS (SELECT 1 FROM experiment_oof_predictions oof WHERE oof.experiment_id = e.id)
         GROUP BY e.id, e.name, e.feature_set
         ORDER BY avg_rae
     """)
@@ -46,7 +50,9 @@ def load_submission_preds(experiment_name: str) -> np.ndarray | None:
     """Load test predictions from submission CSV."""
     conn = psycopg2.connect(**DB_PARAMS)
     cur = conn.cursor()
-    cur.execute("SELECT submission_path FROM experiments WHERE name = %s", (experiment_name,))
+    cur.execute(
+        "SELECT submission_path FROM experiments WHERE name = %s", (experiment_name,)
+    )
     row = cur.fetchone()
     cur.close()
     conn.close()
@@ -86,7 +92,9 @@ def main():
     test_df = load_test_smiles()
     y_train = train_df["pec50"].values
 
-    outer_splits = scaffold_split_indices(train_df["smiles"].tolist(), n_splits=5, seed=42)
+    outer_splits = scaffold_split_indices(
+        train_df["smiles"].tolist(), n_splits=5, seed=42
+    )
 
     # Find models
     experiments = find_single_feature_experiments()
@@ -110,7 +118,9 @@ def main():
             print(f"  Skipping {exp['name']}: missing predictions")
             continue
         if len(oof) != len(y_train):
-            print(f"  Skipping {exp['name']}: OOF length mismatch ({len(oof)} vs {len(y_train)})")
+            print(
+                f"  Skipping {exp['name']}: OOF length mismatch ({len(oof)} vs {len(y_train)})"
+            )
             continue
         model_names.append(exp["name"])
         oof_list.append(oof)
@@ -131,7 +141,13 @@ def main():
     print_metrics(avg_metrics, label="OOF")
 
     avg_test = test_matrix.mean(axis=1)
-    sub = pd.DataFrame({"SMILES": test_df["smiles"], "Molecule Name": test_df["molecule_name"], "pEC50": avg_test})
+    sub = pd.DataFrame(
+        {
+            "SMILES": test_df["smiles"],
+            "Molecule Name": test_df["molecule_name"],
+            "pEC50": avg_test,
+        }
+    )
     sub.to_csv(SUBMISSION_DIR.joinpath("ensemble_avg_all.csv"), index=False)
 
     # --- 2. Optimized weights (all models) ---
@@ -150,7 +166,13 @@ def main():
             print(f"    {name:<35} {w:.4f}")
 
     weighted_test = test_matrix @ weights
-    sub = pd.DataFrame({"SMILES": test_df["smiles"], "Molecule Name": test_df["molecule_name"], "pEC50": weighted_test})
+    sub = pd.DataFrame(
+        {
+            "SMILES": test_df["smiles"],
+            "Molecule Name": test_df["molecule_name"],
+            "pEC50": weighted_test,
+        }
+    )
     sub.to_csv(SUBMISSION_DIR.joinpath("ensemble_weighted_all.csv"), index=False)
 
     record_experiment(
@@ -158,14 +180,18 @@ def main():
         description=f"Weighted ensemble of {len(model_names)} single-feature Optuna models",
         model_type="ensemble",
         feature_set="weighted_blend",
-        hyperparameters={"weights": {n: float(w) for n, w in zip(model_names, weights)}},
+        hyperparameters={
+            "weights": {n: float(w) for n, w in zip(model_names, weights)}
+        },
         fold_metrics=[weighted_metrics],
         submission_path="track1_activity/submissions/ensemble_weighted_all.csv",
         notes=f"OOF RAE={weighted_metrics['RAE']:.4f}, {len(model_names)} models",
     )
 
     # --- 3. Top-K ensembles ---
-    sorted_indices = np.argsort([exp["avg_rae"] for exp in experiments if exp["name"] in model_names])
+    sorted_indices = np.argsort(
+        [exp["avg_rae"] for exp in experiments if exp["name"] in model_names]
+    )
 
     for k in [3, 5, 8, 10]:
         if k > len(model_names):
@@ -183,11 +209,21 @@ def main():
         topk_weighted_oof = oof_matrix[:, top_idx] @ topk_weights
         topk_weighted_m = compute_metrics(y_train, topk_weighted_oof)
 
-        print(f"\n  Top-{k}: avg RAE={topk_avg_m['RAE']:.4f}, weighted RAE={topk_weighted_m['RAE']:.4f}")
+        print(
+            f"\n  Top-{k}: avg RAE={topk_avg_m['RAE']:.4f}, weighted RAE={topk_weighted_m['RAE']:.4f}"
+        )
 
         topk_weighted_test = test_matrix[:, top_idx] @ topk_weights
-        sub = pd.DataFrame({"SMILES": test_df["smiles"], "Molecule Name": test_df["molecule_name"], "pEC50": topk_weighted_test})
-        sub.to_csv(SUBMISSION_DIR.joinpath(f"ensemble_weighted_top{k}.csv"), index=False)
+        sub = pd.DataFrame(
+            {
+                "SMILES": test_df["smiles"],
+                "Molecule Name": test_df["molecule_name"],
+                "pEC50": topk_weighted_test,
+            }
+        )
+        sub.to_csv(
+            SUBMISSION_DIR.joinpath(f"ensemble_weighted_top{k}.csv"), index=False
+        )
 
     # --- Summary ---
     print(f"\n{'=' * 60}")
@@ -195,7 +231,9 @@ def main():
     print(f"{'=' * 60}")
     print(f"  Simple avg (all):    RAE={avg_metrics['RAE']:.4f}")
     print(f"  Weighted (all):      RAE={weighted_metrics['RAE']:.4f}")
-    print(f"  Best single model:   RAE={experiments[0]['avg_rae']:.4f} ({experiments[0]['name']})")
+    print(
+        f"  Best single model:   RAE={experiments[0]['avg_rae']:.4f} ({experiments[0]['name']})"
+    )
 
 
 if __name__ == "__main__":
