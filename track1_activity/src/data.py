@@ -2,8 +2,10 @@
 
 import psycopg2
 import pandas as pd
+from sqlalchemy import create_engine
 
 DB_PARAMS = {"dbname": "pxr_challenge", "host": "/tmp", "port": 5433}
+DB_URL = "postgresql+psycopg2:///pxr_challenge?host=/tmp&port=5433"
 
 DESCRIPTOR_COLS = [
     "amw",
@@ -54,60 +56,52 @@ def get_conn():
     return psycopg2.connect(**DB_PARAMS)
 
 
+def get_engine():
+    return create_engine(DB_URL)
+
+
 def load_train_smiles_target():
     """Load train SMILES and pEC50."""
-    conn = get_conn()
-    df = pd.read_sql(
+    return pd.read_sql(
         """SELECT c.std_smiles AS smiles, c.molecule_name, t.pec50
            FROM train_activity t
            JOIN compounds c ON c.id = t.compound_id""",
-        conn,
+        get_engine(),
     )
-    conn.close()
-    return df
 
 
 def load_test_smiles():
     """Load test SMILES."""
-    conn = get_conn()
-    df = pd.read_sql(
+    return pd.read_sql(
         """SELECT c.std_smiles AS smiles, c.molecule_name
            FROM test_activity t
            JOIN compounds c ON c.id = t.compound_id""",
-        conn,
+        get_engine(),
     )
-    conn.close()
-    return df
 
 
 def load_train_descriptors():
     """Load train data with descriptors."""
-    conn = get_conn()
     desc = ", ".join(f"d.{c}" for c in DESCRIPTOR_COLS)
-    df = pd.read_sql(
+    return pd.read_sql(
         f"""SELECT c.std_smiles AS smiles, c.molecule_name, t.pec50, {desc}
             FROM train_activity t
             JOIN compounds c ON c.id = t.compound_id
             JOIN compound_descriptors d ON d.compound_id = c.id""",
-        conn,
+        get_engine(),
     )
-    conn.close()
-    return df
 
 
 def load_test_descriptors():
     """Load test data with descriptors."""
-    conn = get_conn()
     desc = ", ".join(f"d.{c}" for c in DESCRIPTOR_COLS)
-    df = pd.read_sql(
+    return pd.read_sql(
         f"""SELECT c.std_smiles AS smiles, c.molecule_name, {desc}
             FROM test_activity t
             JOIN compounds c ON c.id = t.compound_id
             JOIN compound_descriptors d ON d.compound_id = c.id""",
-        conn,
+        get_engine(),
     )
-    conn.close()
-    return df
 
 
 def load_mordred(compound_ids: list[int] | None = None) -> pd.DataFrame:
