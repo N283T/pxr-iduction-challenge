@@ -2,6 +2,18 @@
 
 Entry for the [OpenADMET PXR Blind Challenge](https://huggingface.co/spaces/openadmet/pxr-challenge) (April–July 2026).
 
+## Leaderboard
+
+**4th place** (as of 2026-04-04) out of 19 teams.
+
+| Rank | Team | RAE | R² | Spearman |
+|------|------|-----|-----|----------|
+| 1 | MirthEngine | 0.58 | 0.61 | 0.81 |
+| 2 | Radi | 0.59 | 0.54 | 0.81 |
+| 3 | N1NC1O | 0.60 | 0.52 | 0.79 |
+| **4** | **N283T (us)** | **0.62** | **0.52** | **0.78** |
+| 5 | jaybirdy | 0.64 | 0.51 | 0.74 |
+
 ## Overview
 
 Predicting human Pregnane X Receptor (PXR) activity from molecular structure. PXR is a nuclear receptor critical for drug metabolism (ADMET).
@@ -13,18 +25,52 @@ Predicting human Pregnane X Receptor (PXR) activity from molecular structure. PX
 | 1 - Activity | Predict pEC50 | RAE ↓ | 513 compounds |
 | 2 - Structure | Predict protein-ligand 3D | LDDT-PLI ↑ | 78 compounds |
 
+## Approach
+
+Following the methodology from [EUOS25 winning solution](https://www.yumizsui.com/blog/euos25-challenge/):
+
+1. **SMILES standardization**: ChEMBL structure pipeline (salt stripping, neutralization)
+2. **Diverse single-feature models**: Each model uses one feature type, individually Optuna-tuned
+3. **Murcko scaffold split CV**: Prevents structural leakage in cross-validation
+4. **Optuna nested CV**: Hyperparameter tuning with scaffold outer / random inner splits
+5. **Weighted ensemble**: Optimized blend of 12 diverse models
+
+### Feature Sources
+
+| Type | Features | Source |
+|------|----------|--------|
+| Descriptors | RDKit 2D (41d), Mordred 2D (1402d) | RDKit, mordredcommunity |
+| Fingerprints | Morgan, MACCS, Avalon, AtomPair (167-2048d) | RDKit |
+| Embeddings | ChemBERTa (7 variants, 384-768d) | HuggingFace |
+| Embeddings | CheMeleon MPNN (300d) | Zenodo pretrained |
+| Embeddings | BERT-base-SMILES (768d) | HuggingFace |
+| Graph | ChemProp D-MPNN, CheMeleon fine-tune | chemprop |
+
+### Ensemble
+
+12 models blended with optimized weights (scipy minimize on OOF RAE):
+
+| Model | Weight | Solo RAE |
+|-------|--------|----------|
+| chemprop_scaffold | 22% | 0.620 |
+| single_mordred | 20% | 0.565 |
+| single_chemeleon | 17% | 0.602 |
+| single_chemberta_5m_mtr | 13% | 0.614 |
+| single_rdkit_desc | 10% | 0.625 |
+| chemeleon_finetune | 9% | 0.657 |
+| + 6 others | 9% | — |
+
 ## Setup
 
 ### Prerequisites
 
 - [pixi](https://pixi.sh/) (package manager)
-- GPU with CUDA (optional, for GNN models and embedding computation)
-- WSL2: `CONDA_OVERRIDE_CUDA=13.1` is set automatically via shell config
+- GPU with CUDA (for GNN models and embedding computation)
+- WSL2: `CONDA_OVERRIDE_CUDA=13.1` set automatically via shell config
 
 ### Install & Run
 
 ```bash
-# Install dependencies
 pixi install
 
 # Download dataset
@@ -45,41 +91,25 @@ pixi run python db/compute_embeddings.py
 pixi run python db/compute_chemeleon.py
 ```
 
+### Reproducing Results
+
+```bash
+# 1. Single-feature Optuna models (CPU, ~1 hour)
+pixi run python track1_activity/scripts/run_single_feature_optuna.py
+
+# 2. ChemProp / CheMeleon fine-tuning (GPU)
+pixi run python track1_activity/scripts/run_chemprop_scaffold_cv.py
+
+# 3. Ensemble
+pixi run python track1_activity/scripts/run_ensemble.py
+```
+
 ### Useful Commands
 
 ```bash
-pixi run db-start          # Start PostgreSQL
-pixi run db-stop           # Stop PostgreSQL
-pixi run db-psql           # Connect to DB
-
-# Compare experiments
+pixi run db-start / db-stop / db-psql
 pixi run db-psql -c "SELECT * FROM experiment_summary;"
 ```
-
-## Current Results (Track 1)
-
-Top experiments sorted by RAE (lower is better):
-
-| Experiment | Model | Features | RAE | R² | Spearman |
-|-----------|-------|----------|-----|-----|----------|
-| scaffold_chemeleon+desc+morgan | LightGBM | CheMeleon + RDKit desc + Morgan | 0.5507 | 0.617 | 0.744 |
-| mordred+morgan_r2 | LightGBM | Mordred 2D + Morgan | 0.5531 | 0.620 | 0.739 |
-| chemeleon+desc+morgan | LightGBM | CheMeleon + RDKit desc + Morgan | 0.5530 | 0.613 | 0.737 |
-| desc+morgan_r2 | LightGBM | RDKit desc + Morgan | 0.5572 | 0.609 | 0.736 |
-| chemprop_mpnn | ChemProp | Molecular graph (D-MPNN) | 0.6136 | 0.542 | 0.700 |
-| baseline_lgbm_descriptors | LightGBM | RDKit 2D descriptors | 0.6235 | 0.518 | 0.658 |
-
-40+ experiments tracked in DB. See `experiment_summary` view for full results.
-
-### Approach
-
-Following the methodology from [EUOS25 winning solution](https://www.yumizsui.com/blog/euos25-challenge/):
-
-1. **Diverse features**: RDKit descriptors, Mordred 2D, fingerprints (Morgan/MACCS/Avalon/AtomPair), CheMeleon embeddings, ChemBERTa embeddings (7 variants), BERT-base-SMILES
-2. **SMILES standardization**: ChEMBL structure pipeline (salt stripping, neutralization)
-3. **Murcko scaffold split CV**: Prevents structural leakage in cross-validation
-4. **Optuna nested CV**: Hyperparameter tuning with scaffold outer / random inner splits
-5. **Weighted ensemble**: Combining diverse models (planned)
 
 ## Project Structure
 
@@ -88,15 +118,24 @@ data/                        # Parquet datasets (gitignored)
 db/
   schema.sql                 # Core tables: compounds, activities
   standardize_compounds.py   # ChEMBL pipeline standardization
-  compute_mordred.py         # Mordred 2D descriptors → DB
-  compute_embeddings.py      # ChemBERTa variants → DB
-  compute_chemeleon.py       # CheMeleon fingerprints → DB
+  compute_mordred.py         # Mordred 2D descriptors → DB (JSONB)
+  compute_embeddings.py      # ChemBERTa/BERT variants → DB
+  compute_chemeleon.py       # CheMeleon MPNN fingerprints → DB
   experiments_schema.sql     # Experiment tracking tables
 docs/
   track1_eda_report.md       # EDA findings
+  leaderboard_2026-04-04.csv # Leaderboard snapshot
 track1_activity/
-  src/                       # Shared modules (data, features, evaluate, splits)
-  scripts/                   # Experiment scripts
+  src/
+    data.py                  # DB loading (SQLAlchemy, ORDER BY t.id)
+    features.py              # FP_REGISTRY: 8 fingerprint types
+    evaluate.py              # Metrics, DB recording, OOF storage
+    splits.py                # Murcko scaffold split CV
+  scripts/
+    run_single_feature_optuna.py  # Optuna-tuned single-feature models
+    run_chemprop_scaffold_cv.py   # ChemProp/CheMeleon fine-tuning
+    run_ensemble.py               # Weighted ensemble optimization
+    archive/                      # Early exploration scripts
   notebooks/                 # marimo notebooks
   submissions/               # Submission CSVs (gitignored)
 track2_structure/            # Structure prediction (future)
