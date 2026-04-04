@@ -48,3 +48,13 @@ FROM experiments e
 LEFT JOIN experiment_cv_results cv ON cv.experiment_id = e.id
 GROUP BY e.id
 ORDER BY rae_mean ASC NULLS LAST;
+
+-- OOF predictions for ensemble weight optimization
+CREATE TABLE IF NOT EXISTS experiment_oof_predictions (
+    experiment_id INTEGER NOT NULL REFERENCES experiments(id) ON DELETE CASCADE,
+    train_idx INTEGER NOT NULL,
+    oof_prediction DOUBLE PRECISION NOT NULL,
+    PRIMARY KEY (experiment_id, train_idx)
+);
+
+CREATE INDEX IF NOT EXISTS idx_oof_experiment ON experiment_oof_predictions(experiment_id);

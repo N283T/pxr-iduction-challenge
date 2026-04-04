@@ -100,3 +100,36 @@ def record_experiment(
     conn.close()
     print(f"  Recorded experiment '{name}' (id={exp_id})")
     return exp_id
+
+
+def save_oof_predictions(experiment_id: int, oof_preds: np.ndarray):
+    """Save OOF predictions to DB for ensemble weight optimization."""
+    conn = psycopg2.connect(**DB_PARAMS)
+    cur = conn.cursor()
+    for i, pred in enumerate(oof_preds):
+        cur.execute(
+            """INSERT INTO experiment_oof_predictions (experiment_id, train_idx, oof_prediction)
+               VALUES (%s, %s, %s)
+               ON CONFLICT (experiment_id, train_idx) DO UPDATE SET oof_prediction = EXCLUDED.oof_prediction""",
+            (experiment_id, i, float(pred)),
+        )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def load_oof_predictions(experiment_id: int) -> np.ndarray | None:
+    """Load OOF predictions from DB."""
+    conn = psycopg2.connect(**DB_PARAMS)
+    cur = conn.cursor()
+    cur.execute(
+        """SELECT oof_prediction FROM experiment_oof_predictions
+           WHERE experiment_id = %s ORDER BY train_idx""",
+        (experiment_id,),
+    )
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    if not rows:
+        return None
+    return np.array([r[0] for r in rows])
