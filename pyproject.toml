@@ -13,8 +13,14 @@ requires = ["hatchling"]
 channels = ["conda-forge"]
 platforms = ["linux-64"]
 
+[tool.pixi.system-requirements]
+cuda = "13.1"
+
 [tool.pixi.pypi-dependencies]
 pxr_iduction_challenge = { path = ".", editable = true }
+
+[tool.pixi.activation]
+env = { CONDA_OVERRIDE_CUDA = "13.1" }
 
 [tool.pixi.tasks]
 db-start = "pg_ctl -D db/pgdata -l db/pgdata/logfile -o '-k /tmp -p 5433' start"
@@ -37,3 +43,6 @@ lightgbm = ">=4.6.0,<5"
 scikit-learn = ">=1.8.0,<2"
 chembl_structure_pipeline = ">=1.2.4,<2"
 mordredcommunity = ">=2.0.7,<3"
+pytorch-gpu = ">=2.10.0,<3"
+chemprop = ">=2.2.3,<3"
+lightning = ">=2.6.1,<3"
