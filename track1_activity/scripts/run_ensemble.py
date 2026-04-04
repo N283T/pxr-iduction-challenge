@@ -225,6 +225,18 @@ def main():
             SUBMISSION_DIR.joinpath(f"ensemble_weighted_top{k}.csv"), index=False
         )
 
+        topk_weight_dict = {top_names[i]: float(topk_weights[i]) for i in range(k)}
+        record_experiment(
+            name=f"ensemble_weighted_top{k}",
+            description=f"Weighted ensemble of top-{k} models by CV RAE",
+            model_type="ensemble",
+            feature_set="weighted_blend",
+            hyperparameters={"weights": topk_weight_dict},
+            fold_metrics=[topk_weighted_m],
+            submission_path=f"track1_activity/submissions/ensemble_weighted_top{k}.csv",
+            notes=f"OOF RAE={topk_weighted_m['RAE']:.4f}, top-{k} of {len(model_names)} models",
+        )
+
     # --- Summary ---
     print(f"\n{'=' * 60}")
     print("  ENSEMBLE SUMMARY")
