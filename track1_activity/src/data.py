@@ -1,0 +1,172 @@
+"""Data loading utilities for Track 1."""
+
+import psycopg2
+import pandas as pd
+
+DB_PARAMS = {"dbname": "pxr_challenge", "host": "/tmp", "port": 5433}
+
+DESCRIPTOR_COLS = [
+    "amw",
+    "exactmw",
+    "logp",
+    "tpsa",
+    "labuteasa",
+    "fractioncsp3",
+    "hba",
+    "hbd",
+    "num_atoms",
+    "num_heavy_atoms",
+    "num_heteroatoms",
+    "num_rotatable_bonds",
+    "num_amide_bonds",
+    "num_rings",
+    "num_aromatic_rings",
+    "num_aliphatic_rings",
+    "num_aromatic_carbocycles",
+    "num_aromatic_heterocycles",
+    "num_aliphatic_carbocycles",
+    "num_aliphatic_heterocycles",
+    "num_saturated_rings",
+    "num_saturated_carbocycles",
+    "num_saturated_heterocycles",
+    "num_heterocycles",
+    "num_spiro_atoms",
+    "num_bridgehead_atoms",
+    "chi0v",
+    "chi1v",
+    "chi2v",
+    "chi3v",
+    "chi4v",
+    "chi0n",
+    "chi1n",
+    "chi2n",
+    "chi3n",
+    "chi4n",
+    "kappa1",
+    "kappa2",
+    "kappa3",
+    "phi",
+    "hallkieralpha",
+]
+
+
+def get_conn():
+    return psycopg2.connect(**DB_PARAMS)
+
+
+def load_train_smiles_target():
+    """Load train SMILES and pEC50."""
+    conn = get_conn()
+    df = pd.read_sql(
+        """SELECT c.std_smiles AS smiles, c.molecule_name, t.pec50
+           FROM train_activity t
+           JOIN compounds c ON c.id = t.compound_id""",
+        conn,
+    )
+    conn.close()
+    return df
+
+
+def load_test_smiles():
+    """Load test SMILES."""
+    conn = get_conn()
+    df = pd.read_sql(
+        """SELECT c.std_smiles AS smiles, c.molecule_name
+           FROM test_activity t
+           JOIN compounds c ON c.id = t.compound_id""",
+        conn,
+    )
+    conn.close()
+    return df
+
+
+def load_train_descriptors():
+    """Load train data with descriptors."""
+    conn = get_conn()
+    desc = ", ".join(f"d.{c}" for c in DESCRIPTOR_COLS)
+    df = pd.read_sql(
+        f"""SELECT c.std_smiles AS smiles, c.molecule_name, t.pec50, {desc}
+            FROM train_activity t
+            JOIN compounds c ON c.id = t.compound_id
+            JOIN compound_descriptors d ON d.compound_id = c.id""",
+        conn,
+    )
+    conn.close()
+    return df
+
+
+def load_test_descriptors():
+    """Load test data with descriptors."""
+    conn = get_conn()
+    desc = ", ".join(f"d.{c}" for c in DESCRIPTOR_COLS)
+    df = pd.read_sql(
+        f"""SELECT c.std_smiles AS smiles, c.molecule_name, {desc}
+            FROM test_activity t
+            JOIN compounds c ON c.id = t.compound_id
+            JOIN compound_descriptors d ON d.compound_id = c.id""",
+        conn,
+    )
+    conn.close()
+    return df
+
+
+def load_mordred(compound_ids: list[int] | None = None) -> pd.DataFrame:
+    """Load Mordred descriptors from DB as a DataFrame.
+
+    Returns DataFrame with compound_id as index, descriptor names as columns.
+    """
+    import json
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    if compound_ids:
+        placeholders = ",".join(["%s"] * len(compound_ids))
+        cur.execute(
+            f"SELECT compound_id, descriptors FROM compound_mordred WHERE compound_id IN ({placeholders})",
+            compound_ids,
+        )
+    else:
+        cur.execute(
+            "SELECT compound_id, descriptors FROM compound_mordred ORDER BY compound_id"
+        )
+
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    records = []
+    for compound_id, desc_json in rows:
+        desc = desc_json if isinstance(desc_json, dict) else json.loads(desc_json)
+        desc["compound_id"] = compound_id
+        records.append(desc)
+
+    return pd.DataFrame(records).set_index("compound_id")
+
+
+def load_train_mordred() -> tuple[pd.DataFrame, pd.Series]:
+    """Load train Mordred descriptors + pEC50."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT compound_id, pec50 FROM train_activity")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    compound_ids = [r[0] for r in rows]
+    y = pd.Series({r[0]: r[1] for r in rows}, name="pec50")
+
+    mordred_df = load_mordred(compound_ids)
+    return mordred_df, y.loc[mordred_df.index]
+
+
+def load_test_mordred() -> pd.DataFrame:
+    """Load test Mordred descriptors."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT compound_id FROM test_activity")
+    compound_ids = [r[0] for r in cur.fetchall()]
+    cur.close()
+    conn.close()
+
+    return load_mordred(compound_ids)
