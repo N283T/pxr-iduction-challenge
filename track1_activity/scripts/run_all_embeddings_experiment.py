@@ -19,7 +19,12 @@ from data import (
     load_train_descriptors,
     load_train_smiles_target,
 )
-from evaluate import compute_metrics, print_metrics, print_fold_summary, record_experiment
+from evaluate import (
+    compute_metrics,
+    print_metrics,
+    print_fold_summary,
+    record_experiment,
+)
 from features import FP_REGISTRY, smiles_to_mols
 
 SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
@@ -45,6 +50,8 @@ EMBEDDING_TABLES = {
     "chemberta_10m_mtr": "compound_chemberta_10m_mtr",
     "chemberta_5m_mlm": "compound_chemberta_5m",
     "chemberta_5m_mtr": "compound_chemberta_5m_mtr",
+    "chemberta_zinc_v1": "compound_chemberta_zinc_v1",
+    "bert_base_smiles": "compound_bert_smiles",
 }
 
 
@@ -122,11 +129,13 @@ def run_experiment(name, X_train, y_train, X_test, test_df, feature_set, descrip
     test_preds = final_model.predict(X_test)
     print(f"\n  Test preds: mean={test_preds.mean():.3f}, std={test_preds.std():.3f}")
 
-    submission = pd.DataFrame({
-        "SMILES": test_df["smiles"],
-        "Molecule Name": test_df["molecule_name"],
-        "pEC50": test_preds,
-    })
+    submission = pd.DataFrame(
+        {
+            "SMILES": test_df["smiles"],
+            "Molecule Name": test_df["molecule_name"],
+            "pEC50": test_preds,
+        }
+    )
     sub_path = SUBMISSION_DIR.joinpath(f"{name}.csv")
     submission.to_csv(sub_path, index=False)
 
@@ -176,8 +185,13 @@ def main():
         # Solo
         name = f"lgbm_{emb_name}"
         m = run_experiment(
-            name, X_train_emb, y_train, X_test_emb, test_df,
-            f"{emb_name}_{dim}d", f"LightGBM with {emb_name} embeddings ({dim}d)",
+            name,
+            X_train_emb,
+            y_train,
+            X_test_emb,
+            test_df,
+            f"{emb_name}_{dim}d",
+            f"LightGBM with {emb_name} embeddings ({dim}d)",
         )
         results[name] = m
 
@@ -186,7 +200,11 @@ def main():
         X_train_all = np.hstack([X_train_emb, X_train_desc, X_train_morgan])
         X_test_all = np.hstack([X_test_emb, X_test_desc, X_test_morgan])
         m = run_experiment(
-            name, X_train_all, y_train, X_test_all, test_df,
+            name,
+            X_train_all,
+            y_train,
+            X_test_all,
+            test_df,
             f"{emb_name}_{dim}d+rdkit_desc+morgan_r2",
             f"LightGBM with {emb_name} + RDKit desc + Morgan r2",
         )
@@ -197,7 +215,9 @@ def main():
     print("  SUMMARY (sorted by RAE)")
     print(f"{'=' * 70}")
     for name, m in sorted(results.items(), key=lambda x: x[1]["RAE"]):
-        print(f"  {name:<45} RAE={m['RAE']:.4f}  R2={m['R2']:.4f}  Spearman={m['Spearman_R']:.4f}")
+        print(
+            f"  {name:<45} RAE={m['RAE']:.4f}  R2={m['R2']:.4f}  Spearman={m['Spearman_R']:.4f}"
+        )
 
 
 if __name__ == "__main__":

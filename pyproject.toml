@@ -18,6 +18,7 @@ cuda = "13.1"
 
 [tool.pixi.pypi-dependencies]
 pxr_iduction_challenge = { path = ".", editable = true }
+deepchem = ">=2.8, <3"
 
 [tool.pixi.tasks]
 db-start = "pg_ctl -D db/pgdata -l db/pgdata/logfile -o '-k /tmp -p 5433' start"

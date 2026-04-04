@@ -327,6 +327,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.2-h25fd6f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-ng-2.3.3-hceb46e0_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
+      - pypi: https://files.pythonhosted.org/packages/6a/c9/3bf4473e3b8131a733219346ff90cdab98e019b90c944fc339a599fc8896/deepchem-2.8.0-py3-none-any.whl
       - pypi: ./
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-7_kmp_llvm.conda
@@ -1095,6 +1096,35 @@ packages:
   - pkg:pypi/darkdetect?source=hash-mapping
   size: 13566
   timestamp: 1734328185752
+- pypi: https://files.pythonhosted.org/packages/6a/c9/3bf4473e3b8131a733219346ff90cdab98e019b90c944fc339a599fc8896/deepchem-2.8.0-py3-none-any.whl
+  name: deepchem
+  version: 2.8.0
+  sha256: 042c7639770e69b127f3df5e5bdf139893caa1706d512893d78728fd0a2de8b0
+  requires_dist:
+  - joblib
+  - numpy>=1.21
+  - pandas
+  - scikit-learn
+  - sympy
+  - scipy>=1.10.1
+  - rdkit
+  - dqc ; extra == 'dqc'
+  - xitorch ; extra == 'dqc'
+  - torch ; extra == 'dqc'
+  - pylibxc2 ; extra == 'dqc'
+  - jax ; extra == 'jax'
+  - jaxlib ; extra == 'jax'
+  - dm-haiku ; extra == 'jax'
+  - optax ; extra == 'jax'
+  - tensorflow ; extra == 'tensorflow'
+  - tensorflow-probability ; extra == 'tensorflow'
+  - tensorflow-addons ; extra == 'tensorflow'
+  - torch ; extra == 'torch'
+  - torchvision ; extra == 'torch'
+  - pytorch-lightning ; extra == 'torch'
+  - dgl ; extra == 'torch'
+  - dgllife ; extra == 'torch'
+  requires_python: '>=3.7,<3.12'
 - conda: https://conda.anaconda.org/conda-forge/noarch/descriptastorus-2.7.0.4-pyhd8ed1ab_1.conda
   sha256: ed74a69214cc546fff9c15acec43ca069da147e37296d904c817206b0959d3e4
   md5: 0f93ffc2e9c65225d9aa3be410971d23
@@ -3702,7 +3732,7 @@ packages:
 - pypi: ./
   name: pxr-iduction-challenge
   version: 0.1.0
-  sha256: e12ea5cafff93a94037bfc39a414f0d9b392e5974e09d0c21df2b9bdd64344fa
+  sha256: edc41c29bf1c36ce2191f6c793f01e631549c94f6b13c9c046f9e3f65c3d221f
   requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/pyarrow-23.0.1-py312h7900ff3_0.conda
   sha256: 05ac953b934135cf63343ddc6cbea56abfd167af118f22a47fc8984f9158beb8
