@@ -3732,7 +3732,7 @@ packages:
 - pypi: ./
   name: pxr-iduction-challenge
   version: 0.1.0
-  sha256: edc41c29bf1c36ce2191f6c793f01e631549c94f6b13c9c046f9e3f65c3d221f
+  sha256: 005dea9e419cc07dd4f36cb6fa9a6396d1c660aa5e896baed4fcb52885a6a393
   requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/pyarrow-23.0.1-py312h7900ff3_0.conda
   sha256: 05ac953b934135cf63343ddc6cbea56abfd167af118f22a47fc8984f9158beb8
