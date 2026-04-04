@@ -170,3 +170,61 @@ def load_test_mordred() -> pd.DataFrame:
     conn.close()
 
     return load_mordred(compound_ids)
+
+
+def load_chemberta(compound_ids: list[int] | None = None) -> pd.DataFrame:
+    """Load ChemBERTa embeddings from DB as a DataFrame.
+
+    Returns DataFrame with compound_id as index, embedding dimensions as columns.
+    """
+    conn = get_conn()
+    cur = conn.cursor()
+
+    if compound_ids:
+        placeholders = ",".join(["%s"] * len(compound_ids))
+        cur.execute(
+            f"SELECT compound_id, embedding FROM compound_chemberta WHERE compound_id IN ({placeholders})",
+            compound_ids,
+        )
+    else:
+        cur.execute(
+            "SELECT compound_id, embedding FROM compound_chemberta ORDER BY compound_id"
+        )
+
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    data = {cid: emb for cid, emb in rows}
+    df = pd.DataFrame.from_dict(data, orient="index")
+    df.index.name = "compound_id"
+    df.columns = [f"chemberta_{i}" for i in range(df.shape[1])]
+    return df
+
+
+def load_train_chemberta() -> tuple[pd.DataFrame, pd.Series]:
+    """Load train ChemBERTa embeddings + pEC50."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT compound_id, pec50 FROM train_activity")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    compound_ids = [r[0] for r in rows]
+    y = pd.Series({r[0]: r[1] for r in rows}, name="pec50")
+
+    emb_df = load_chemberta(compound_ids)
+    return emb_df, y.loc[emb_df.index]
+
+
+def load_test_chemberta() -> pd.DataFrame:
+    """Load test ChemBERTa embeddings."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT compound_id FROM test_activity")
+    compound_ids = [r[0] for r in cur.fetchall()]
+    cur.close()
+    conn.close()
+
+    return load_chemberta(compound_ids)
