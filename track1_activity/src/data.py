@@ -65,7 +65,8 @@ def load_train_smiles_target():
     return pd.read_sql(
         """SELECT c.std_smiles AS smiles, c.molecule_name, t.pec50
            FROM train_activity t
-           JOIN compounds c ON c.id = t.compound_id""",
+           JOIN compounds c ON c.id = t.compound_id
+           ORDER BY t.id""",
         get_engine(),
     )
 
@@ -75,7 +76,8 @@ def load_test_smiles():
     return pd.read_sql(
         """SELECT c.std_smiles AS smiles, c.molecule_name
            FROM test_activity t
-           JOIN compounds c ON c.id = t.compound_id""",
+           JOIN compounds c ON c.id = t.compound_id
+           ORDER BY t.id""",
         get_engine(),
     )
 
@@ -87,7 +89,8 @@ def load_train_descriptors():
         f"""SELECT c.std_smiles AS smiles, c.molecule_name, t.pec50, {desc}
             FROM train_activity t
             JOIN compounds c ON c.id = t.compound_id
-            JOIN compound_descriptors d ON d.compound_id = c.id""",
+            JOIN compound_descriptors d ON d.compound_id = c.id
+            ORDER BY t.id""",
         get_engine(),
     )
 
@@ -99,7 +102,8 @@ def load_test_descriptors():
         f"""SELECT c.std_smiles AS smiles, c.molecule_name, {desc}
             FROM test_activity t
             JOIN compounds c ON c.id = t.compound_id
-            JOIN compound_descriptors d ON d.compound_id = c.id""",
+            JOIN compound_descriptors d ON d.compound_id = c.id
+            ORDER BY t.id""",
         get_engine(),
     )
 
