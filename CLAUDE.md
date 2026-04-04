@@ -31,7 +31,9 @@ pixi run db-start
 pixi run python download_data.py            # Download parquet files
 pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/schema.sql
 pixi run python db/load_data.py             # Load data into DB
-pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/compute_descriptors.sql
+pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/add_std_columns.sql
+pixi run python db/standardize_compounds.py  # ChEMBL pipeline standardization
+pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/recompute_descriptors.sql
 pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/experiments_schema.sql
 ```
 
@@ -41,7 +43,9 @@ pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/experiments_schema.sql
 data/                        # Parquet files (gitignored, re-downloadable)
 db/
   schema.sql                 # Core tables: compounds, train/test/counter/single_conc
-  compute_descriptors.sql    # Pre-computed descriptors & fingerprints
+  add_std_columns.sql        # Add std_smiles/std_mol columns
+  standardize_compounds.py   # ChEMBL pipeline standardization
+  recompute_descriptors.sql  # Descriptors & fingerprints from std_mol
   experiments_schema.sql     # Experiment tracking tables
   load_data.py               # Data loader script
   pgdata/                    # PostgreSQL data dir (gitignored)
