@@ -1,13 +1,12 @@
 """Evaluation and experiment tracking for Track 1."""
 
 import json
-from pathlib import Path
 
 import numpy as np
 import psycopg2
 from scipy import stats
 
-DB_PARAMS = {"dbname": "pxr_challenge", "host": "/tmp", "port": 5433}
+from data import DB_PARAMS
 
 
 def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict:

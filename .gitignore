@@ -19,6 +19,15 @@ db/pgdata/
 # Data files (re-downloadable via download_data.py)
 data/*.parquet
 
+# Submission files (generated artifacts)
+track1_activity/submissions/*.csv
+track1_activity/submissions/*.parquet
+track2_structure/submissions/
+
+# Lightning checkpoints/logs
+checkpoints/
+lightning_logs/
+
 # Marimo session state
 __marimo__/
 

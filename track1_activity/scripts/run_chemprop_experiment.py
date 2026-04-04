@@ -15,7 +15,12 @@ from chemprop import data as chemprop_data
 from chemprop import models, nn
 
 from data import load_train_smiles_target, load_test_smiles
-from evaluate import compute_metrics, print_metrics, print_fold_summary, record_experiment
+from evaluate import (
+    compute_metrics,
+    print_metrics,
+    print_fold_summary,
+    record_experiment,
+)
 
 SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
 
@@ -32,15 +37,6 @@ CHEMPROP_PARAMS = {
 }
 
 
-def build_chemprop_datapoints(smiles_list, targets=None):
-    """Build ChemProp MoleculeDatapoint list."""
-    datapoints = []
-    for i, smi in enumerate(smiles_list):
-        y = [targets[i]] if targets is not None else None
-        datapoints.append(chemprop_data.MoleculeDatapoint(chemprop_data.MoleculeDatapoint.from_smi(smi).mol, y))
-    return datapoints
-
-
 def train_and_predict(
     train_smiles, train_targets, val_smiles, val_targets, test_smiles, params
 ):
@@ -54,18 +50,21 @@ def train_and_predict(
         chemprop_data.MoleculeDatapoint.from_smi(smi, [y])
         for smi, y in zip(val_smiles, val_targets)
     ]
-    test_data = [
-        chemprop_data.MoleculeDatapoint.from_smi(smi)
-        for smi in test_smiles
-    ]
+    test_data = [chemprop_data.MoleculeDatapoint.from_smi(smi) for smi in test_smiles]
 
     train_dataset = chemprop_data.MoleculeDataset(train_data)
     val_dataset = chemprop_data.MoleculeDataset(val_data)
     test_dataset = chemprop_data.MoleculeDataset(test_data)
 
-    train_loader = chemprop_data.build_dataloader(train_dataset, batch_size=params["batch_size"], shuffle=True)
-    val_loader = chemprop_data.build_dataloader(val_dataset, batch_size=params["batch_size"], shuffle=False)
-    test_loader = chemprop_data.build_dataloader(test_dataset, batch_size=params["batch_size"], shuffle=False)
+    train_loader = chemprop_data.build_dataloader(
+        train_dataset, batch_size=params["batch_size"], shuffle=True
+    )
+    val_loader = chemprop_data.build_dataloader(
+        val_dataset, batch_size=params["batch_size"], shuffle=False
+    )
+    test_loader = chemprop_data.build_dataloader(
+        test_dataset, batch_size=params["batch_size"], shuffle=False
+    )
 
     # Build model
     mp = nn.BondMessagePassing(
@@ -124,7 +123,9 @@ def main():
     test_smiles = test_df["smiles"].tolist()
 
     print(f"Train: {len(train_smiles)}, Test: {len(test_smiles)}")
-    print(f"GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'}")
+    print(
+        f"GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'}"
+    )
 
     # 5-fold CV
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
@@ -158,14 +159,18 @@ def main():
 
     # Average test predictions across folds
     test_preds_avg = test_preds_all.mean(axis=0)
-    print(f"\n  Test preds: mean={test_preds_avg.mean():.3f}, std={test_preds_avg.std():.3f}")
+    print(
+        f"\n  Test preds: mean={test_preds_avg.mean():.3f}, std={test_preds_avg.std():.3f}"
+    )
 
     # Save submission
-    submission = pd.DataFrame({
-        "SMILES": test_df["smiles"],
-        "Molecule Name": test_df["molecule_name"],
-        "pEC50": test_preds_avg,
-    })
+    submission = pd.DataFrame(
+        {
+            "SMILES": test_df["smiles"],
+            "Molecule Name": test_df["molecule_name"],
+            "pEC50": test_preds_avg,
+        }
+    )
     sub_path = SUBMISSION_DIR.joinpath("chemprop_mpnn.csv")
     submission.to_csv(sub_path, index=False)
     print(f"  Saved: {sub_path.name}")

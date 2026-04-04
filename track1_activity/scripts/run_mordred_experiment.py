@@ -9,12 +9,22 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 from mordred import Calculator, descriptors
-from rdkit import Chem
 from sklearn.model_selection import KFold
 
-from data import load_train_smiles_target, load_test_smiles, load_train_descriptors, load_test_descriptors, DESCRIPTOR_COLS
-from evaluate import compute_metrics, print_metrics, print_fold_summary, record_experiment
-from features import smiles_to_mols
+from data import (
+    DESCRIPTOR_COLS,
+    load_test_descriptors,
+    load_test_smiles,
+    load_train_descriptors,
+    load_train_smiles_target,
+)
+from evaluate import (
+    compute_metrics,
+    print_metrics,
+    print_fold_summary,
+    record_experiment,
+)
+from features import FP_REGISTRY, smiles_to_mols
 
 SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
 
@@ -32,31 +42,50 @@ LGB_PARAMS = {
 }
 
 
-def compute_mordred(mols: list) -> tuple[np.ndarray, list[str]]:
-    """Compute Mordred 2D descriptors, return (array, col_names)."""
+def compute_mordred_train(mols: list) -> tuple[np.ndarray, list[str], pd.Series]:
+    """Compute Mordred 2D descriptors for training set.
+
+    Returns (array, col_names, medians) where medians should be used for test imputation.
+    """
     calc = Calculator(descriptors, ignore_3D=True)
-    print(f"  Computing {len(calc.descriptors)} Mordred descriptors for {len(mols)} molecules...")
+    print(
+        f"  Computing {len(calc.descriptors)} Mordred descriptors for {len(mols)} molecules..."
+    )
     df = calc.pandas(mols, quiet=True)
 
-    # Convert to numeric, coerce errors to NaN
     for col in df.columns:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # Drop columns that are all NaN or have zero variance
     df = df.dropna(axis=1, how="all")
-    nunique = df.nunique()
-    df = df.loc[:, nunique > 1]
-
-    # Fill remaining NaN with column median
-    df = df.fillna(df.median())
-
-    # Replace inf with NaN then fill
+    df = df.loc[:, df.nunique() > 1]
     df = df.replace([np.inf, -np.inf], np.nan)
-    df = df.fillna(df.median())
+
+    medians = df.median()
+    df = df.fillna(medians)
 
     col_names = list(df.columns)
     print(f"  After cleanup: {len(col_names)} features")
-    return df.values.astype(np.float32), col_names
+    return df.values.astype(np.float32), col_names, medians
+
+
+def compute_mordred_test(
+    mols: list, col_names: list[str], medians: pd.Series
+) -> np.ndarray:
+    """Compute Mordred 2D descriptors for test set using train-set columns and medians."""
+    calc = Calculator(descriptors, ignore_3D=True)
+    print(f"  Computing Mordred descriptors for {len(mols)} test molecules...")
+    df = calc.pandas(mols, quiet=True)
+
+    for col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # Align to train columns
+    df = df.reindex(columns=col_names)
+    df = df.replace([np.inf, -np.inf], np.nan)
+    df = df.fillna(medians[col_names])
+
+    print(f"  Aligned to {len(col_names)} train features")
+    return df.values.astype(np.float32)
 
 
 def run_experiment(name, X_train, y_train, X_test, test_df, feature_set, description):
@@ -78,7 +107,9 @@ def run_experiment(name, X_train, y_train, X_test, test_df, feature_set, descrip
         dval = lgb.Dataset(X_val, label=y_val, reference=dtrain)
 
         model = lgb.train(
-            LGB_PARAMS, dtrain, num_boost_round=2000,
+            LGB_PARAMS,
+            dtrain,
+            num_boost_round=2000,
             valid_sets=[dval],
             callbacks=[lgb.early_stopping(50), lgb.log_evaluation(0)],
         )
@@ -97,23 +128,31 @@ def run_experiment(name, X_train, y_train, X_test, test_df, feature_set, descrip
 
     # Final model
     avg_rounds = int(np.mean(num_boost_rounds))
-    final_model = lgb.train(LGB_PARAMS, lgb.Dataset(X_train, label=y_train), num_boost_round=avg_rounds)
+    final_model = lgb.train(
+        LGB_PARAMS, lgb.Dataset(X_train, label=y_train), num_boost_round=avg_rounds
+    )
     test_preds = final_model.predict(X_test)
     print(f"\n  Test preds: mean={test_preds.mean():.3f}, std={test_preds.std():.3f}")
 
-    submission = pd.DataFrame({
-        "SMILES": test_df["smiles"],
-        "Molecule Name": test_df["molecule_name"],
-        "pEC50": test_preds,
-    })
+    submission = pd.DataFrame(
+        {
+            "SMILES": test_df["smiles"],
+            "Molecule Name": test_df["molecule_name"],
+            "pEC50": test_preds,
+        }
+    )
     sub_path = SUBMISSION_DIR.joinpath(f"{name}.csv")
     submission.to_csv(sub_path, index=False)
     print(f"  Saved: {sub_path.name}")
 
     record_experiment(
-        name=name, description=description, model_type="lightgbm",
-        feature_set=feature_set, hyperparameters=LGB_PARAMS,
-        fold_metrics=fold_metrics, submission_path=f"track1_activity/submissions/{name}.csv",
+        name=name,
+        description=description,
+        model_type="lightgbm",
+        feature_set=feature_set,
+        hyperparameters=LGB_PARAMS,
+        fold_metrics=fold_metrics,
+        submission_path=f"track1_activity/submissions/{name}.csv",
         num_boost_rounds=num_boost_rounds,
         notes=f"OOF RAE={oof_metrics['RAE']:.4f}, avg_rounds={avg_rounds}",
     )
@@ -134,27 +173,18 @@ def main():
 
     # --- Mordred only ---
     print("\nComputing Mordred descriptors (train)...")
-    X_train_mordred, mordred_cols = compute_mordred(train_mols)
+    X_train_mordred, mordred_cols, mordred_medians = compute_mordred_train(train_mols)
     print("Computing Mordred descriptors (test)...")
-    X_test_mordred, _ = compute_mordred(test_mols)
-
-    # Align columns (test might have different cleanup results)
-    # Use train columns as reference
-    if X_test_mordred.shape[1] != X_train_mordred.shape[1]:
-        print(f"  WARNING: train has {X_train_mordred.shape[1]} cols, test has {X_test_mordred.shape[1]} cols")
-        # Recompute test with same calculator to ensure alignment
-        calc = Calculator(descriptors, ignore_3D=True)
-        test_mordred_df = calc.pandas(test_mols, quiet=True)
-        for col in test_mordred_df.columns:
-            test_mordred_df[col] = pd.to_numeric(test_mordred_df[col], errors="coerce")
-        test_mordred_df = test_mordred_df[mordred_cols]
-        test_mordred_df = test_mordred_df.fillna(test_mordred_df.median())
-        test_mordred_df = test_mordred_df.replace([np.inf, -np.inf], np.nan).fillna(test_mordred_df.median())
-        X_test_mordred = test_mordred_df.values.astype(np.float32)
+    X_test_mordred = compute_mordred_test(test_mols, mordred_cols, mordred_medians)
 
     run_experiment(
-        "lgbm_mordred", X_train_mordred, y_train, X_test_mordred, test_df,
-        "mordred_2d", "LightGBM with Mordred 2D descriptors",
+        "lgbm_mordred",
+        X_train_mordred,
+        y_train,
+        X_test_mordred,
+        test_df,
+        "mordred_2d",
+        "LightGBM with Mordred 2D descriptors",
     )
 
     # --- Mordred + RDKit descriptors ---
@@ -164,20 +194,29 @@ def main():
     X_test_combo = np.hstack([X_test_rdkit, X_test_mordred])
 
     run_experiment(
-        "lgbm_rdkit_desc+mordred", X_train_combo, y_train, X_test_combo, test_df,
-        "rdkit_descriptors+mordred_2d", "LightGBM with RDKit descriptors + Mordred 2D",
+        "lgbm_rdkit_desc+mordred",
+        X_train_combo,
+        y_train,
+        X_test_combo,
+        test_df,
+        "rdkit_descriptors+mordred_2d",
+        "LightGBM with RDKit descriptors + Mordred 2D",
     )
 
     # --- Mordred + Morgan FP ---
-    from features import FP_REGISTRY
     X_train_morgan = FP_REGISTRY["morgan_r2_2048"](train_mols)
     X_test_morgan = FP_REGISTRY["morgan_r2_2048"](test_mols)
     X_train_combo2 = np.hstack([X_train_mordred, X_train_morgan])
     X_test_combo2 = np.hstack([X_test_mordred, X_test_morgan])
 
     run_experiment(
-        "lgbm_mordred+morgan_r2", X_train_combo2, y_train, X_test_combo2, test_df,
-        "mordred_2d+morgan_r2_2048", "LightGBM with Mordred 2D + Morgan r2 FP",
+        "lgbm_mordred+morgan_r2",
+        X_train_combo2,
+        y_train,
+        X_test_combo2,
+        test_df,
+        "mordred_2d+morgan_r2_2048",
+        "LightGBM with Mordred 2D + Morgan r2 FP",
     )
 
     # --- Mordred + RDKit desc + Morgan FP (kitchen sink) ---
@@ -185,8 +224,13 @@ def main():
     X_test_all = np.hstack([X_test_rdkit, X_test_mordred, X_test_morgan])
 
     run_experiment(
-        "lgbm_all_features", X_train_all, y_train, X_test_all, test_df,
-        "rdkit_desc+mordred_2d+morgan_r2_2048", "LightGBM with all features combined",
+        "lgbm_all_features",
+        X_train_all,
+        y_train,
+        X_test_all,
+        test_df,
+        "rdkit_desc+mordred_2d+morgan_r2_2048",
+        "LightGBM with all features combined",
     )
 
     # Summary
