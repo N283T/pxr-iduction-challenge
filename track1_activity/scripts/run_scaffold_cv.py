@@ -12,6 +12,8 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 import psycopg2
+from mordred import Calculator
+from mordred import descriptors as mordred_descs
 from sklearn.model_selection import KFold
 
 from data import (
@@ -22,7 +24,12 @@ from data import (
     load_train_descriptors,
     load_train_smiles_target,
 )
-from evaluate import compute_metrics, print_metrics, print_fold_summary, record_experiment
+from evaluate import (
+    compute_metrics,
+    print_metrics,
+    print_fold_summary,
+    record_experiment,
+)
 from features import FP_REGISTRY, smiles_to_mols
 from splits import scaffold_split_indices
 
@@ -112,11 +119,13 @@ def run_cv(name, X_train, y_train, X_test, test_df, feature_set, description, sp
     test_preds = final_model.predict(X_test)
     print(f"\n  Test preds: mean={test_preds.mean():.3f}, std={test_preds.std():.3f}")
 
-    submission = pd.DataFrame({
-        "SMILES": test_df["smiles"],
-        "Molecule Name": test_df["molecule_name"],
-        "pEC50": test_preds,
-    })
+    submission = pd.DataFrame(
+        {
+            "SMILES": test_df["smiles"],
+            "Molecule Name": test_df["molecule_name"],
+            "pEC50": test_preds,
+        }
+    )
     sub_path = SUBMISSION_DIR.joinpath(f"{name}.csv")
     submission.to_csv(sub_path, index=False)
 
@@ -159,8 +168,12 @@ def main():
 
     # Scaffold split
     print("Computing scaffold splits...")
-    scaffold_splits = scaffold_split_indices(train_df["smiles"].tolist(), n_splits=5, seed=42)
-    random_splits = list(KFold(n_splits=5, shuffle=True, random_state=42).split(y_train))
+    scaffold_splits = scaffold_split_indices(
+        train_df["smiles"].tolist(), n_splits=5, seed=42
+    )
+    random_splits = list(
+        KFold(n_splits=5, shuffle=True, random_state=42).split(y_train)
+    )
 
     # Define feature configurations to test
     configs = {
@@ -177,8 +190,6 @@ def main():
     }
 
     # Also load mordred+morgan
-    from mordred import Calculator, descriptors as mordred_descs
-
     print("Computing Mordred descriptors...")
     calc = Calculator(mordred_descs, ignore_3D=True)
     train_mordred_df = calc.pandas(train_mols, quiet=True)
@@ -214,7 +225,10 @@ def main():
         name = f"scaffold_{config_name}"
         m, oof = run_cv(
             name,
-            config["X_train"], y_train, config["X_test"], test_df,
+            config["X_train"],
+            y_train,
+            config["X_test"],
+            test_df,
             config["feature_set"],
             f"LightGBM {config_name} (scaffold split CV)",
             scaffold_splits,
@@ -225,7 +239,10 @@ def main():
         name = f"random_{config_name}"
         m, oof = run_cv(
             name,
-            config["X_train"], y_train, config["X_test"], test_df,
+            config["X_train"],
+            y_train,
+            config["X_test"],
+            test_df,
             config["feature_set"],
             f"LightGBM {config_name} (random split CV)",
             random_splits,
@@ -241,9 +258,15 @@ def main():
         r = results[f"random_{config_name}"]
         delta = s["RAE"] - r["RAE"]
         print(f"\n  {config_name}:")
-        print(f"    Random:   RAE={r['RAE']:.4f}  R2={r['R2']:.4f}  Spearman={r['Spearman_R']:.4f}")
-        print(f"    Scaffold: RAE={s['RAE']:.4f}  R2={s['R2']:.4f}  Spearman={s['Spearman_R']:.4f}")
-        print(f"    Delta:    RAE={delta:+.4f} ({'worse' if delta > 0 else 'better'} with scaffold)")
+        print(
+            f"    Random:   RAE={r['RAE']:.4f}  R2={r['R2']:.4f}  Spearman={r['Spearman_R']:.4f}"
+        )
+        print(
+            f"    Scaffold: RAE={s['RAE']:.4f}  R2={s['R2']:.4f}  Spearman={s['Spearman_R']:.4f}"
+        )
+        print(
+            f"    Delta:    RAE={delta:+.4f} ({'worse' if delta > 0 else 'better'} with scaffold)"
+        )
 
 
 if __name__ == "__main__":

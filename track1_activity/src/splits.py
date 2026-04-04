@@ -3,11 +3,8 @@
 from collections import defaultdict
 
 import numpy as np
-import psycopg2
 from rdkit import Chem
 from rdkit.Chem.Scaffolds import MurckoScaffold
-
-from data import DB_PARAMS
 
 
 def get_murcko_scaffold(smiles: str) -> str:
@@ -16,9 +13,7 @@ def get_murcko_scaffold(smiles: str) -> str:
     if mol is None:
         return ""
     try:
-        scaffold = MurckoScaffold.MurckoScaffoldSmiles(
-            mol=mol, includeChirality=False
-        )
+        scaffold = MurckoScaffold.MurckoScaffoldSmiles(mol=mol, includeChirality=False)
         return scaffold
     except Exception:
         return ""
@@ -72,19 +67,3 @@ def scaffold_split_indices(
         splits.append((train_idx, val_idx))
 
     return splits
-
-
-def load_train_scaffolds() -> list[str]:
-    """Load Murcko scaffolds for train compounds from DB."""
-    conn = psycopg2.connect(**DB_PARAMS)
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT d.murcko_scaffold
-        FROM train_activity t
-        JOIN compound_descriptors d ON d.compound_id = t.compound_id
-        ORDER BY t.id
-    """)
-    scaffolds = [r[0] or "" for r in cur.fetchall()]
-    cur.close()
-    conn.close()
-    return scaffolds
