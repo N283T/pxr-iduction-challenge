@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# pixi
+.pixi/*
+!.pixi/config.toml
+
+# PostgreSQL data (local only, re-creatable from db/*.sql + data/)
+db/pgdata/
+
+# Data files (re-downloadable via download_data.py)
+data/*.parquet
+
+# Marimo session state
+__marimo__/
+
+# Ruff cache
+.ruff_cache/
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
