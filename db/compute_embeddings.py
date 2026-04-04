@@ -54,20 +54,22 @@ MODELS = {
         "table": "compound_chemberta_5m_mtr",
         "batch_size": 128,
     },
-    # MoLFormer models require transformers.onnx (removed in transformers>=5)
+    # --- Non-DeepChem models ---
+    "chemberta-zinc-v1": {
+        "hf_id": "seyonec/ChemBERTa-zinc-base-v1",
+        "table": "compound_chemberta_zinc_v1",
+        "batch_size": 128,
+    },
+    "bert-base-smiles": {
+        "hf_id": "unikei/bert-base-smiles",
+        "table": "compound_bert_smiles",
+        "batch_size": 64,
+    },
+    # MoLFormer / IBM models require transformers.onnx (removed in transformers>=5)
     # Disabled until upstream compatibility is fixed
-    # "molformer-1.1b": {
-    #     "hf_id": "DeepChem/MoLFormer-c3-1.1B",
-    #     "table": "compound_molformer_1b",
-    #     "batch_size": 16,
-    #     "trust_remote_code": True,
-    # },
-    # "molformer-100m": {
-    #     "hf_id": "DeepChem/MoLFormer-c3-100M",
-    #     "table": "compound_molformer_100m",
-    #     "batch_size": 64,
-    #     "trust_remote_code": True,
-    # },
+    # "molformer-xl": {"hf_id": "ibm-research/MoLFormer-XL-both-10pct", ...},
+    # "gp-molformer": {"hf_id": "ibm-research/GP-MoLFormer-Uniq", ...},
+    # "biomed-sm-84m": {"hf_id": "ibm-research/biomed.sm.mv-te-84m", ...},
 }
 
 
