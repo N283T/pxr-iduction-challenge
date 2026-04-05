@@ -26,7 +26,8 @@ def morgan_fp_r3(mols: list, n_bits: int = 2048) -> np.ndarray:
 def feat_morgan_fp(mols: list, radius: int = 2, n_bits: int = 2048) -> np.ndarray:
     """Feature Morgan (FCFP) fingerprint."""
     gen = rdFingerprintGenerator.GetMorganGenerator(
-        radius=radius, fpSize=n_bits,
+        radius=radius,
+        fpSize=n_bits,
         atomInvariantsGenerator=rdFingerprintGenerator.GetMorganFeatureAtomInvGen(),
     )
     return np.array([gen.GetFingerprintAsNumPy(m) for m in mols], dtype=np.uint8)
@@ -34,9 +35,7 @@ def feat_morgan_fp(mols: list, radius: int = 2, n_bits: int = 2048) -> np.ndarra
 
 def maccs_fp(mols: list) -> np.ndarray:
     """MACCS keys (167 bits)."""
-    return np.array(
-        [np.array(MACCSkeys.GenMACCSKeys(m), dtype=np.uint8) for m in mols]
-    )
+    return np.array([np.array(MACCSkeys.GenMACCSKeys(m), dtype=np.uint8) for m in mols])
 
 
 def atompair_fp(mols: list, n_bits: int = 2048) -> np.ndarray:
@@ -60,8 +59,29 @@ def rdkit_fp(mols: list, n_bits: int = 2048) -> np.ndarray:
 def avalon_fp(mols: list, n_bits: int = 2048) -> np.ndarray:
     """Avalon fingerprint."""
     return np.array(
-        [np.array(pyAvalonTools.GetAvalonFP(m, nBits=n_bits), dtype=np.uint8) for m in mols]
+        [
+            np.array(pyAvalonTools.GetAvalonFP(m, nBits=n_bits), dtype=np.uint8)
+            for m in mols
+        ]
     )
+
+
+def count_morgan_fp(mols: list, radius: int = 2, n_bits: int = 2048) -> np.ndarray:
+    """Count-based Morgan fingerprint."""
+    gen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=n_bits)
+    return np.array([gen.GetCountFingerprintAsNumPy(m) for m in mols], dtype=np.float32)
+
+
+def count_atompair_fp(mols: list, n_bits: int = 2048) -> np.ndarray:
+    """Count-based Atom pair fingerprint."""
+    gen = rdFingerprintGenerator.GetAtomPairGenerator(fpSize=n_bits)
+    return np.array([gen.GetCountFingerprintAsNumPy(m) for m in mols], dtype=np.float32)
+
+
+def count_rdkit_fp(mols: list, n_bits: int = 2048) -> np.ndarray:
+    """Count-based RDKit fingerprint."""
+    gen = rdFingerprintGenerator.GetRDKitFPGenerator(fpSize=n_bits)
+    return np.array([gen.GetCountFingerprintAsNumPy(m) for m in mols], dtype=np.float32)
 
 
 # Registry for easy iteration
@@ -74,4 +94,8 @@ FP_REGISTRY = {
     "topo_torsion_2048": lambda mols: topological_torsion_fp(mols, n_bits=2048),
     "rdkit_fp_2048": lambda mols: rdkit_fp(mols, n_bits=2048),
     "avalon_2048": lambda mols: avalon_fp(mols, n_bits=2048),
+    "count_morgan_r2_2048": lambda mols: count_morgan_fp(mols, radius=2, n_bits=2048),
+    "count_morgan_r3_2048": lambda mols: count_morgan_fp(mols, radius=3, n_bits=2048),
+    "count_atompair_2048": lambda mols: count_atompair_fp(mols, n_bits=2048),
+    "count_rdkit_fp_2048": lambda mols: count_rdkit_fp(mols, n_bits=2048),
 }

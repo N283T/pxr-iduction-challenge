@@ -1,0 +1,441 @@
+#!/usr/bin/env -S pixi run python
+"""Unified training script for single model+feature experiments.
+
+Usage:
+    pixi run python run_train.py --model lgbm --feature mordred
+    pixi run python run_train.py --model xgboost --feature morgan_r2_2048 --split umap
+    pixi run python run_train.py --model catboost --feature count_morgan_r2_2048 --trials 0
+
+Key changes from legacy scripts:
+- No inner CV: Optuna tunes directly on outer fold's val set
+- No final re-tuning: reuses median best params from CV folds
+- Unified model/feature/split selection via CLI args
+"""
+
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.joinpath("src")))
+
+import numpy as np
+import pandas as pd
+import psycopg2
+
+from data import (
+    DB_PARAMS,
+    DESCRIPTOR_COLS,
+    get_conn,
+    load_mordred,
+    load_test_descriptors,
+    load_test_smiles,
+    load_train_descriptors,
+    load_train_mordred,
+    load_train_smiles_target,
+)
+from evaluate import (
+    compute_metrics,
+    print_fold_summary,
+    print_metrics,
+    record_experiment,
+    save_oof_predictions,
+)
+from features import FP_REGISTRY, smiles_to_mols
+from splits import scaffold_split_indices, umap_split_indices
+
+SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
+
+# Embedding tables in DB
+EMBEDDING_TABLES = {
+    "chemeleon": "compound_chemeleon",
+    "chemberta_77m_mlm": "compound_chemberta",
+    "chemberta_77m_mtr": "compound_chemberta_mtr",
+    "chemberta_100m_mlm": "compound_chemberta_100m",
+    "chemberta_10m_mlm": "compound_chemberta_10m",
+    "chemberta_5m_mtr": "compound_chemberta_5m_mtr",
+    "chemberta_zinc_v1": "compound_chemberta_zinc_v1",
+    "bert_base_smiles": "compound_bert_smiles",
+}
+
+# Default hyperparams per model type (used when --trials 0)
+DEFAULT_PARAMS = {
+    "lgbm": {
+        "objective": "regression",
+        "metric": "mae",
+        "boosting_type": "gbdt",
+        "verbose": -1,
+        "seed": 42,
+        "num_leaves": 63,
+        "learning_rate": 0.02,
+        "feature_fraction": 0.7,
+        "bagging_fraction": 0.8,
+        "bagging_freq": 5,
+        "min_child_samples": 20,
+        "lambda_l1": 0.01,
+        "lambda_l2": 1.0,
+    },
+    "xgboost": {
+        "objective": "reg:absoluteerror",
+        "eval_metric": "mae",
+        "tree_method": "hist",
+        "seed": 42,
+        "verbosity": 0,
+        "max_depth": 6,
+        "learning_rate": 0.02,
+        "subsample": 0.8,
+        "colsample_bytree": 0.7,
+        "min_child_weight": 10,
+        "reg_alpha": 0.01,
+        "reg_lambda": 1.0,
+        "gamma": 0.01,
+    },
+    "catboost": {
+        "iterations": 2000,
+        "loss_function": "MAE",
+        "eval_metric": "MAE",
+        "verbose": 0,
+        "random_seed": 42,
+        "allow_writing_files": False,
+        "depth": 6,
+        "learning_rate": 0.03,
+        "l2_leaf_reg": 3.0,
+        "bagging_temperature": 0.5,
+        "random_strength": 1.0,
+        "border_count": 128,
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# Feature loading
+# ---------------------------------------------------------------------------
+
+
+def load_compound_ids(split: str) -> list[int]:
+    conn = get_conn()
+    cur = conn.cursor()
+    table = "train_activity" if split == "train" else "test_activity"
+    cur.execute(f"SELECT compound_id FROM {table} ORDER BY id")
+    ids = [r[0] for r in cur.fetchall()]
+    cur.close()
+    conn.close()
+    return ids
+
+
+def load_embeddings(table: str, compound_ids: list[int]) -> np.ndarray:
+    conn = psycopg2.connect(**DB_PARAMS)
+    cur = conn.cursor()
+    ph = ",".join(["%s"] * len(compound_ids))
+    cur.execute(
+        f"SELECT compound_id, embedding FROM {table} WHERE compound_id IN ({ph})",
+        compound_ids,
+    )
+    rows = {cid: emb for cid, emb in cur.fetchall()}
+    cur.close()
+    conn.close()
+    return np.array([rows[cid] for cid in compound_ids])
+
+
+def load_features(feature_name: str, train_df, test_df):
+    """Load feature matrices for train and test."""
+    train_ids = load_compound_ids("train")
+    test_ids = load_compound_ids("test")
+
+    if feature_name == "rdkit_desc":
+        train_desc = load_train_descriptors()
+        test_desc = load_test_descriptors()
+        return train_desc[DESCRIPTOR_COLS].values, test_desc[DESCRIPTOR_COLS].values
+
+    if feature_name == "mordred":
+        mordred_train, _ = load_train_mordred()
+        mordred_test = load_mordred(test_ids)
+        common_cols = mordred_train.columns.intersection(mordred_test.columns)
+        X_train = mordred_train.loc[train_ids, common_cols].values.astype(np.float32)
+        X_test = mordred_test.loc[test_ids, common_cols].values.astype(np.float32)
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        return X_train, X_test
+
+    if feature_name in EMBEDDING_TABLES:
+        table = EMBEDDING_TABLES[feature_name]
+        return load_embeddings(table, train_ids), load_embeddings(table, test_ids)
+
+    if feature_name in FP_REGISTRY:
+        train_mols = smiles_to_mols(train_df["smiles"])
+        test_mols = smiles_to_mols(test_df["smiles"])
+        return (
+            FP_REGISTRY[feature_name](train_mols).astype(np.float32),
+            FP_REGISTRY[feature_name](test_mols).astype(np.float32),
+        )
+
+    raise ValueError(
+        f"Unknown feature: {feature_name}. "
+        f"Available: rdkit_desc, mordred, {list(EMBEDDING_TABLES)}, {list(FP_REGISTRY)}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Optuna search spaces
+# ---------------------------------------------------------------------------
+
+
+def optuna_search_space(model_type: str, trial):
+    """Generate hyperparameter candidates for Optuna trial."""
+    if model_type == "lgbm":
+        return {
+            "objective": "regression",
+            "metric": "mae",
+            "boosting_type": "gbdt",
+            "verbose": -1,
+            "seed": 42,
+            "num_leaves": trial.suggest_int("num_leaves", 15, 127),
+            "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+            "feature_fraction": trial.suggest_float("feature_fraction", 0.4, 1.0),
+            "bagging_fraction": trial.suggest_float("bagging_fraction", 0.4, 1.0),
+            "bagging_freq": trial.suggest_int("bagging_freq", 1, 10),
+            "min_child_samples": trial.suggest_int("min_child_samples", 5, 100),
+            "lambda_l1": trial.suggest_float("lambda_l1", 1e-8, 10.0, log=True),
+            "lambda_l2": trial.suggest_float("lambda_l2", 1e-8, 10.0, log=True),
+        }
+    if model_type == "xgboost":
+        return {
+            "objective": "reg:absoluteerror",
+            "eval_metric": "mae",
+            "tree_method": "hist",
+            "seed": 42,
+            "verbosity": 0,
+            "max_depth": trial.suggest_int("max_depth", 4, 10),
+            "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+            "subsample": trial.suggest_float("subsample", 0.5, 1.0),
+            "colsample_bytree": trial.suggest_float("colsample_bytree", 0.4, 1.0),
+            "min_child_weight": trial.suggest_int("min_child_weight", 1, 50),
+            "reg_alpha": trial.suggest_float("reg_alpha", 1e-8, 10.0, log=True),
+            "reg_lambda": trial.suggest_float("reg_lambda", 1e-8, 10.0, log=True),
+            "gamma": trial.suggest_float("gamma", 1e-8, 5.0, log=True),
+        }
+    if model_type == "catboost":
+        return {
+            "iterations": 2000,
+            "loss_function": "MAE",
+            "eval_metric": "MAE",
+            "verbose": 0,
+            "random_seed": 42,
+            "allow_writing_files": False,
+            "depth": trial.suggest_int("depth", 4, 10),
+            "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+            "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 1e-3, 10.0, log=True),
+            "bagging_temperature": trial.suggest_float("bagging_temperature", 0.0, 1.0),
+            "random_strength": trial.suggest_float("random_strength", 1e-3, 10.0, log=True),
+            "border_count": trial.suggest_int("border_count", 32, 255),
+        }
+    raise ValueError(f"Unknown model: {model_type}")
+
+
+# ---------------------------------------------------------------------------
+# Model training
+# ---------------------------------------------------------------------------
+
+
+def train_predict(model_type: str, params: dict, X_tr, y_tr, X_va, y_va):
+    """Train a model and return (val_preds, best_iteration)."""
+    if model_type == "lgbm":
+        import lightgbm as lgb
+
+        dt = lgb.Dataset(X_tr, label=y_tr)
+        dv = lgb.Dataset(X_va, label=y_va, reference=dt)
+        model = lgb.train(
+            params, dt, num_boost_round=2000, valid_sets=[dv],
+            callbacks=[lgb.early_stopping(50), lgb.log_evaluation(0)],
+        )
+        return model.predict(X_va), model.best_iteration, model
+
+    if model_type == "xgboost":
+        import xgboost as xgb
+
+        dtrain = xgb.DMatrix(X_tr, label=y_tr)
+        dval = xgb.DMatrix(X_va, label=y_va)
+        model = xgb.train(
+            params, dtrain, num_boost_round=2000,
+            evals=[(dval, "val")], early_stopping_rounds=50, verbose_eval=False,
+        )
+        return model.predict(dval), model.best_iteration, model
+
+    if model_type == "catboost":
+        import catboost as cb
+
+        model = cb.CatBoostRegressor(**params)
+        model.fit(
+            cb.Pool(X_tr, label=y_tr), eval_set=cb.Pool(X_va, label=y_va),
+            early_stopping_rounds=50,
+        )
+        return model.predict(X_va), model.best_iteration_, model
+
+    raise ValueError(f"Unknown model: {model_type}")
+
+
+def train_final(model_type: str, params: dict, X_train, y_train, num_rounds: int):
+    """Train final model on all training data."""
+    if model_type == "lgbm":
+        import lightgbm as lgb
+
+        return lgb.train(params, lgb.Dataset(X_train, label=y_train), num_boost_round=num_rounds)
+
+    if model_type == "xgboost":
+        import xgboost as xgb
+
+        return xgb.train(params, xgb.DMatrix(X_train, label=y_train), num_boost_round=num_rounds)
+
+    if model_type == "catboost":
+        import catboost as cb
+
+        p = {**params, "iterations": num_rounds}
+        model = cb.CatBoostRegressor(**p)
+        model.fit(cb.Pool(X_train, label=y_train))
+        return model
+
+    raise ValueError(f"Unknown model: {model_type}")
+
+
+def predict_final(model_type: str, model, X_test):
+    """Predict with final model."""
+    if model_type == "xgboost":
+        import xgboost as xgb
+
+        return model.predict(xgb.DMatrix(X_test))
+    return model.predict(X_test)
+
+
+# ---------------------------------------------------------------------------
+# Main training loop
+# ---------------------------------------------------------------------------
+
+
+def run(args):
+    import optuna
+
+    optuna.logging.set_verbosity(optuna.logging.WARNING)
+
+    print(f"Model: {args.model}, Feature: {args.feature}, Split: {args.split}, Trials: {args.trials}")
+
+    # Load data
+    print("Loading data...")
+    train_df = load_train_smiles_target()
+    test_df = load_test_smiles()
+    y_train = train_df["pec50"].values
+
+    X_train, X_test = load_features(args.feature, train_df, test_df)
+    print(f"  X_train: {X_train.shape}, X_test: {X_test.shape}")
+
+    # CV splits
+    smiles_list = train_df["smiles"].tolist()
+    if args.split == "scaffold":
+        outer_splits = scaffold_split_indices(smiles_list, n_splits=5, seed=42)
+    elif args.split == "umap":
+        outer_splits = umap_split_indices(smiles_list, n_splits=5, n_clusters=50, seed=42)
+    else:
+        raise ValueError(f"Unknown split: {args.split}")
+
+    # Experiment name
+    exp_name = f"{args.model}_{args.feature}_{args.split}"
+    if args.trials == 0:
+        exp_name += "_default"
+    print(f"  Experiment: {exp_name}")
+
+    # Training loop
+    oof_preds = np.zeros(len(y_train))
+    fold_metrics = []
+    fold_best_params = []
+    num_boost_rounds = []
+
+    for fold, (tr_idx, va_idx) in enumerate(outer_splits):
+        X_tr, X_va = X_train[tr_idx], X_train[va_idx]
+        y_tr, y_va = y_train[tr_idx], y_train[va_idx]
+
+        if args.trials > 0:
+            # Optuna tuning directly on outer fold val (no inner CV)
+            print(f"  [Fold {fold}] Tuning ({args.trials} trials)...")
+
+            def objective(trial):
+                params = optuna_search_space(args.model, trial)
+                preds, _, _ = train_predict(args.model, params, X_tr, y_tr, X_va, y_va)
+                return np.mean(np.abs(y_va - preds))
+
+            study = optuna.create_study(direction="minimize")
+            study.optimize(objective, n_trials=args.trials)
+            best_params = optuna_search_space(args.model, study.best_trial)
+        else:
+            print(f"  [Fold {fold}] Using default params...")
+            best_params = DEFAULT_PARAMS[args.model].copy()
+
+        fold_best_params.append(best_params)
+
+        # Train with best params
+        vp, best_iter, _ = train_predict(args.model, best_params, X_tr, y_tr, X_va, y_va)
+        oof_preds[va_idx] = vp
+        metrics = compute_metrics(y_va, vp)
+        fold_metrics.append(metrics)
+        num_boost_rounds.append(best_iter)
+        print_metrics(metrics, label=f"Fold {fold}")
+
+    # OOF summary
+    oof_metrics = compute_metrics(y_train, oof_preds)
+    print("\n  Overall OOF:")
+    print_metrics(oof_metrics)
+    print_fold_summary(fold_metrics)
+
+    # Final model: use median best_iteration, first fold's best_params
+    # (params don't vary much across folds)
+    avg_rounds = int(np.median(num_boost_rounds))
+    final_params = fold_best_params[0]
+    print(f"\n  Final model: {avg_rounds} rounds")
+
+    final_model = train_final(args.model, final_params, X_train, y_train, avg_rounds)
+    test_preds = predict_final(args.model, final_model, X_test)
+    print(f"  Test preds: mean={test_preds.mean():.3f}, std={test_preds.std():.3f}")
+
+    # Save submission
+    sub = pd.DataFrame({
+        "SMILES": test_df["smiles"],
+        "Molecule Name": test_df["molecule_name"],
+        "pEC50": test_preds,
+    })
+    sub_path = SUBMISSION_DIR.joinpath(f"{exp_name}.csv")
+    sub.to_csv(sub_path, index=False)
+
+    # Record to DB
+    exp_id = record_experiment(
+        name=exp_name,
+        description=f"{args.model} + {args.feature} ({args.split} split)",
+        model_type=args.model,
+        feature_set=args.feature,
+        hyperparameters=final_params,
+        fold_metrics=fold_metrics,
+        submission_path=f"track1_activity/submissions/{exp_name}.csv",
+        num_boost_rounds=num_boost_rounds,
+        notes=f"OOF RAE={oof_metrics['RAE']:.4f}, {args.split}_split, {args.trials}trials",
+    )
+    save_oof_predictions(exp_id, oof_preds)
+
+    print(f"\n  Done: {exp_name} -> RAE={oof_metrics['RAE']:.4f}")
+    return oof_metrics
+
+
+def main():
+    all_features = (
+        ["rdkit_desc", "mordred"]
+        + list(FP_REGISTRY.keys())
+        + list(EMBEDDING_TABLES.keys())
+    )
+
+    parser = argparse.ArgumentParser(description="Unified model training")
+    parser.add_argument("--model", choices=["lgbm", "xgboost", "catboost"], required=True)
+    parser.add_argument("--feature", choices=all_features, required=True)
+    parser.add_argument("--split", choices=["scaffold", "umap"], default="scaffold")
+    parser.add_argument("--trials", type=int, default=20, help="Optuna trials (0=default params)")
+    args = parser.parse_args()
+
+    run(args)
+
+
+if __name__ == "__main__":
+    main()
