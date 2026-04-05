@@ -109,6 +109,110 @@ Higher lipophilicity and larger molecular size are moderately correlated with hi
 - 2,392 SMILES overlap with train; 0 overlap with test
 - **Use case**: Additional training signal for compounds not in the dose-response train set (8,483 SMILES unique to single-conc). Could be used for pretraining or as weak labels.
 
+## Chemical Space Analysis (2026-04-05)
+
+### Nearest Neighbor Similarity (Sheridan Metric)
+
+5-NN Tanimoto similarity (Morgan r=2, 2048 bits):
+
+| Comparison | Mean | Std | Min | Median | Max |
+|-----------|------|-----|-----|--------|-----|
+| Test→Train | 0.389 | 0.045 | 0.282 | 0.385 | 0.543 |
+| Train→Train | 0.345 | 0.063 | 0.119 | 0.337 | 0.715 |
+
+**Key finding**: Test compounds are *more* similar to train than train is to itself (gap = -0.043). Chemical space shift is NOT the cause of the OOF-LB performance gap.
+
+Test compounds with low NN similarity to train:
+- < 0.3: 1.2% (6/513) — very few true outliers
+- < 0.4: 63.5% — but train itself has even lower internal similarity
+
+### Murcko Scaffold Analysis
+
+| Set | Unique Scaffolds | Compounds | Singleton % |
+|-----|-----------------|-----------|-------------|
+| Train | 3,671 | 4,140 | 96.0% |
+| Test | 369 | 513 | 83.5% |
+
+- Scaffold overlap (train ∩ test): 35 scaffolds
+- Test with train scaffold: 97/513 (18.9%)
+- Test with novel scaffold: 416/513 (81.1%)
+- **96% singleton scaffolds → scaffold split ≈ random split** (confirmed by CV comparison below)
+
+### Butina Clustering (Train + Test)
+
+| Cutoff | Clusters | Singletons | Test-only clusters | Test in test-only |
+|--------|----------|------------|-------------------|-------------------|
+| 0.3 | 4,528 | 98% | 424 | 96.9% |
+| 0.4 | 4,287 | 96% | 262 | 77.8% |
+| 0.5 | 3,793 | 91% | 74 | 22.4% |
+
+At Tanimoto distance cutoff 0.5, most test compounds cluster with train compounds. The dataset has overall low pairwise similarity.
+
+### CV Split Strategy Comparison
+
+LightGBM (Mordred features, fixed hyperparams) across split strategies:
+
+| Strategy | OOF RAE | LB Gap | Fold RAE Std | 5-NN Sim |
+|----------|---------|--------|-------------|----------|
+| Random | 0.5608 | +0.059 | 0.015 | 0.335 |
+| Murcko Scaffold | 0.5615 | +0.058 | 0.034 | 0.330 |
+| Butina 0.4 | 0.5604 | +0.060 | 0.011 | 0.332 |
+| Butina 0.5 | 0.5675 | +0.053 | 0.011 | 0.326 |
+| Butina 0.6 | 0.5660 | +0.054 | 0.026 | 0.317 |
+| Butina 0.7 | 0.5671 | +0.053 | 0.014 | 0.316 |
+| **UMAP 50 clusters** | **0.5804** | **+0.040** | 0.040 | **0.298** |
+| **UMAP 100 clusters** | **0.5752** | **+0.045** | 0.027 | **0.301** |
+
+- UMAP split is the strictest (lowest train-val NN similarity) and gives the closest OOF RAE to LB
+- UMAP 50 clusters (RAE=0.580, gap=0.040) narrows the LB gap by 1/3 vs random/scaffold (~0.059)
+- However, UMAP split has high fold variance (std=0.040) — less stable estimates
+- **Conclusion**: Split strategy accounts for ~0.02 of the 0.06 LB gap. The remaining ~0.04 gap is likely due to ensemble weight overfitting (single model OOF RAE 0.56 → ensemble OOF RAE 0.539) and test distribution differences
+
+### OOF Error Analysis (single_mordred, best single model)
+
+- **NN similarity vs |error|**: Spearman r = -0.027 (p=0.08) — no relationship
+- **Error by pEC50 range**:
+
+| pEC50 Range | n | MAE | RAE |
+|------------|---|-----|-----|
+| [1, 3) | 695 | 0.853 | 0.425 |
+| [3, 4) | 551 | 0.522 | 0.648 |
+| [4, 5) | 1,558 | 0.353 | 1.082 |
+| [5, 6) | 1,269 | 0.465 | 0.459 |
+| [6, 8) | 67 | 1.362 | 0.691 |
+
+- High-activity (pEC50 > 6) and low-activity (pEC50 < 3) compounds have the worst MAE
+- Regression to the mean is the dominant error pattern
+- The [4, 5) bin has low MAE but RAE > 1 due to narrow spread around the global mean
+
+### UMAP Chemical Space Projection
+
+Morgan FP (r=2, 2048 bits) + UMAP (Jaccard metric, n_neighbors=30):
+
+- Test compounds are distributed throughout train chemical space — no isolated test-only regions
+- **However, test is spatially biased**: under-represented in the bottom-left (low-activity) region
+
+| UMAP Quadrant | Train % | Test % | Train mean pEC50 |
+|--------------|---------|--------|-----------------|
+| Bottom-Left (low activity) | 29.6% | **10.3%** | 3.96 |
+| Bottom-Right | 20.6% | **38.0%** | 4.61 |
+| Top-Left | 23.0% | 18.7% | 4.26 |
+| Top-Right | 26.8% | **32.9%** | 4.55 |
+
+- 42% of low-activity compounds (pEC50 < 3) cluster in the bottom-left
+- Test has 3× fewer compounds in this region (10% vs 30%)
+- Test is enriched in right-side (medium-to-high activity) regions (71% vs 47%)
+- This spatial bias may affect how train errors translate to LB performance
+
+Figures: `docs/figures/umap_train_test.png`, `docs/figures/umap_pec50_test_overlay.png`
+
+### Implications for Improvement
+
+1. **Ensemble optimization**: Must be regularized — current full-OOF weight optimization overfits by ~0.02 RAE
+2. **Model diversity**: More important than split strategy. Different models may excel in different pEC50 ranges
+3. **Extreme value prediction**: Improving high/low pEC50 accuracy is the highest-leverage opportunity
+4. **Additional data**: Counter-assay and single-conc data may help with extreme value prediction (issue #21)
+
 ## Potential Modeling Approaches
 
 ### Baseline
