@@ -44,6 +44,7 @@ from features import FP_REGISTRY, smiles_to_mols
 from splits import scaffold_split_indices, umap_split_indices
 
 SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
+SUBMISSION_DIR.mkdir(parents=True, exist_ok=True)
 
 # Embedding tables in DB
 EMBEDDING_TABLES = {
@@ -133,6 +134,12 @@ def load_embeddings(table: str, compound_ids: list[int]) -> np.ndarray:
     rows = {cid: emb for cid, emb in cur.fetchall()}
     cur.close()
     conn.close()
+    missing = set(compound_ids) - set(rows)
+    if missing:
+        raise ValueError(
+            f"Embeddings missing for {len(missing)} compounds in {table}: "
+            f"{sorted(missing)[:5]}..."
+        )
     return np.array([rows[cid] for cid in compound_ids])
 
 
@@ -149,6 +156,14 @@ def load_features(feature_name: str, train_df, test_df):
     if feature_name == "mordred":
         mordred_train, _ = load_train_mordred()
         mordred_test = load_mordred(test_ids)
+        missing_train = set(train_ids) - set(mordred_train.index)
+        missing_test = set(test_ids) - set(mordred_test.index)
+        if missing_train:
+            raise ValueError(
+                f"Mordred missing for {len(missing_train)} train compounds"
+            )
+        if missing_test:
+            raise ValueError(f"Mordred missing for {len(missing_test)} test compounds")
         common_cols = mordred_train.columns.intersection(mordred_test.columns)
         X_train = mordred_train.loc[train_ids, common_cols].values.astype(np.float32)
         X_test = mordred_test.loc[test_ids, common_cols].values.astype(np.float32)
@@ -225,7 +240,9 @@ def optuna_search_space(model_type: str, trial):
             "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
             "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 1e-3, 10.0, log=True),
             "bagging_temperature": trial.suggest_float("bagging_temperature", 0.0, 1.0),
-            "random_strength": trial.suggest_float("random_strength", 1e-3, 10.0, log=True),
+            "random_strength": trial.suggest_float(
+                "random_strength", 1e-3, 10.0, log=True
+            ),
             "border_count": trial.suggest_int("border_count", 32, 255),
         }
     raise ValueError(f"Unknown model: {model_type}")
@@ -244,7 +261,10 @@ def train_predict(model_type: str, params: dict, X_tr, y_tr, X_va, y_va):
         dt = lgb.Dataset(X_tr, label=y_tr)
         dv = lgb.Dataset(X_va, label=y_va, reference=dt)
         model = lgb.train(
-            params, dt, num_boost_round=2000, valid_sets=[dv],
+            params,
+            dt,
+            num_boost_round=2000,
+            valid_sets=[dv],
             callbacks=[lgb.early_stopping(50), lgb.log_evaluation(0)],
         )
         return model.predict(X_va), model.best_iteration, model
@@ -255,8 +275,12 @@ def train_predict(model_type: str, params: dict, X_tr, y_tr, X_va, y_va):
         dtrain = xgb.DMatrix(X_tr, label=y_tr)
         dval = xgb.DMatrix(X_va, label=y_va)
         model = xgb.train(
-            params, dtrain, num_boost_round=2000,
-            evals=[(dval, "val")], early_stopping_rounds=50, verbose_eval=False,
+            params,
+            dtrain,
+            num_boost_round=2000,
+            evals=[(dval, "val")],
+            early_stopping_rounds=50,
+            verbose_eval=False,
         )
         return model.predict(dval), model.best_iteration, model
 
@@ -265,7 +289,8 @@ def train_predict(model_type: str, params: dict, X_tr, y_tr, X_va, y_va):
 
         model = cb.CatBoostRegressor(**params)
         model.fit(
-            cb.Pool(X_tr, label=y_tr), eval_set=cb.Pool(X_va, label=y_va),
+            cb.Pool(X_tr, label=y_tr),
+            eval_set=cb.Pool(X_va, label=y_va),
             early_stopping_rounds=50,
         )
         return model.predict(X_va), model.best_iteration_, model
@@ -278,12 +303,16 @@ def train_final(model_type: str, params: dict, X_train, y_train, num_rounds: int
     if model_type == "lgbm":
         import lightgbm as lgb
 
-        return lgb.train(params, lgb.Dataset(X_train, label=y_train), num_boost_round=num_rounds)
+        return lgb.train(
+            params, lgb.Dataset(X_train, label=y_train), num_boost_round=num_rounds
+        )
 
     if model_type == "xgboost":
         import xgboost as xgb
 
-        return xgb.train(params, xgb.DMatrix(X_train, label=y_train), num_boost_round=num_rounds)
+        return xgb.train(
+            params, xgb.DMatrix(X_train, label=y_train), num_boost_round=num_rounds
+        )
 
     if model_type == "catboost":
         import catboost as cb
@@ -315,7 +344,9 @@ def run(args):
 
     optuna.logging.set_verbosity(optuna.logging.WARNING)
 
-    print(f"Model: {args.model}, Feature: {args.feature}, Split: {args.split}, Trials: {args.trials}")
+    print(
+        f"Model: {args.model}, Feature: {args.feature}, Split: {args.split}, Trials: {args.trials}"
+    )
 
     # Load data
     print("Loading data...")
@@ -331,7 +362,9 @@ def run(args):
     if args.split == "scaffold":
         outer_splits = scaffold_split_indices(smiles_list, n_splits=5, seed=42)
     elif args.split == "umap":
-        outer_splits = umap_split_indices(smiles_list, n_splits=5, n_clusters=50, seed=42)
+        outer_splits = umap_split_indices(
+            smiles_list, n_splits=5, n_clusters=50, seed=42
+        )
     else:
         raise ValueError(f"Unknown split: {args.split}")
 
@@ -370,7 +403,9 @@ def run(args):
         fold_best_params.append(best_params)
 
         # Train with best params
-        vp, best_iter, _ = train_predict(args.model, best_params, X_tr, y_tr, X_va, y_va)
+        vp, best_iter, _ = train_predict(
+            args.model, best_params, X_tr, y_tr, X_va, y_va
+        )
         oof_preds[va_idx] = vp
         metrics = compute_metrics(y_va, vp)
         fold_metrics.append(metrics)
@@ -383,22 +418,27 @@ def run(args):
     print_metrics(oof_metrics)
     print_fold_summary(fold_metrics)
 
-    # Final model: use median best_iteration, first fold's best_params
-    # (params don't vary much across folds)
+    # Final model: use median best_iteration, best fold's params
     avg_rounds = int(np.median(num_boost_rounds))
-    final_params = fold_best_params[0]
-    print(f"\n  Final model: {avg_rounds} rounds")
+    best_fold = int(np.argmin([m["RAE"] for m in fold_metrics]))
+    final_params = fold_best_params[best_fold]
+    print(
+        f"\n  Final model: {avg_rounds} rounds, params from fold {best_fold} "
+        f"(RAE={fold_metrics[best_fold]['RAE']:.4f})"
+    )
 
     final_model = train_final(args.model, final_params, X_train, y_train, avg_rounds)
     test_preds = predict_final(args.model, final_model, X_test)
     print(f"  Test preds: mean={test_preds.mean():.3f}, std={test_preds.std():.3f}")
 
     # Save submission
-    sub = pd.DataFrame({
-        "SMILES": test_df["smiles"],
-        "Molecule Name": test_df["molecule_name"],
-        "pEC50": test_preds,
-    })
+    sub = pd.DataFrame(
+        {
+            "SMILES": test_df["smiles"],
+            "Molecule Name": test_df["molecule_name"],
+            "pEC50": test_preds,
+        }
+    )
     sub_path = SUBMISSION_DIR.joinpath(f"{exp_name}.csv")
     sub.to_csv(sub_path, index=False)
 
@@ -428,10 +468,14 @@ def main():
     )
 
     parser = argparse.ArgumentParser(description="Unified model training")
-    parser.add_argument("--model", choices=["lgbm", "xgboost", "catboost"], required=True)
+    parser.add_argument(
+        "--model", choices=["lgbm", "xgboost", "catboost"], required=True
+    )
     parser.add_argument("--feature", choices=all_features, required=True)
     parser.add_argument("--split", choices=["scaffold", "umap"], default="scaffold")
-    parser.add_argument("--trials", type=int, default=20, help="Optuna trials (0=default params)")
+    parser.add_argument(
+        "--trials", type=int, default=20, help="Optuna trials (0=default params)"
+    )
     args = parser.parse_args()
 
     run(args)

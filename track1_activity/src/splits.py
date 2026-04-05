@@ -20,56 +20,6 @@ def get_murcko_scaffold(smiles: str) -> str:
         return ""
 
 
-def scaffold_split_indices(
-    smiles_list: list[str],
-    n_splits: int = 5,
-    seed: int = 42,
-) -> list[tuple[np.ndarray, np.ndarray]]:
-    """Generate scaffold-based k-fold split indices.
-
-    Groups compounds by Murcko scaffold, then distributes scaffold groups
-    across folds to ensure no scaffold appears in both train and validation.
-
-    Returns list of (train_indices, val_indices) tuples.
-    """
-    rng = np.random.RandomState(seed)
-
-    # Group indices by scaffold
-    scaffold_to_indices = defaultdict(list)
-    for i, smi in enumerate(smiles_list):
-        scaffold = get_murcko_scaffold(smi)
-        scaffold_to_indices[scaffold].append(i)
-
-    # Sort scaffolds by size (largest first) for balanced distribution
-    scaffold_groups = list(scaffold_to_indices.values())
-    scaffold_groups.sort(key=len, reverse=True)
-
-    # Assign scaffold groups to folds (greedy: assign to smallest fold)
-    fold_indices = [[] for _ in range(n_splits)]
-    fold_sizes = [0] * n_splits
-
-    for group in scaffold_groups:
-        # Find the fold with the fewest samples
-        min_fold = int(np.argmin(fold_sizes))
-        fold_indices[min_fold].extend(group)
-        fold_sizes[min_fold] += len(group)
-
-    # Shuffle within each fold
-    for indices in fold_indices:
-        rng.shuffle(indices)
-
-    # Generate train/val splits
-    splits = []
-    for val_fold in range(n_splits):
-        val_idx = np.array(fold_indices[val_fold])
-        train_idx = np.concatenate(
-            [np.array(fold_indices[i]) for i in range(n_splits) if i != val_fold]
-        )
-        splits.append((train_idx, val_idx))
-
-    return splits
-
-
 def _groups_to_splits(
     groups: list[list[int]],
     n_splits: int,
@@ -100,6 +50,28 @@ def _groups_to_splits(
     return splits
 
 
+def scaffold_split_indices(
+    smiles_list: list[str],
+    n_splits: int = 5,
+    seed: int = 42,
+) -> list[tuple[np.ndarray, np.ndarray]]:
+    """Generate scaffold-based k-fold split indices.
+
+    Groups compounds by Murcko scaffold, then distributes scaffold groups
+    across folds to ensure no scaffold appears in both train and validation.
+
+    Returns list of (train_indices, val_indices) tuples.
+    """
+    rng = np.random.RandomState(seed)
+
+    scaffold_to_indices = defaultdict(list)
+    for i, smi in enumerate(smiles_list):
+        scaffold = get_murcko_scaffold(smi)
+        scaffold_to_indices[scaffold].append(i)
+
+    return _groups_to_splits(list(scaffold_to_indices.values()), n_splits, rng)
+
+
 def umap_split_indices(
     smiles_list: list[str],
     n_splits: int = 5,
@@ -117,8 +89,13 @@ def umap_split_indices(
     rng = np.random.RandomState(seed)
 
     gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+    mols = [Chem.MolFromSmiles(s) for s in smiles_list]
+    invalid = [i for i, m in enumerate(mols) if m is None]
+    if invalid:
+        raise ValueError(f"Invalid SMILES at indices: {invalid[:10]}")
+
     fps = np.array(
-        [gen.GetFingerprintAsNumPy(Chem.MolFromSmiles(s)) for s in smiles_list],
+        [gen.GetFingerprintAsNumPy(m) for m in mols],
         dtype=np.float32,
     )
 

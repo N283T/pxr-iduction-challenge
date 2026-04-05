@@ -21,8 +21,6 @@ from rdkit.Chem.Scaffolds import MurckoScaffold
 from rdkit.ML.Cluster import Butina
 from sklearn.model_selection import KFold
 
-import umap
-
 from data import load_train_smiles_target, load_train_mordred
 from evaluate import compute_metrics, print_metrics
 
