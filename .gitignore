@@ -41,3 +41,4 @@ __marimo__/
 
 # OS
 .DS_Store
+track1_activity/scripts/submit.py
