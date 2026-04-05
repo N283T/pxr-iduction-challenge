@@ -44,7 +44,7 @@ SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 N_OPTUNA_TRIALS = 20
-INNER_CV_FOLDS = 3
+INNER_CV_FOLDS = 2
 
 
 # ---------------------------------------------------------------------------
@@ -439,6 +439,16 @@ def run_tabpfn(X_train, y_train, X_test, test_df, outer_splits):
 
 
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model",
+        choices=["catboost", "xgboost", "tabpfn", "all"],
+        default="all",
+    )
+    args = parser.parse_args()
+
     print("Loading data...")
     X_train, y_train, X_test, train_df, test_df = load_mordred_aligned()
     print(f"  X_train: {X_train.shape}, X_test: {X_test.shape}")
@@ -447,27 +457,26 @@ def main():
         train_df["smiles"].tolist(), n_splits=5, seed=42
     )
 
+    runners = {
+        "catboost": run_catboost,
+        "xgboost": run_xgboost,
+        "tabpfn": run_tabpfn,
+    }
+
+    targets = runners if args.model == "all" else {args.model: runners[args.model]}
     results = {}
-
-    # CatBoost
-    results["catboost"] = run_catboost(X_train, y_train, X_test, test_df, outer_splits)
-
-    # XGBoost
-    results["xgboost"] = run_xgboost(X_train, y_train, X_test, test_df, outer_splits)
-
-    # TabPFN
-    results["tabpfn"] = run_tabpfn(X_train, y_train, X_test, test_df, outer_splits)
+    for name, run_fn in targets.items():
+        results[name] = run_fn(X_train, y_train, X_test, test_df, outer_splits)
 
     # Summary
     print(f"\n{'=' * 60}")
-    print("  NEW MODELS SUMMARY")
+    print("  RESULTS SUMMARY")
     print(f"{'=' * 60}")
     for name, m in sorted(results.items(), key=lambda x: x[1]["RAE"]):
         print(
             f"  {name:<20} RAE={m['RAE']:.4f}  MAE={m['MAE']:.4f}  "
             f"R2={m['R2']:.4f}  Spearman={m['Spearman_R']:.4f}"
         )
-
     print(f"\n  For reference, best existing single model:")
     print(f"  single_mordred (LightGBM): RAE=0.5654")
 
