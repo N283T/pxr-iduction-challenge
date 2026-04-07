@@ -56,6 +56,7 @@ EMBEDDING_TABLES = {
     "chemberta_5m_mtr": "compound_chemberta_5m_mtr",
     "chemberta_zinc_v1": "compound_chemberta_zinc_v1",
     "bert_base_smiles": "compound_bert_smiles",
+    "molformer_xl": "compound_molformer",
 }
 
 # Default hyperparams per model type (used when --trials 0)
@@ -372,6 +373,8 @@ def run(args):
     exp_name = f"{args.model}_{args.feature}_{args.split}"
     if args.trials == 0:
         exp_name += "_default"
+    if args.gap_lambda > 0:
+        exp_name += f"_gap{args.gap_lambda}"
     print(f"  Experiment: {exp_name}")
 
     # Training loop
@@ -386,12 +389,23 @@ def run(args):
 
         if args.trials > 0:
             # Optuna tuning directly on outer fold val (no inner CV)
-            print(f"  [Fold {fold}] Tuning ({args.trials} trials)...")
+            gap_lambda = args.gap_lambda
+            print(
+                f"  [Fold {fold}] Tuning ({args.trials} trials, gap_λ={gap_lambda})..."
+            )
 
             def objective(trial):
                 params = optuna_search_space(args.model, trial)
-                preds, _, _ = train_predict(args.model, params, X_tr, y_tr, X_va, y_va)
-                return np.mean(np.abs(y_va - preds))
+                val_preds, _, model = train_predict(
+                    args.model, params, X_tr, y_tr, X_va, y_va
+                )
+                val_mae = np.mean(np.abs(y_va - val_preds))
+                if gap_lambda > 0:
+                    train_preds = predict_final(args.model, model, X_tr)
+                    train_mae = np.mean(np.abs(y_tr - train_preds))
+                    gap = abs(train_mae - val_mae)
+                    return val_mae + gap_lambda * gap
+                return val_mae
 
             study = optuna.create_study(direction="minimize")
             study.optimize(objective, n_trials=args.trials)
@@ -452,7 +466,7 @@ def run(args):
         fold_metrics=fold_metrics,
         submission_path=f"track1_activity/submissions/{exp_name}.csv",
         num_boost_rounds=num_boost_rounds,
-        notes=f"OOF RAE={oof_metrics['RAE']:.4f}, {args.split}_split, {args.trials}trials",
+        notes=f"OOF RAE={oof_metrics['RAE']:.4f}, {args.split}_split, {args.trials}trials, gap_lambda={args.gap_lambda}",
     )
     save_oof_predictions(exp_id, oof_preds)
 
@@ -475,6 +489,12 @@ def main():
     parser.add_argument("--split", choices=["scaffold", "umap"], default="scaffold")
     parser.add_argument(
         "--trials", type=int, default=20, help="Optuna trials (0=default params)"
+    )
+    parser.add_argument(
+        "--gap-lambda",
+        type=float,
+        default=0.0,
+        help="Gap regularization lambda (0=off, 0.5-2.0 recommended)",
     )
     args = parser.parse_args()
 

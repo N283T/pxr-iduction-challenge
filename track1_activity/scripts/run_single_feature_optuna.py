@@ -4,6 +4,7 @@ Each model uses a single feature type, tuned independently with nested CV.
 These diverse models are candidates for ensemble.
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -34,7 +35,7 @@ from evaluate import (
     save_oof_predictions,
 )
 from features import FP_REGISTRY, smiles_to_mols
-from splits import scaffold_split_indices
+from splits import scaffold_split_indices, umap_split_indices
 
 SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
 optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -210,6 +211,22 @@ def run_single_optuna(
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Single-feature Optuna LightGBM")
+    parser.add_argument(
+        "--split",
+        choices=["scaffold", "umap"],
+        default="scaffold",
+        help="CV split strategy",
+    )
+    parser.add_argument("--n-clusters", type=int, default=50, help="UMAP clusters")
+    parser.add_argument(
+        "--models",
+        nargs="*",
+        default=None,
+        help="Specific models to run (e.g. single_mordred single_chemeleon). Default: all.",
+    )
+    args = parser.parse_args()
+
     print("Loading data...")
     train_df = load_train_smiles_target()
     test_df = load_test_smiles()
@@ -223,10 +240,19 @@ def main():
     train_mols = smiles_to_mols(train_df["smiles"])
     test_mols = smiles_to_mols(test_df["smiles"])
 
-    # Scaffold splits
-    outer_splits = scaffold_split_indices(
-        train_df["smiles"].tolist(), n_splits=5, seed=42
-    )
+    # CV splits
+    smiles_list = train_df["smiles"].tolist()
+    if args.split == "umap":
+        outer_splits = umap_split_indices(
+            smiles_list,
+            n_splits=5,
+            n_clusters=args.n_clusters,
+            seed=42,
+        )
+    else:
+        outer_splits = scaffold_split_indices(smiles_list, n_splits=5, seed=42)
+
+    split_name = args.split
 
     # Build all single-feature configs
     configs = {}
@@ -290,15 +316,23 @@ def main():
             "feature_set": emb_name,
         }
 
-    print(f"\nTotal configs: {len(configs)}")
+    # Filter models if specified
+    if args.models:
+        configs = {k: v for k, v in configs.items() if k in args.models}
+
+    print(f"\nTotal configs: {len(configs)}, split: {split_name}")
     for name, cfg in configs.items():
         print(f"  {name}: {cfg['X_train'].shape[1]} features")
 
     # Run all
     results = {}
     for config_name, config in configs.items():
+        # Append split name to distinguish from scaffold-split runs
+        run_name = (
+            f"{config_name}_{split_name}" if split_name != "scaffold" else config_name
+        )
         m, oof = run_single_optuna(
-            config_name,
+            run_name,
             config["X_train"],
             y_train,
             config["X_test"],
@@ -306,11 +340,11 @@ def main():
             config["feature_set"],
             outer_splits,
         )
-        results[config_name] = m
+        results[run_name] = m
 
     # Summary
     print(f"\n{'=' * 70}")
-    print("  SUMMARY: Single-Feature Optuna Models (scaffold split)")
+    print(f"  SUMMARY: Single-Feature Optuna Models ({split_name} split)")
     print(f"{'=' * 70}")
     for name, m in sorted(results.items(), key=lambda x: x[1]["RAE"]):
         print(
