@@ -236,3 +236,26 @@ Figures: `docs/figures/umap_train_test.png`, `docs/figures/umap_pec50_test_overl
 - Test descriptor distributions are similar to train → domain shift is minimal
 - Counter-assay provides PXR-specificity signal for ~69% of train compounds
 - Single-conc data covers ~58% of train SMILES but 0% of test → limited direct utility for test prediction, but useful for model regularization
+
+## Train vs Test Descriptor Distribution (2026-04-06)
+
+Test set is chemically more "focused" (narrower std across all features), with minor shifts:
+- **hbd**: -0.186σ (fewer H-bond donors in test)
+- **num_rotatable_bonds**: -0.134σ (fewer in test)
+- **fractioncsp3**: +0.106σ (slightly more sp3 in test)
+- **logp**: -0.014σ (essentially identical)
+
+LogP is the dominant predictive feature (corr=0.481 with pEC50, #1 in both Mordred and RDKit importance).
+pEC50 increases with logp: Q1=3.37, Q2=4.44, Q3=4.69, Q4=4.79.
+
+No major covariate shift detected → OOF-LB gap is likely from structural novelty, not global descriptor drift.
+
+## Feature Importance (2026-04-06)
+
+### Mordred (1531 features, 278 unused)
+Top 5: SLogP (17012), ETA_alpha (3970), VR3_Dzse (2965), MINdO (2674), ATSC0d (2101)
+
+### RDKit Descriptors (41 features, all used)
+Top 5: logp (24318), num_heavy_atoms (9643), labuteasa (7204), tpsa (6419), chi2v (5053)
+
+Details: issue #27, `track1_activity/mordred_feature_importance.json`

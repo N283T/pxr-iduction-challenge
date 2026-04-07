@@ -65,11 +65,15 @@ MODELS = {
         "table": "compound_bert_smiles",
         "batch_size": 64,
     },
-    # MoLFormer / IBM models require transformers.onnx (removed in transformers>=5)
-    # Disabled until upstream compatibility is fixed
-    # "molformer-xl": {"hf_id": "ibm-research/MoLFormer-XL-both-10pct", ...},
-    # "gp-molformer": {"hf_id": "ibm-research/GP-MoLFormer-Uniq", ...},
-    # "biomed-sm-84m": {"hf_id": "ibm-research/biomed.sm.mv-te-84m", ...},
+    # MoLFormer / IBM models (patched for transformers>=5)
+    "molformer-xl": {
+        "hf_id": "ibm/MoLFormer-XL-both-10pct",
+        "table": "compound_molformer",
+        "batch_size": 64,
+        "trust_remote_code": True,
+        "deterministic_eval": True,
+        "fix_rotary": True,
+    },
 }
 
 
@@ -84,9 +88,30 @@ def compute_embeddings(model_key: str):
     logger.info(f"[{model_key}] Loading {hf_id} on {device}")
 
     trust = config.get("trust_remote_code", False)
+    extra_kwargs = {}
+    if "deterministic_eval" in config:
+        extra_kwargs["deterministic_eval"] = config["deterministic_eval"]
     tokenizer = AutoTokenizer.from_pretrained(hf_id, trust_remote_code=trust)
-    model = AutoModel.from_pretrained(hf_id, trust_remote_code=trust).to(device)
+    model = AutoModel.from_pretrained(
+        hf_id, trust_remote_code=trust, **extra_kwargs
+    ).to(device)
     model.eval()
+
+    # Fix corrupted rotary embeddings (MoLFormer + transformers v5 bug)
+    if config.get("fix_rotary", False):
+        for layer in model.encoder.layer:
+            rotary = layer.attention.self.rotary_embeddings
+            rotary.inv_freq = (
+                1.0
+                / (rotary.base ** (torch.arange(0, rotary.dim, 2).float() / rotary.dim))
+            ).to(device)
+            rotary._set_cos_sin_cache(
+                seq_len=rotary.max_position_embeddings,
+                device=device,
+                dtype=torch.float32,
+            )
+        logger.info(f"[{model_key}] Fixed rotary embeddings")
+
     hidden_size = model.config.hidden_size
     logger.info(f"[{model_key}] Hidden size: {hidden_size}")
 
@@ -126,18 +151,21 @@ def compute_embeddings(model_key: str):
         with torch.no_grad():
             outputs = model(**inputs)
 
-        # Mean pooling over non-padding tokens
-        attention_mask = inputs["attention_mask"].unsqueeze(-1)
-        token_embeddings = outputs.last_hidden_state
-        masked_embeddings = token_embeddings * attention_mask
-        summed = masked_embeddings.sum(dim=1)
-        counts = attention_mask.sum(dim=1)
-        mean_pooled = (summed / counts).cpu().numpy()
+        # Use pooler_output if available (MoLFormer), else mean pooling
+        if hasattr(outputs, "pooler_output") and outputs.pooler_output is not None:
+            pooled = outputs.pooler_output.cpu().numpy()
+        else:
+            attention_mask = inputs["attention_mask"].unsqueeze(-1)
+            token_embeddings = outputs.last_hidden_state
+            masked_embeddings = token_embeddings * attention_mask
+            summed = masked_embeddings.sum(dim=1)
+            counts = attention_mask.sum(dim=1)
+            pooled = (summed / counts).cpu().numpy()
 
         for i, cid in enumerate(ids):
             cur.execute(
                 f"INSERT INTO {table} (compound_id, embedding) VALUES (%s, %s)",
-                (cid, mean_pooled[i].tolist()),
+                (cid, pooled[i].tolist()),
             )
 
         conn.commit()
