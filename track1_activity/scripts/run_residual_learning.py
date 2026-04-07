@@ -41,6 +41,7 @@ from evaluate import (
 from splits import umap_split_indices, scaffold_split_indices
 
 SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
+SUBMISSION_DIR.mkdir(parents=True, exist_ok=True)
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
@@ -59,10 +60,13 @@ PHYSPROP_COLS = [
 ]
 
 
+SPLIT_TABLES = {"train": "train_activity", "test": "test_activity"}
+
+
 def load_compound_ids(split: str) -> list[int]:
+    table = SPLIT_TABLES[split]
     conn = get_conn()
     cur = conn.cursor()
-    table = "train_activity" if split == "train" else "test_activity"
     cur.execute(f"SELECT compound_id FROM {table} ORDER BY id")
     ids = [r[0] for r in cur.fetchall()]
     cur.close()
@@ -72,6 +76,7 @@ def load_compound_ids(split: str) -> list[int]:
 
 def tune_and_train(X_tr, y_tr, X_va, y_va, n_trials=20, shallow=False):
     """Tune LightGBM and return (val_preds, train_preds, best_iter, params)."""
+
     def objective(trial):
         params = {
             "objective": "regression",
@@ -94,7 +99,9 @@ def tune_and_train(X_tr, y_tr, X_va, y_va, n_trials=20, shallow=False):
         dt = lgb.Dataset(X_tr, label=y_tr)
         dv = lgb.Dataset(X_va, label=y_va, reference=dt)
         model = lgb.train(
-            params, dt, num_boost_round=1000 if not shallow else 500,
+            params,
+            dt,
+            num_boost_round=1000 if not shallow else 500,
             valid_sets=[dv],
             callbacks=[lgb.early_stopping(50), lgb.log_evaluation(0)],
         )
@@ -115,7 +122,9 @@ def tune_and_train(X_tr, y_tr, X_va, y_va, n_trials=20, shallow=False):
     dt = lgb.Dataset(X_tr, label=y_tr)
     dv = lgb.Dataset(X_va, label=y_va, reference=dt)
     model = lgb.train(
-        best_params, dt, num_boost_round=1000 if not shallow else 500,
+        best_params,
+        dt,
+        num_boost_round=1000 if not shallow else 500,
         valid_sets=[dv],
         callbacks=[lgb.early_stopping(50), lgb.log_evaluation(0)],
     )
@@ -161,7 +170,10 @@ def main():
     smiles_list = train_df["smiles"].tolist()
     if args.split == "umap":
         outer_splits = umap_split_indices(
-            smiles_list, n_splits=5, n_clusters=args.n_clusters, seed=42,
+            smiles_list,
+            n_splits=5,
+            n_clusters=args.n_clusters,
+            seed=42,
         )
     else:
         outer_splits = scaffold_split_indices(smiles_list, n_splits=5, seed=42)
@@ -183,9 +195,12 @@ def main():
         # Stage 1: physicochemical base model (shallow)
         print("  Stage 1: physicochemical properties...")
         s1_va, s1_tr, s1_iter, s1_params, s1_model = tune_and_train(
-            X_phys_train[tr_idx], y_train[tr_idx],
-            X_phys_train[va_idx], y_train[va_idx],
-            n_trials=args.trials, shallow=True,
+            X_phys_train[tr_idx],
+            y_train[tr_idx],
+            X_phys_train[va_idx],
+            y_train[va_idx],
+            n_trials=args.trials,
+            shallow=True,
         )
         oof_preds_s1[va_idx] = s1_va
         m_s1 = compute_metrics(y_train[va_idx], s1_va)
@@ -203,9 +218,12 @@ def main():
         # Stage 2: Mordred on residuals
         print("  Stage 2: Mordred on residuals...")
         s2_va, s2_tr, s2_iter, s2_params, s2_model = tune_and_train(
-            X_mord_train[tr_idx], residual_tr,
-            X_mord_train[va_idx], residual_va,
-            n_trials=args.trials, shallow=False,
+            X_mord_train[tr_idx],
+            residual_tr,
+            X_mord_train[va_idx],
+            residual_va,
+            n_trials=args.trials,
+            shallow=False,
         )
 
         # Final prediction
@@ -236,11 +254,13 @@ def main():
     test_final = test_s1 + test_s2
 
     # Save submission
-    sub = pd.DataFrame({
-        "SMILES": test_df["smiles"],
-        "Molecule Name": test_df["molecule_name"],
-        "pEC50": test_final,
-    })
+    sub = pd.DataFrame(
+        {
+            "SMILES": test_df["smiles"],
+            "Molecule Name": test_df["molecule_name"],
+            "pEC50": test_final,
+        }
+    )
     sub_path = SUBMISSION_DIR.joinpath(f"{exp_name}.csv")
     sub.to_csv(sub_path, index=False)
 

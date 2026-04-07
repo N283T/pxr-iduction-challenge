@@ -31,6 +31,7 @@ from evaluate import (
 from splits import umap_split_indices, scaffold_split_indices
 
 SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
+SUBMISSION_DIR.mkdir(parents=True, exist_ok=True)
 
 torch.set_float32_matmul_precision("medium")
 
@@ -132,6 +133,10 @@ def train_and_predict(
         test_preds = trainer.predict(model, test_loader)
         test_preds = np.concatenate([p.numpy().flatten() for p in test_preds])
 
+    # Cleanup GPU memory
+    del model, trainer
+    torch.cuda.empty_cache()
+
     return val_preds, test_preds
 
 
@@ -182,13 +187,12 @@ def run_final_cv(
     best_params, train_smiles, y_train, test_smiles, test_df, outer_splits, split_name
 ):
     """Run full outer CV with best params and save results."""
-    best_params["max_epochs"] = 200
-    best_params["patience"] = 20
+    final_params = {**best_params, "max_epochs": 200, "patience": 20}
 
     name = f"chemprop_optuna_{split_name}"
     print(f"\n{'=' * 60}")
     print(f"  Final CV: {name}")
-    print(f"  Params: {best_params}")
+    print(f"  Params: {final_params}")
     print(f"{'=' * 60}")
 
     oof_preds = np.zeros(len(y_train))
@@ -203,8 +207,11 @@ def run_final_cv(
         va_y = y_train[val_idx]
 
         val_pred, test_pred = train_and_predict(
-            best_params, tr_smi, tr_y, va_smi, va_y, test_smiles
+            final_params, tr_smi, tr_y, va_smi, va_y, test_smiles
         )
+
+        if np.any(np.isnan(val_pred)):
+            raise ValueError(f"Fold {fold}: model produced NaN predictions")
 
         oof_preds[val_idx] = val_pred
         test_preds_all[fold] = test_pred
@@ -235,7 +242,7 @@ def run_final_cv(
         description=f"ChemProp D-MPNN Optuna-tuned ({split_name} split)",
         model_type="chemprop",
         feature_set="molecular_graph",
-        hyperparameters=best_params,
+        hyperparameters=final_params,
         fold_metrics=fold_metrics,
         submission_path=f"track1_activity/submissions/{name}.csv",
         notes=f"OOF RAE={oof_metrics['RAE']:.4f}, {split_name}_split, optuna_tuned",
@@ -301,7 +308,21 @@ def main():
             show_progress_bar=True,
         )
 
-        print(f"\n  Best trial: RAE={study.best_value:.4f}")
+        n_complete = len(
+            [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
+        )
+        n_pruned = len(
+            [t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]
+        )
+        n_failed = len(
+            [t for t in study.trials if t.state == optuna.trial.TrialState.FAIL]
+        )
+        print(
+            f"\n  Trials: {n_complete} complete, {n_pruned} pruned, {n_failed} FAILED"
+        )
+        if n_complete == 0:
+            raise RuntimeError("All Optuna trials failed. Cannot proceed.")
+        print(f"  Best trial: RAE={study.best_value:.4f}")
         print(f"  Best params: {study.best_params}")
         best_params = study.best_params
     else:

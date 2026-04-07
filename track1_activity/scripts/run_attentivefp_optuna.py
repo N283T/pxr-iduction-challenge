@@ -36,13 +36,16 @@ from splits import umap_split_indices, scaffold_split_indices
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
+SUBMISSION_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def smiles_to_pyg_list(smiles_list):
     """Convert SMILES list to PyG Data objects."""
     data_list = []
-    for smi in smiles_list:
+    for i, smi in enumerate(smiles_list):
         data = from_smiles(smi)
+        if data.x is None or data.x.shape[0] == 0:
+            raise ValueError(f"SMILES at index {i} produced empty graph: {smi}")
         data_list.append(data)
     return data_list
 
@@ -58,9 +61,7 @@ def make_batches(data_list, targets, batch_size, shuffle=False):
         batch_data = [data_list[j] for j in batch_idx]
         batch = Batch.from_data_list(batch_data)
         if targets is not None:
-            batch_y = torch.tensor(
-                [targets[j] for j in batch_idx], dtype=torch.float32
-            )
+            batch_y = torch.tensor([targets[j] for j in batch_idx], dtype=torch.float32)
         else:
             batch_y = None
         batches.append((batch, batch_y))
@@ -143,6 +144,10 @@ def train_and_predict(
                 break
 
     # Load best and predict
+    if best_state is None:
+        raise RuntimeError(
+            "Training failed: model never improved. Check learning rate."
+        )
     model.load_state_dict(best_state)
     model.eval()
 
@@ -228,13 +233,12 @@ def run_final_cv(
     split_name,
 ):
     """Run full outer CV with best params and save results."""
-    best_params["max_epochs"] = 150
-    best_params["patience"] = 15
+    final_params = {**best_params, "max_epochs": 150, "patience": 15}
 
     name = f"attentivefp_optuna_{split_name}"
     print(f"\n{'=' * 60}")
     print(f"  Final CV: {name}")
-    print(f"  Params: {best_params}")
+    print(f"  Params: {final_params}")
     print(f"{'=' * 60}")
 
     oof_preds = np.zeros(len(y_train))
@@ -249,8 +253,11 @@ def run_final_cv(
         va_y = y_train[val_idx]
 
         val_pred, test_pred = train_and_predict(
-            best_params, tr_graphs, tr_y, va_graphs, va_y, test_graphs
+            final_params, tr_graphs, tr_y, va_graphs, va_y, test_graphs
         )
+
+        if np.any(np.isnan(val_pred)):
+            raise ValueError(f"Fold {fold}: model produced NaN predictions")
 
         oof_preds[val_idx] = val_pred
         test_preds_all[fold] = test_pred
@@ -281,7 +288,7 @@ def run_final_cv(
         description=f"AttentiveFP (PyG) Optuna-tuned ({split_name} split)",
         model_type="attentivefp",
         feature_set="molecular_graph",
-        hyperparameters=best_params,
+        hyperparameters=final_params,
         fold_metrics=fold_metrics,
         submission_path=f"track1_activity/submissions/{name}.csv",
         notes=f"OOF RAE={oof_metrics['RAE']:.4f}, {split_name}_split, optuna_tuned, pyg",
@@ -319,26 +326,20 @@ def main():
     print("Converting SMILES to PyG graphs...")
     train_graphs = smiles_to_pyg_list(train_smiles)
     test_graphs = smiles_to_pyg_list(test_smiles)
-    print(
-        f"Converted: train={len(train_graphs)}, test={len(test_graphs)}"
-    )
+    print(f"Converted: train={len(train_graphs)}, test={len(test_graphs)}")
 
     if args.split == "umap":
         split_fn = lambda n, s: umap_split_indices(
             train_smiles, n_splits=n, n_clusters=args.n_clusters, seed=s
         )
     else:
-        split_fn = lambda n, s: scaffold_split_indices(
-            train_smiles, n_splits=n, seed=s
-        )
+        split_fn = lambda n, s: scaffold_split_indices(train_smiles, n_splits=n, seed=s)
 
     outer_splits = split_fn(args.outer_folds, 42)
     inner_splits = split_fn(args.inner_folds, 123)
 
     print(f"\n{'=' * 60}")
-    print(
-        f"  Optuna tuning: {args.n_trials} trials, {args.inner_folds}-fold inner CV"
-    )
+    print(f"  Optuna tuning: {args.n_trials} trials, {args.inner_folds}-fold inner CV")
     print(f"{'=' * 60}")
 
     study = optuna.create_study(
@@ -350,6 +351,17 @@ def main():
         n_trials=args.n_trials,
         show_progress_bar=True,
     )
+
+    n_complete = len(
+        [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
+    )
+    n_pruned = len(
+        [t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]
+    )
+    n_failed = len([t for t in study.trials if t.state == optuna.trial.TrialState.FAIL])
+    print(f"  Trials: {n_complete} complete, {n_pruned} pruned, {n_failed} FAILED")
+    if n_complete == 0:
+        raise RuntimeError("All Optuna trials failed. Cannot proceed.")
 
     print(f"\n  Best trial: RAE={study.best_value:.4f}")
     print(f"  Best params: {study.best_params}")
