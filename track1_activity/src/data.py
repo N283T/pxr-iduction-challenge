@@ -71,6 +71,57 @@ def load_train_smiles_target():
     )
 
 
+def load_train_smiles_with_counter():
+    """Load train SMILES, pEC50, and counter_assay pEC50 (NaN if missing).
+
+    Same row order as load_train_smiles_target. The counter_pec50 column is
+    NaN for the 1,492 train compounds without a counter_assay measurement.
+    """
+    return pd.read_sql(
+        """SELECT c.std_smiles AS smiles, c.molecule_name,
+                  t.pec50, ca.pec50 AS counter_pec50
+           FROM train_activity t
+           JOIN compounds c ON c.id = t.compound_id
+           LEFT JOIN counter_assay ca ON ca.compound_id = t.compound_id
+           ORDER BY t.id""",
+        get_engine(),
+    )
+
+
+def load_train_smiles_multitask_5():
+    """Load train SMILES + 5 task columns for multi-task learning.
+
+    Columns:
+        smiles, molecule_name, pec50 (main),
+        counter_pec50, counter_emax,
+        log2fc_8_25e_6, log2fc_3_30e_5
+
+    NaN where the auxiliary measurement is missing. Same row order as
+    load_train_smiles_target.
+    """
+    return pd.read_sql(
+        """
+        SELECT c.std_smiles AS smiles, c.molecule_name,
+               t.pec50,
+               ca.pec50 AS counter_pec50,
+               ca.emax_estimate AS counter_emax,
+               sc_hi.log2_fc_estimate AS log2fc_8_25e_6,
+               sc_lo.log2_fc_estimate AS log2fc_3_30e_5
+        FROM train_activity t
+        JOIN compounds c ON c.id = t.compound_id
+        LEFT JOIN counter_assay ca ON ca.compound_id = t.compound_id
+        LEFT JOIN single_concentration sc_hi
+               ON sc_hi.compound_id = t.compound_id
+              AND sc_hi.concentration_m BETWEEN 8.16e-6 AND 8.34e-6
+        LEFT JOIN single_concentration sc_lo
+               ON sc_lo.compound_id = t.compound_id
+              AND sc_lo.concentration_m BETWEEN 3.27e-5 AND 3.33e-5
+        ORDER BY t.id
+        """,
+        get_engine(),
+    )
+
+
 def load_test_smiles():
     """Load test SMILES."""
     return pd.read_sql(
