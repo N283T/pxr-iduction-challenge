@@ -170,6 +170,68 @@ def load_test_mordred() -> pd.DataFrame:
     return load_mordred(compound_ids)
 
 
+SINGLECONC_FEATURE_COLS = (
+    "log2fc_8_25e_6",
+    "log2fc_3_30e_5",
+    "log2fc_stderr_8_25e_6",
+    "cohens_d_8_25e_6",
+    "p_value_8_25e_6",
+    "n_concs",
+)
+
+
+def load_singleconc_features(compound_ids: list[int] | None = None) -> pd.DataFrame:
+    """Load per-compound single_concentration features.
+
+    Returns a DataFrame indexed by compound_id with the columns listed in
+    SINGLECONC_FEATURE_COLS. Compounds without single_concentration data
+    are returned with NaN across all columns. The two main concentrations
+    8.25e-6 M and 3.30e-5 M are pivoted into separate columns.
+    """
+    eng = get_engine()
+    where = ""
+    params: dict = {}
+    if compound_ids:
+        placeholders = ",".join(str(int(i)) for i in compound_ids)
+        where = f"WHERE compound_id IN ({placeholders})"
+
+    sql = f"""
+        SELECT compound_id, concentration_m, log2_fc_estimate,
+               log2_fc_stderr, cohens_d, p_value
+        FROM single_concentration {where}
+    """
+    raw = pd.read_sql(sql, eng)
+
+    # Pivot to wide form per compound
+    hi = (
+        raw[raw["concentration_m"].between(8.16e-6, 8.34e-6)]
+        .set_index("compound_id")[
+            ["log2_fc_estimate", "log2_fc_stderr", "cohens_d", "p_value"]
+        ]
+        .rename(
+            columns={
+                "log2_fc_estimate": "log2fc_8_25e_6",
+                "log2_fc_stderr": "log2fc_stderr_8_25e_6",
+                "cohens_d": "cohens_d_8_25e_6",
+                "p_value": "p_value_8_25e_6",
+            }
+        )
+    )
+    lo = (
+        raw[raw["concentration_m"].between(3.27e-5, 3.33e-5)]
+        .set_index("compound_id")[["log2_fc_estimate"]]
+        .rename(columns={"log2_fc_estimate": "log2fc_3_30e_5"})
+    )
+    n_concs = raw.groupby("compound_id")["concentration_m"].nunique().rename("n_concs")
+
+    feats = hi.join(lo, how="outer").join(n_concs, how="outer")
+
+    if compound_ids:
+        feats = feats.reindex(index=list(compound_ids))
+
+    return feats[list(SINGLECONC_FEATURE_COLS)]
+
+
 def load_chemberta(compound_ids: list[int] | None = None) -> pd.DataFrame:
     """Load ChemBERTa embeddings from DB as a DataFrame.
 
