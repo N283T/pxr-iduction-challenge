@@ -159,7 +159,7 @@ def load_features(feature_name: str, train_df, test_df):
         test_desc = load_test_descriptors()
         return train_desc[DESCRIPTOR_COLS].values, test_desc[DESCRIPTOR_COLS].values
 
-    if feature_name == "mordred":
+    if feature_name == "mordred" or feature_name == "mordred_singleconc":
         mordred_train, _ = load_train_mordred()
         mordred_test = load_mordred(test_ids)
         missing_train = set(train_ids) - set(mordred_train.index)
@@ -175,6 +175,29 @@ def load_features(feature_name: str, train_df, test_df):
         X_test = mordred_test.loc[test_ids, common_cols].values.astype(np.float32)
         X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
         X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+
+        if feature_name == "mordred_singleconc":
+            from data import load_singleconc_features
+
+            sc_train = (
+                load_singleconc_features(train_ids)
+                .loc[train_ids]
+                .to_numpy(dtype=np.float32)
+            )
+            sc_test = (
+                load_singleconc_features(test_ids)
+                .loc[test_ids]
+                .to_numpy(dtype=np.float32)
+            )
+            # NaN preserved (LightGBM handles missing natively)
+            X_train = np.concatenate([X_train, sc_train], axis=1)
+            X_test = np.concatenate([X_test, sc_test], axis=1)
+            n_sc_train_with_data = (~np.isnan(sc_train).all(axis=1)).sum()
+            print(
+                f"  single_conc concat: +{sc_train.shape[1]} cols, "
+                f"{n_sc_train_with_data}/{len(train_ids)} train compounds have data"
+            )
+
         return X_train, X_test
 
     if feature_name in EMBEDDING_TABLES:
@@ -399,6 +422,15 @@ def run(args):
             )
         print(f"Loading pseudo-labels from {args.pseudo}...")
         pseudo_df = load_pseudo_labels(Path(args.pseudo))
+        if args.pseudo_min_confidence > 0:
+            n_before = len(pseudo_df)
+            pseudo_df = pseudo_df[
+                pseudo_df["confidence"] >= args.pseudo_min_confidence
+            ].reset_index(drop=True)
+            print(
+                f"  confidence filter ≥{args.pseudo_min_confidence}: "
+                f"{n_before} → {len(pseudo_df)} pseudo compounds"
+            )
         train_ids = set(load_compound_ids("train"))
         pseudo_ids = set(pseudo_df["compound_id"].astype(int))
         overlap = train_ids & pseudo_ids
@@ -457,6 +489,8 @@ def run(args):
         exp_name += f"_gap{args.gap_lambda}"
     if args.pseudo:
         exp_name += f"_pseudo{args.pseudo_weight}"
+        if args.pseudo_min_confidence > 0:
+            exp_name += f"_minc{args.pseudo_min_confidence}"
     print(f"  Experiment: {exp_name}")
 
     # Training loop
@@ -595,7 +629,7 @@ def run(args):
 
 def main():
     all_features = (
-        ["rdkit_desc", "mordred"]
+        ["rdkit_desc", "mordred", "mordred_singleconc"]
         + list(FP_REGISTRY.keys())
         + list(EMBEDDING_TABLES.keys())
     )
@@ -626,6 +660,12 @@ def main():
         type=float,
         default=0.3,
         help="Weight multiplier for pseudo samples (multiplied by per-row confidence)",
+    )
+    parser.add_argument(
+        "--pseudo-min-confidence",
+        type=float,
+        default=0.0,
+        help="Drop pseudo samples with confidence below this threshold (0 = keep all)",
     )
     args = parser.parse_args()
 
