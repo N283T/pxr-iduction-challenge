@@ -1,10 +1,10 @@
 #!/usr/bin/env -S pixi run python
 """Sweep pseudo-label weights and report which (if any) improves baseline.
 
-Iterates over pseudo-weights [0.05, 0.1, 0.5, 1.0], skipping any run whose
-experiment name already exists in the DB. After all runs, pulls the 6
-relevant experiments (baseline + 5 pseudo weights) and prints a comparison
-table sorted by OOF RAE ascending.
+Iterates over pseudo-weights [0.05, 0.1, 0.3, 0.5, 1.0], skipping any run
+whose experiment name already exists in the DB. After all runs, pulls the
+6 relevant experiments (baseline + 5 pseudo weights) and prints a
+comparison table sorted by OOF RAE ascending.
 
 Usage:
     pixi run python track1_activity/scripts/run_train_pseudo_sweep.py
@@ -29,7 +29,9 @@ from data import DB_PARAMS  # noqa: E402
 from run_train import run  # noqa: E402
 
 PSEUDO_PATH = "data/pseudo_labels.parquet"
-SWEEP_WEIGHTS = (0.05, 0.1, 0.5, 1.0)
+# Note: 0.3 may already be in DB from an earlier manual run; sweep dedupes by
+# exp_name so it is safe to include here for reproducibility from a clean DB.
+SWEEP_WEIGHTS = (0.05, 0.1, 0.3, 0.5, 1.0)
 BASELINE_NAME = "lgbm_mordred_umap_default"
 COMPARISON_NAMES = (
     BASELINE_NAME,
@@ -98,9 +100,11 @@ def fetch_comparison() -> pd.DataFrame:
             df["oof_rae"] - baseline_rae if baseline_rae is not None else None
         )
     )
-    return df[
-        ["name", "oof_rae", "fold_mae_mean", "delta_vs_baseline", "id"]
-    ].sort_values("oof_rae", na_position="last").reset_index(drop=True)
+    return (
+        df[["name", "oof_rae", "fold_mae_mean", "delta_vs_baseline", "id"]]
+        .sort_values("oof_rae", na_position="last")
+        .reset_index(drop=True)
+    )
 
 
 def main() -> None:
