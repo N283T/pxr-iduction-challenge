@@ -25,7 +25,9 @@ import psycopg2
 from data import (
     DB_PARAMS,
     DESCRIPTOR_COLS,
+    JAZZY_FEATURE_COLS,
     get_conn,
+    load_jazzy,
     load_mordred,
     load_test_descriptors,
     load_test_smiles,
@@ -159,7 +161,14 @@ def load_features(feature_name: str, train_df, test_df):
         test_desc = load_test_descriptors()
         return train_desc[DESCRIPTOR_COLS].values, test_desc[DESCRIPTOR_COLS].values
 
-    if feature_name == "mordred" or feature_name == "mordred_singleconc":
+    if feature_name == "jazzy":
+        jazzy_train = load_jazzy(train_ids).reindex(index=train_ids)
+        jazzy_test = load_jazzy(test_ids).reindex(index=test_ids)
+        X_train = jazzy_train[list(JAZZY_FEATURE_COLS)].to_numpy(dtype=np.float32)
+        X_test = jazzy_test[list(JAZZY_FEATURE_COLS)].to_numpy(dtype=np.float32)
+        return X_train, X_test
+
+    if feature_name in ("mordred", "mordred_singleconc", "mordred_jazzy"):
         mordred_train, _ = load_train_mordred()
         mordred_test = load_mordred(test_ids)
         missing_train = set(train_ids) - set(mordred_train.index)
@@ -175,6 +184,23 @@ def load_features(feature_name: str, train_df, test_df):
         X_test = mordred_test.loc[test_ids, common_cols].values.astype(np.float32)
         X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
         X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+
+        if feature_name == "mordred_jazzy":
+            jazzy_train = load_jazzy(train_ids).reindex(index=train_ids)
+            jazzy_test = load_jazzy(test_ids).reindex(index=test_ids)
+            missing_j_tr = int(jazzy_train.isna().any(axis=1).sum())
+            missing_j_te = int(jazzy_test.isna().any(axis=1).sum())
+            if missing_j_tr or missing_j_te:
+                raise ValueError(
+                    f"Jazzy missing rows: train={missing_j_tr}, test={missing_j_te}"
+                )
+            jt_tr = jazzy_train[list(JAZZY_FEATURE_COLS)].to_numpy(dtype=np.float32)
+            jt_te = jazzy_test[list(JAZZY_FEATURE_COLS)].to_numpy(dtype=np.float32)
+            X_train = np.concatenate([X_train, jt_tr], axis=1)
+            X_test = np.concatenate([X_test, jt_te], axis=1)
+            print(
+                f"  jazzy concat: +{jt_tr.shape[1]} cols (train+test both fully populated)"
+            )
 
         if feature_name == "mordred_singleconc":
             from data import load_singleconc_features
@@ -629,7 +655,7 @@ def run(args):
 
 def main():
     all_features = (
-        ["rdkit_desc", "mordred", "mordred_singleconc"]
+        ["rdkit_desc", "mordred", "mordred_singleconc", "mordred_jazzy", "jazzy"]
         + list(FP_REGISTRY.keys())
         + list(EMBEDDING_TABLES.keys())
     )

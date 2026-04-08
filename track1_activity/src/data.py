@@ -283,6 +283,28 @@ def load_singleconc_features(compound_ids: list[int] | None = None) -> pd.DataFr
     return feats[list(SINGLECONC_FEATURE_COLS)]
 
 
+JAZZY_FEATURE_COLS = ("sdc", "sdx", "sa", "dga", "dgp", "dgtot")
+
+
+def load_jazzy(compound_ids: list[int] | None = None) -> pd.DataFrame:
+    """Load Jazzy hydration / H-bond features from DB.
+
+    Returns a DataFrame indexed by compound_id with the six JAZZY_FEATURE_COLS.
+    Compounds without a jazzy row are excluded (caller must align).
+    """
+    eng = get_engine()
+    cols = ", ".join(JAZZY_FEATURE_COLS)
+    if compound_ids:
+        placeholders = ",".join(str(int(i)) for i in compound_ids)
+        sql = (
+            f"SELECT compound_id, {cols} FROM compound_jazzy "
+            f"WHERE compound_id IN ({placeholders})"
+        )
+    else:
+        sql = f"SELECT compound_id, {cols} FROM compound_jazzy ORDER BY compound_id"
+    return pd.read_sql(sql, eng).set_index("compound_id")
+
+
 def load_chemberta(compound_ids: list[int] | None = None) -> pd.DataFrame:
     """Load ChemBERTa embeddings from DB as a DataFrame.
 

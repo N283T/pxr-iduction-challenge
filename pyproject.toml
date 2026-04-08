@@ -24,6 +24,10 @@ db-start = "pg_ctl -D db/pgdata -l db/pgdata/logfile -o '-k /tmp -p 5433' start"
 db-stop = "pg_ctl -D db/pgdata stop"
 db-status = "pg_ctl -D db/pgdata status"
 db-psql = "psql -h /tmp -p 5433 -d pxr_challenge"
+# jazzy has a hard rdkit<2024 pin but only uses stable RDKit APIs, so we
+# install it with --no-deps against our modern rdkit. kallisto is a required
+# transitive dep that also has no strict deps we care about.
+install-jazzy = "pip install --no-deps jazzy==0.1.4 kallisto==1.0.10"
 
 [tool.pixi.dependencies]
 python = "3.12.*"
