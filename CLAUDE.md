@@ -79,7 +79,7 @@ track1_activity/
     run_residual_learning.py      # Two-stage residual learning (physprop + Mordred)
     run_ensemble.py               # Weighted ensemble optimization
     run_all_models.sh             # Sequential DL model training pipeline
-    submit.py                     # Submit predictions via API
+    api.py                        # OpenADMET API client: fetch leaderboard + submit (gitignored, contains PII)
     archive/                      # Early exploration scripts
   notebooks/                 # marimo notebooks
   submissions/               # CSV submission files (gitignored)
