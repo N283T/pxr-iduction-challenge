@@ -42,6 +42,11 @@
 | `lgbm_mordred_umap_default` (baseline) | 0.5817 | 0.5293 | 0.5756 | 0.7132 |
 | **`lgbm_mordred_jazzy_umap_default`** | **0.5804** | 0.5281 | 0.5746 | **0.7153** |
 | `lgbm_ergfp_umap_default` | 0.7265 | 0.6585 | 0.3962 | 0.5670 |
+| `lgbm_jazzy_umap_default` (6 cols alone) | 0.7885 | 0.7175 | 0.2975 | 0.4418 |
+
+### Jazzy-alone sanity check
+
+Pure 6-feature LightGBM on Jazzy columns hits OOF RAE 0.7885 — expectedly weak, but not useless: R²=0.30 means ~30% of the pEC50 variance is captured by six hydration/H-bond scalars alone. Confirms these features carry *some* orthogonal information; the question is whether they complement or overlap with Mordred's 1,515-dim representation. Based on feature-importance analysis below, the answer is "overlap dominates, but `sa` and `dgtot` still slot into the top of the gain ranking."
 
 Delta (mordred_jazzy − mordred) = **−0.0013 RAE**. Noise level on its own, but Spearman improves and the direction is consistent with top-team findings.
 
@@ -74,7 +79,13 @@ After inserting `lgbm_mordred_jazzy_umap_default` into the ensemble candidate po
 
 Ensemble result basically unchanged. `lgbm_mordred_jazzy` shows up in top8_avg at 1/8 weight so it is marginally decorrelated from the existing Mordred variants but not enough to move L2-regularized weighted ensemble.
 
-**ErGFP alone (OOF RAE 0.7265) is too weak to make it into any significant ensemble weight**, as expected.
+**ErGFP alone (OOF RAE 0.7265) is too weak to make it into any significant ensemble weight**, as expected. We add `_ergfp_` to the `EXCLUDE_SUBSTRINGS` list in `run_ensemble_v8.py` so it is skipped by the automated candidate pool. The feature remains available in `FP_REGISTRY` for manual experiments and feature-concat follow-ups. Jazzy-alone (`lgbm_jazzy_*`) is excluded via an `EXCLUDE_PATTERNS` lambda for the same reason.
+
+## moka's Jazzy use is different from ours
+
+The first-place-adjacent `moka` submission ([dahvida/openadmet-expansionrx-blind-challenge-moka](https://github.com/dahvida/openadmet-expansionrx-blind-challenge-moka)) uses Jazzy in a fundamentally different way: **Jazzy descriptors are auxiliary multi-task regression targets during ChemProp / GNN fine-tuning, not input features**. Their "Type B" fine-tuning strategy trains the model to predict (endpoint + Jazzy + SHAP-selected MOE descriptors) simultaneously, and they select Strategy A or B per endpoint based on OOF performance.
+
+This is a meaningful pointer for our future MTL work (PR #42 was `pec50 + counter_pec50 + single_conc` as aux targets; we could retry with `pec50 + jazzy` as aux targets instead). Noted as a medium-term experiment but outside the scope of this PR.
 
 ## Interpretation
 

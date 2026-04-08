@@ -53,6 +53,9 @@ SUBMISSION_DIR = REPO_ROOT.joinpath("track1_activity", "submissions")
 EXCLUDE_SUBSTRINGS = (
     "singleconc",  # leaky direct-concat feature (PR #41, LB RAE 1.03)
     "_pseudo",  # pseudo-labeling variants (PR #39, documented negative)
+    "_ergfp_",  # ErGFP alone is weak (OOF RAE ~0.72) and does not add
+    # meaningful diversity to the weighted ensemble; kept as a
+    # feature option but excluded from automated candidate pool.
 )
 
 # Conditional exclusions that don't fit a plain substring match. Each entry
@@ -61,6 +64,9 @@ EXCLUDE_PATTERNS = (
     # Default-params multitask runs: name starts with chemprop_multitask but
     # lacks the "_tuned" suffix added by run_chemprop_multitask.py --use-tuned.
     lambda n: n.startswith("chemprop_multitask") and "_tuned" not in n,
+    # jazzy-alone model (lgbm_jazzy_*) is 6-dim and OOF RAE ~0.79.
+    # mordred_jazzy uses a different prefix so is unaffected.
+    lambda n: n.startswith("lgbm_jazzy_") or n == "single_jazzy",
 )
 
 

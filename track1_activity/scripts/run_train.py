@@ -161,6 +161,13 @@ def load_features(feature_name: str, train_df, test_df):
         test_desc = load_test_descriptors()
         return train_desc[DESCRIPTOR_COLS].values, test_desc[DESCRIPTOR_COLS].values
 
+    if feature_name == "jazzy":
+        jazzy_train = load_jazzy(train_ids).reindex(index=train_ids)
+        jazzy_test = load_jazzy(test_ids).reindex(index=test_ids)
+        X_train = jazzy_train[list(JAZZY_FEATURE_COLS)].to_numpy(dtype=np.float32)
+        X_test = jazzy_test[list(JAZZY_FEATURE_COLS)].to_numpy(dtype=np.float32)
+        return X_train, X_test
+
     if feature_name in ("mordred", "mordred_singleconc", "mordred_jazzy"):
         mordred_train, _ = load_train_mordred()
         mordred_test = load_mordred(test_ids)
@@ -648,7 +655,7 @@ def run(args):
 
 def main():
     all_features = (
-        ["rdkit_desc", "mordred", "mordred_singleconc", "mordred_jazzy"]
+        ["rdkit_desc", "mordred", "mordred_singleconc", "mordred_jazzy", "jazzy"]
         + list(FP_REGISTRY.keys())
         + list(EMBEDDING_TABLES.keys())
     )
