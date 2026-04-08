@@ -1,18 +1,26 @@
 #!/usr/bin/env -S pixi run python
-"""ChemProp multi-task: pEC50 + counter_assay pEC50 with masked loss.
+"""ChemProp multi-task: pEC50 + 1 or 4 auxiliary assay readouts.
 
-Uses train compounds' counter_assay pEC50 as an auxiliary regression target
-to force the shared D-MPNN encoder to learn representations that explain
-both PXR-specific activity and generic off-target activation. Counter loss
-is masked for the 1,492 train compounds without counter data (NaN handled
-natively by ChemProp's training_step which calls targets.isfinite()).
+Trains a shared D-MPNN encoder with multiple regression heads. Use
+``--task-set`` to choose:
 
-At inference, only the PXR head is used. Test compounds never need counter
-data, so there is no missing-feature leakage.
+- ``--task-set 2``: [pec50, counter_pec50]
+- ``--task-set 5``: [pec50, counter_pec50, counter_emax,
+                     log2fc @ 8.25e-6, log2fc @ 3.30e-5]
+
+Auxiliary targets are NaN where the corresponding measurement is missing.
+ChemProp's ``MPNN.training_step`` (chemprop>=2.x) calls
+``targets.isfinite()`` to build a mask, then ``nan_to_num`` the targets,
+so missing aux values are masked out of the loss without polluting it.
+The script verifies this behavior at startup with a 1-batch sanity check.
+
+At inference, only the pEC50 head (task 0) is used. Test compounds never
+need aux data, so there is no missing-feature leakage like the
+direct-feature ``mordred_singleconc`` approach (PR #41).
 
 Usage:
     pixi run python track1_activity/scripts/run_chemprop_multitask.py \
-        --split umap --max-epochs 100 --aux-weight 0.3
+        --split umap --task-set 5 --aux-weight 0.1 --use-tuned
 """
 
 import argparse
@@ -148,8 +156,17 @@ def make_dataloader(smiles, targets, batch_size, shuffle):
     )
 
 
+PEC50_PLAUSIBLE_RANGE = (1.0, 9.0)
+
+
 def predict_pec50(trainer, model, smiles, batch_size, n_tasks):
-    """Run inference and return only the pEC50 column (task 0)."""
+    """Run inference and return only the pEC50 column (task 0).
+
+    Verifies the prediction tensor has the expected shape and that the
+    main-task column lies in a plausible pEC50 range. Raises with a
+    descriptive message if either check fails — protects against silent
+    column-order swaps in future ChemProp upgrades.
+    """
     pts = [
         chemprop_data.MoleculeDatapoint.from_smi(
             smi, np.full(n_tasks, np.nan, dtype=np.float32)
@@ -163,9 +180,79 @@ def predict_pec50(trainer, model, smiles, batch_size, n_tasks):
     )
     preds = trainer.predict(model, loader)
     arr = np.concatenate([p.numpy() for p in preds], axis=0)
+
+    expected_rows = len(smiles)
     if arr.ndim == 1:
-        return arr
-    return arr[:, 0]
+        if n_tasks != 1:
+            raise RuntimeError(
+                f"predict_pec50: ChemProp returned 1-D array of shape {arr.shape} "
+                f"but expected n_tasks={n_tasks}"
+            )
+        out = arr
+    else:
+        if arr.shape != (expected_rows, n_tasks):
+            raise RuntimeError(
+                f"predict_pec50: unexpected prediction shape {arr.shape}, "
+                f"expected ({expected_rows}, {n_tasks})"
+            )
+        out = arr[:, 0]
+
+    if not np.isfinite(out).all():
+        n_nan = int((~np.isfinite(out)).sum())
+        raise RuntimeError(
+            f"predict_pec50: {n_nan} NaN/Inf predictions in main-task output"
+        )
+
+    lo, hi = PEC50_PLAUSIBLE_RANGE
+    mu = float(out.mean())
+    if not (lo < mu < hi):
+        raise RuntimeError(
+            f"predict_pec50: main-task mean {mu:.3f} outside plausible pEC50 "
+            f"range {PEC50_PLAUSIBLE_RANGE} — possible task-column swap or "
+            f"standardized aux being returned"
+        )
+    return out
+
+
+def assert_chemprop_masks_nan(params, n_tasks: int) -> None:
+    """One-batch smoke check that ChemProp masks NaN aux targets correctly.
+
+    Builds a 4-row dataset with one row's aux columns set to NaN, runs a
+    single training step on a fresh model, and asserts the loss is finite.
+    Locks the unspoken contract that ``MPNN.training_step`` masks via
+    ``targets.isfinite()``. If a future ChemProp upgrade drops this
+    behavior, this check will fail loudly instead of silently producing
+    NaN losses or biased models.
+    """
+    smiles = ["CCO", "CCC", "CCCO", "CCCC"]
+    targets = np.zeros((4, n_tasks), dtype=np.float32)
+    targets[:, 0] = [4.0, 5.0, 4.5, 5.5]
+    if n_tasks > 1:
+        targets[:, 1:] = 0.5
+        targets[0, 1:] = np.nan  # one row with NaN aux to exercise the mask
+
+    loader = make_dataloader(smiles, targets, batch_size=4, shuffle=False)
+    model = build_model(params, n_tasks=n_tasks, aux_weight=1.0)
+    trainer = pl.Trainer(
+        max_epochs=1,
+        accelerator="gpu" if torch.cuda.is_available() else "cpu",
+        devices=1,
+        enable_progress_bar=False,
+        enable_model_summary=False,
+        logger=False,
+    )
+    try:
+        trainer.fit(model, loader, loader)
+        loss_metric = trainer.callback_metrics.get("train_loss")
+        if loss_metric is None or not torch.isfinite(loss_metric).all():
+            raise RuntimeError(
+                f"ChemProp NaN-mask sanity failed: train_loss={loss_metric}. "
+                f"NaN aux targets are not being masked — abort before training."
+            )
+    finally:
+        del model, trainer
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
 
 def train_fold(
@@ -221,17 +308,40 @@ def run(args):
     smiles = train_df["smiles"].tolist()
     raw_targets = train_df[target_cols].to_numpy(dtype=np.float32)
 
-    # Standardize aux columns (cols 1..) using global train stats so cross-task
-    # MSE magnitudes are comparable. Main task (col 0) is left unscaled so its
-    # predictions remain on the original pEC50 scale and need no inverse transform.
+    # Main task (col 0) MUST be fully observed -- a NaN here would silently
+    # corrupt OOF metric computation downstream. Fail loudly if any row is
+    # missing pec50.
+    main_nan = np.isnan(raw_targets[:, 0])
+    if main_nan.any():
+        bad_rows = np.where(main_nan)[0][:10]
+        raise ValueError(
+            f"Main task '{target_cols[0]}' has {int(main_nan.sum())} NaN rows "
+            f"(first 10 indices: {bad_rows.tolist()}) — refusing to train"
+        )
+
+    # Standardize aux columns (cols 1..) so cross-task MSE magnitudes are
+    # comparable. Main task (col 0) is left unscaled so predictions remain on
+    # the original pEC50 scale and need no inverse transform. Stats are
+    # computed once over all train rows (not per-fold). This is a deliberate
+    # trade-off: aux scale leaks across folds, but the main-task pec50 labels
+    # never do, and the OOF metric is computed only on col 0 which is unscaled.
     targets = raw_targets.copy()
     aux_means = np.zeros(len(target_cols), dtype=np.float32)
     aux_stds = np.ones(len(target_cols), dtype=np.float32)
     for i in range(1, len(target_cols)):
         col = raw_targets[:, i]
         valid = np.isfinite(col)
+        if int(valid.sum()) < 2:
+            raise ValueError(
+                f"Aux target '{target_cols[i]}' has only {int(valid.sum())} valid "
+                f"rows — likely schema drift or wrong join. Refusing to train."
+            )
         mu = float(np.mean(col[valid]))
         sd = float(np.std(col[valid]))
+        if not np.isfinite(mu) or not np.isfinite(sd):
+            raise ValueError(
+                f"Aux target '{target_cols[i]}' produced non-finite mean={mu} std={sd}"
+            )
         if sd < 1e-6:
             sd = 1.0
         aux_means[i] = mu
@@ -265,6 +375,13 @@ def run(args):
         exp_name += "_tuned"
     print(f"  Experiment: {exp_name}")
 
+    # NaN-mask sanity check before any expensive training. Locks the
+    # ChemProp internal contract that targets.isfinite() is used to mask
+    # missing aux values inside MPNN.training_step.
+    print("  Running ChemProp NaN-mask sanity check...")
+    assert_chemprop_masks_nan(params, n_tasks=len(target_cols))
+    print("  Sanity check passed.")
+
     oof_preds = np.zeros(len(smiles), dtype=np.float32)
     fold_metrics = []
     test_pred_per_fold = []
@@ -276,27 +393,40 @@ def run(args):
         tr_y = targets[tr_idx]
         va_y = targets[va_idx]
 
-        val_preds, model, trainer = train_fold(
-            params, tr_smi, tr_y, va_smi, va_y, args.aux_weight
-        )
-        oof_preds[va_idx] = val_preds
+        model = trainer = None
+        try:
+            val_preds, model, trainer = train_fold(
+                params, tr_smi, tr_y, va_smi, va_y, args.aux_weight
+            )
+            if not np.isfinite(val_preds).all():
+                raise RuntimeError(
+                    f"Fold {fold}: val_preds contain "
+                    f"{int((~np.isfinite(val_preds)).sum())} NaN/Inf values"
+                )
+            oof_preds[va_idx] = val_preds
 
-        metrics = compute_metrics(va_y[:, 0], val_preds)
-        fold_metrics.append(metrics)
-        print_metrics(metrics, label=f"Fold {fold}")
+            metrics = compute_metrics(va_y[:, 0], val_preds)
+            fold_metrics.append(metrics)
+            print_metrics(metrics, label=f"Fold {fold}")
 
-        # Predict test for this fold (averaged later)
-        test_preds = predict_pec50(
-            trainer,
-            model,
-            test_df["smiles"].tolist(),
-            params["batch_size"],
-            len(target_cols),
-        )
-        test_pred_per_fold.append(test_preds)
-
-        del model, trainer
-        torch.cuda.empty_cache()
+            # Predict test for this fold (averaged later)
+            test_preds = predict_pec50(
+                trainer,
+                model,
+                test_df["smiles"].tolist(),
+                params["batch_size"],
+                len(target_cols),
+            )
+            if not np.isfinite(test_preds).all():
+                raise RuntimeError(
+                    f"Fold {fold}: test_preds contain "
+                    f"{int((~np.isfinite(test_preds)).sum())} NaN/Inf values"
+                )
+            test_pred_per_fold.append(test_preds)
+        finally:
+            del model, trainer
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
     oof_metrics = compute_metrics(targets[:, 0], oof_preds)
     print("\n  Overall OOF:")
@@ -305,6 +435,12 @@ def run(args):
 
     # Average test predictions across folds
     test_preds_mean = np.mean(test_pred_per_fold, axis=0)
+    if not np.isfinite(test_preds_mean).all():
+        raise RuntimeError(
+            f"test_preds_mean contains "
+            f"{int((~np.isfinite(test_preds_mean)).sum())} NaN/Inf values "
+            f"after fold averaging — refusing to write submission"
+        )
     print(
         f"\n  Test preds: mean={test_preds_mean.mean():.3f}, "
         f"std={test_preds_mean.std():.3f}"
@@ -317,24 +453,42 @@ def run(args):
             "pEC50": test_preds_mean,
         }
     )
+    # Write to a temp file first; rename only after record_experiment succeeds.
+    # Prevents leaving a fresh CSV on disk paired with a stale (or missing) DB row.
     sub_path = SUBMISSION_DIR.joinpath(f"{exp_name}.csv")
-    sub.to_csv(sub_path, index=False)
-    print(f"  Saved submission: {sub_path}")
+    sub_tmp = sub_path.with_suffix(sub_path.suffix + ".tmp")
+    sub.to_csv(sub_tmp, index=False)
 
-    exp_id = record_experiment(
-        name=exp_name,
-        description=f"ChemProp multi-task pEC50 + counter_pec50 ({args.split} split)",
-        model_type="chemprop",
-        feature_set="smiles",
-        hyperparameters={**params, "aux_weight": args.aux_weight, "n_tasks": 2},
-        fold_metrics=fold_metrics,
-        submission_path=f"track1_activity/submissions/{exp_name}.csv",
-        num_boost_rounds=[0] * len(fold_metrics),
-        notes=(
-            f"OOF RAE={oof_metrics['RAE']:.4f}, multi-task counter_assay aux, "
-            f"aux_weight={args.aux_weight}, task_set={args.task_set}"
-        ),
-    )
+    try:
+        exp_id = record_experiment(
+            name=exp_name,
+            description=(
+                f"ChemProp multi-task ({len(target_cols)} tasks: "
+                f"{', '.join(target_cols)}) on {args.split} split"
+            ),
+            model_type="chemprop",
+            feature_set="smiles",
+            hyperparameters={
+                **params,
+                "aux_weight": args.aux_weight,
+                "task_set": args.task_set,
+                "n_tasks": len(target_cols),
+                "target_cols": target_cols,
+            },
+            fold_metrics=fold_metrics,
+            submission_path=f"track1_activity/submissions/{exp_name}.csv",
+            num_boost_rounds=[0] * len(fold_metrics),
+            notes=(
+                f"OOF RAE={oof_metrics['RAE']:.4f}, multi-task aux="
+                f"{args.aux_weight}, task_set={args.task_set}"
+            ),
+        )
+    except Exception:
+        sub_tmp.unlink(missing_ok=True)
+        raise
+
+    sub_tmp.replace(sub_path)
+    print(f"  Saved submission: {sub_path}")
     save_oof_predictions(exp_id, oof_preds)
     print(f"\n  Done: {exp_name} -> RAE={oof_metrics['RAE']:.4f}")
     return oof_metrics

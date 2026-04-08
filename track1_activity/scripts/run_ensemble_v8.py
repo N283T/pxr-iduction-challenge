@@ -1,14 +1,21 @@
 #!/usr/bin/env -S pixi run python
-"""Improved ensemble with regularized weight optimization.
+"""Ensemble v8: regularized weight optimization with explicit exclusion list.
 
-Addresses issue #20: OOF-LB gap caused by ensemble weight overfitting.
+Forks run_ensemble_v2.py (issue #20: OOF-LB gap from ensemble weight overfit)
+and adds an exclusion list so known-bad experiments cannot accidentally
+re-enter the ensemble:
 
-Strategies:
-1. Simple average (no optimization)
-2. L2-regularized weight optimization (penalize deviation from equal weights)
-3. Fold-based weight optimization (optimize on each CV fold's val, average weights)
-4. Rank-based blending (ensemble of ranks, not raw predictions)
-5. Trimmed optimization (optimize on middle 90% of pEC50 range, apply to all)
+- ``singleconc`` direct-feature variants (PR #41 — leaky, LB RAE 1.027)
+- ``_pseudo`` label variants (PR #39 — documented negative)
+- Default-params multitask runs without ``_tuned`` suffix (individually weak)
+
+Strategies actually evaluated below:
+1. Simple average over all models
+2. Vanilla weight optimization (Nelder-Mead, no regularization)
+3. L2-regularized weight optimization (penalize deviation from equal weights)
+4. Fold-based weight optimization (optimize on each CV fold's val, avg weights)
+5. Fold-based + L2
+6. Top-K simple averages (k = 3, 5, 8)
 """
 
 import sys
@@ -39,16 +46,19 @@ SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
 
 
 # Exclusion list: experiment name substrings that must NOT enter the ensemble.
-# - singleconc direct-feature: OOF 0.47 but LB 1.03 — selection-bias leakage
-# - default-params multitask (no _tuned suffix): individually too weak (0.65–0.70)
-# - pseudo-label variants: documented negative, redundant with baseline
-# - counter_assay scale residual: ad-hoc, unused
+# Update this list (and the module docstring) whenever a new failure mode is
+# documented in docs/. Each excluded category corresponds to a published PR
+# with the failure analysis.
 EXCLUDE_SUBSTRINGS = (
-    "singleconc",  # leaky direct-concat feature
-    "_pseudo",  # pseudo-labeling variants (all negative)
+    "singleconc",  # leaky direct-concat feature (PR #41, LB RAE 1.03)
+    "_pseudo",  # pseudo-labeling variants (PR #39, documented negative)
 )
+
+# Conditional exclusions that don't fit a plain substring match. Each entry
+# is a callable taking the experiment name and returning True to exclude.
 EXCLUDE_PATTERNS = (
-    # Default-params multitask runs: name ends without "_tuned"
+    # Default-params multitask runs: name starts with chemprop_multitask but
+    # lacks the "_tuned" suffix added by run_chemprop_multitask.py --use-tuned.
     lambda n: n.startswith("chemprop_multitask") and "_tuned" not in n,
 )
 
@@ -70,7 +80,7 @@ def find_experiments_with_oof() -> list[dict]:
         FROM experiments e
         JOIN experiment_cv_results cv ON cv.experiment_id = e.id
         WHERE EXISTS (SELECT 1 FROM experiment_oof_predictions oof WHERE oof.experiment_id = e.id)
-          AND e.model_type != 'ensemble'
+          AND e.model_type NOT LIKE 'ensemble%'
         GROUP BY e.id, e.name, e.feature_set
         ORDER BY avg_rae
     """)
@@ -118,20 +128,43 @@ def load_submission_preds(experiment_name: str) -> np.ndarray | None:
 
 
 def load_all_models(experiments, y_train):
-    """Load OOF and test predictions for all valid models."""
+    """Load OOF and test predictions for all valid models.
+
+    Logs every drop with a reason so silently-missing models cannot
+    sneak past the user.
+    """
     model_names = []
     oof_list = []
     test_list = []
+    dropped: list[tuple[str, str]] = []
     for exp in experiments:
         oof = load_oof_predictions(exp["id"])
         test_preds = load_submission_preds(exp["name"])
-        if oof is None or test_preds is None:
+        if oof is None:
+            dropped.append((exp["name"], "no OOF predictions in DB"))
+            continue
+        if test_preds is None:
+            dropped.append((exp["name"], "no submission CSV on disk"))
             continue
         if len(oof) != len(y_train):
+            dropped.append(
+                (exp["name"], f"OOF length {len(oof)} != y_train {len(y_train)}")
+            )
             continue
         model_names.append(exp["name"])
         oof_list.append(oof)
         test_list.append(test_preds)
+
+    if dropped:
+        print(f"\n[warn] Dropped {len(dropped)} models from ensemble:")
+        for name, reason in dropped:
+            print(f"  [drop] {name:<55} {reason}")
+        if len(dropped) > 0.3 * len(experiments):
+            print(
+                f"[warn] Dropped >30% of candidate models "
+                f"({len(dropped)}/{len(experiments)}). Check submissions/ "
+                f"or DB consistency before trusting the result."
+            )
     return model_names, np.column_stack(oof_list), np.column_stack(test_list)
 
 
@@ -141,9 +174,17 @@ def load_all_models(experiments, y_train):
 
 
 def normalize_weights(w):
-    """Softmax-like normalization to ensure positive weights summing to 1."""
+    """L1-normalize the absolute weights so they sum to 1.
+
+    Falls back to uniform weights if Nelder-Mead converges to all zeros
+    (pathological but possible with high regularization). Prevents NaN
+    propagation into ensemble predictions.
+    """
     w_abs = np.abs(w)
-    return w_abs / w_abs.sum()
+    total = w_abs.sum()
+    if total < 1e-12:
+        return np.ones_like(w_abs) / len(w_abs)
+    return w_abs / total
 
 
 def optimize_weights_vanilla(oof_matrix, y_true):
@@ -292,8 +333,8 @@ def evaluate_ensemble(
         weight_dict = {n: float(w) for n, w in zip(model_names, weights)}
         record_experiment(
             name=name,
-            description=f"Ensemble v2: {name}",
-            model_type="ensemble_v2",
+            description=f"Ensemble v8: {name}",
+            model_type="ensemble_v8",
             feature_set="weighted_blend",
             hyperparameters={"weights": weight_dict, "strategy": name},
             fold_metrics=[metrics],

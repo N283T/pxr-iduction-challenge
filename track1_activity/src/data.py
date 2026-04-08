@@ -75,7 +75,7 @@ def load_train_smiles_with_counter():
     """Load train SMILES, pEC50, and counter_assay pEC50 (NaN if missing).
 
     Same row order as load_train_smiles_target. The counter_pec50 column is
-    NaN for the 1,492 train compounds without a counter_assay measurement.
+    NaN for train compounds that have no row in counter_assay (LEFT JOIN).
     """
     return pd.read_sql(
         """SELECT c.std_smiles AS smiles, c.molecule_name,
