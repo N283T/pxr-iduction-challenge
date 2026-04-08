@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 from rdkit import Chem
-from rdkit.Chem import AllChem, MACCSkeys, rdFingerprintGenerator
+from rdkit.Chem import AllChem, MACCSkeys, rdFingerprintGenerator, rdReducedGraphs
 from rdkit.Avalon import pyAvalonTools
 
 
@@ -84,6 +84,21 @@ def count_rdkit_fp(mols: list, n_bits: int = 2048) -> np.ndarray:
     return np.array([gen.GetCountFingerprintAsNumPy(m) for m in mols], dtype=np.float32)
 
 
+def erg_fp(mols: list) -> np.ndarray:
+    """Extended Reduced Graph fingerprint (pharmacophore-style, 315 dims).
+
+    Encodes H-bond donor/acceptor, aromatic, positive/negative ionisable
+    and hydrophobic centres on a reduced graph. Orthogonal to Morgan.
+    Used by HybridADMET (top-6 in OpenADMET ExpansionRx challenge).
+    """
+    return np.array(
+        [
+            np.asarray(rdReducedGraphs.GetErGFingerprint(m), dtype=np.float32)
+            for m in mols
+        ]
+    )
+
+
 # Registry for easy iteration
 FP_REGISTRY = {
     "morgan_r2_2048": lambda mols: morgan_fp(mols, radius=2, n_bits=2048),
@@ -98,4 +113,5 @@ FP_REGISTRY = {
     "count_morgan_r3_2048": lambda mols: count_morgan_fp(mols, radius=3, n_bits=2048),
     "count_atompair_2048": lambda mols: count_atompair_fp(mols, n_bits=2048),
     "count_rdkit_fp_2048": lambda mols: count_rdkit_fp(mols, n_bits=2048),
+    "ergfp": erg_fp,
 }
