@@ -4,6 +4,8 @@
 **Status**: Done, awaiting LB verification
 **Reason**: Structural bugs in the legacy `run_ensemble_v*.py` scripts were silently contaminating the candidate pool and biasing fold-weight optimization. Fix collapses the three versioned scripts (`run_ensemble.py`, `run_ensemble_v2.py`, `run_ensemble_v8.py`) to a single canonical `run_ensemble.py` with an explicit allow list.
 
+**Numeric snapshot date**: **2026-04-09**. Every OOF RAE, correlation, and weight distribution value below is a point-in-time snapshot from the `experiment_summary` view and will drift if any candidate is re-tuned. Re-run `run_ensemble.py` and `pixi run db-psql -c 'SELECT * FROM experiment_summary'` to refresh before using these numbers for planning.
+
 ## What was broken
 
 ### 1. Silent scaffold contamination
@@ -25,7 +27,7 @@ Legacy scaffold experiments accumulated ~20% of `ens_v8_vanilla_opt`'s total wei
 
 ### 2. Scaffold folds for weight optimization despite UMAP OOFs
 
-Both `run_ensemble_v2.py` and `run_ensemble_v8.py` called `scaffold_split_indices(...)` at main() for the `fold_based` and `fold_l2` weight optimization strategies. When the majority of models in the pool had OOF predictions generated from UMAP folds, optimizing on scaffold folds meant **evaluating UMAP-trained models on a fold structure they were never held out on**. This isn't technically incorrect (the OOF predictions are still predictions) but it biases weight selection toward models whose scaffold-fold prediction distribution matches the scaffold-fold validation points, which has no a priori reason to match LB behavior.
+Both `run_ensemble_v2.py` and `run_ensemble_v8.py` called `scaffold_split_indices(...)` at main() for the `fold_based` and `fold_l2` weight optimization strategies (verify in the archived copies: `archive/run_ensemble_v2.py:281-283` and `archive/run_ensemble_v8.py:380-382`). When the majority of models in the pool had OOF predictions generated from UMAP folds, optimizing on scaffold folds meant **evaluating UMAP-trained models on a fold structure they were never held out on**. This isn't technically incorrect (the OOF predictions are still predictions) but it biases weight selection toward models whose scaffold-fold prediction distribution matches the scaffold-fold validation points, which has no a priori reason to match LB behavior.
 
 ### 3. Confusing `v*` naming
 
@@ -127,7 +129,7 @@ The top 5 models (4 DL architectures + tuned Mordred+Jazzy) account for **78.4%*
 
 | Ensemble | OOF RAE | Pool | Split consistency |
 |---|---:|---:|---|
-| `ens_v7_vanilla` (prior best, LB 0.62) | 0.5304 | 23 (mostly UMAP + 1 scaffold) | 96% clean |
+| `ens_v7_vanilla` (prior best, LB 0.62) | 0.5304 | 23 (21 UMAP + 2 scaffold) | 91.3% clean |
 | `ens_v8_vanilla_opt` (broken) | 0.5268 | ~54 mixed | ~80% clean |
 | **`ens_l2_a0.05` (canonical)** | **0.5312** | **20 UMAP-only** | **100% clean** |
 
@@ -155,7 +157,7 @@ WHERE name IN (
 );
 ```
 
-Legacy ensemble rows (`ens_v7_*`, `ens_v8_*`) are also archived. Total archived: 39 rows. No rows were physically deleted — historical OOF predictions and submission paths remain in DB for forensic lookup but are filtered out of any query that excludes `model_type LIKE 'archived_%'`.
+Legacy ensemble rows (`ens_v7_*`, `ens_v8_*`) are also archived. Their `name` column is unchanged (they are still named `ens_v7_vanilla`, `ens_v8_l2_a0.05`, etc., so name-based queries continue to find them) but their `model_type` column is now `archived_ensemble_v7` / `archived_ensemble_v8`. The canonical ensemble pool query filters them out via `model_type NOT LIKE 'archived_%'`. Total archived: 39 rows. No rows were physically deleted — historical OOF predictions and submission paths remain in DB for forensic lookup.
 
 ## Forward path
 

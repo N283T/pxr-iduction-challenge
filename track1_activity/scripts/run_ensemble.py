@@ -26,8 +26,14 @@ Key design choices that differ from the archived scripts:
 
 3. **No v* suffix in submission names**: submissions are
    ``ens_{strategy}.csv`` / DB name ``ens_{strategy}``. Previous
-   ens_v7_* and ens_v8_* rows remain in the DB as historical artifacts
-   but are no longer generated.
+   ens_v7_* and ens_v8_* rows remain in the DB with an
+   ``archived_ensemble_v7`` / ``archived_ensemble_v8`` ``model_type``
+   prefix (see ``docs/ensemble_cleanup.md``) and are no longer
+   generated.
+
+All OOF RAE numbers annotated inline below are snapshots as of
+2026-04-09. They will rot if any candidate is re-tuned — re-compute
+from ``experiment_summary`` before trusting them for planning.
 
 The candidate list is the union of:
   - ens_v7 UMAP-only members (dropping chemprop_scaffold and
@@ -69,40 +75,43 @@ SUBMISSION_DIR.mkdir(parents=True, exist_ok=True)
 # The allow list — audit this before every ensemble run
 # ---------------------------------------------------------------------------
 
+# OOF RAE values below are snapshots from 2026-04-09 and may drift after
+# any re-tuning. They are annotations for quick review, not live values.
 ENSEMBLE_MODELS: tuple[str, ...] = (
     # --- New additions (PR #45 and earlier this cycle) ---
-    "lgbm_mordred_jazzy_umap",  # 0.5784  Mordred + Jazzy (tuned)
-    "chemprop_multitask5_umap_aux0.0_tuned",  # 0.5817  Best 5-task MTL variant
+    "lgbm_mordred_jazzy_umap",  # 0.5784 (2026-04-09)  Mordred + Jazzy (tuned)
+    "chemprop_multitask5_umap_aux0.0_tuned",  # 0.5817 (2026-04-09)  Best 5-task MTL
     # --- DL models (UMAP) ---
-    "chemprop_optuna_umap",  # 0.5785
-    "attentivefp_optuna_umap",  # 0.5871
-    "residual_physprop+mordred_umap",  # 0.5861  (residual stacking, kept as distinct arch)
+    "chemprop_optuna_umap",  # 0.5785 (2026-04-09)
+    "attentivefp_optuna_umap",  # 0.5871 (2026-04-09)
+    "residual_physprop+mordred_umap",  # 0.5861 (2026-04-09) residual 2-stage
     # --- Mordred family (UMAP) ---
     # NOTE: plain lgbm_mordred_umap and the gap0.5/gap1.0 variants were removed
     # because they correlate > 0.95 with lgbm_mordred_jazzy_umap (Pearson 0.983
-    # for plain, ~0.96 for the gap variants). mordred_jazzy is a strict
-    # superset in feature space with slightly better OOF RAE, so the mordred
-    # family is collapsed to a single model. residual_physprop+mordred_umap
-    # is kept because it uses a fundamentally different two-stage residual
+    # for plain, 0.963 for gap0.5, 0.958 for gap1.0; values computed on the
+    # 4140-row OOF vector on 2026-04-09). mordred_jazzy is a strict superset
+    # in feature space with slightly better OOF RAE, so the mordred family is
+    # collapsed to a single model. residual_physprop+mordred_umap is kept
+    # because it uses a fundamentally different two-stage residual
     # architecture, not just a weighted mordred fit.
     # --- Foundation-model embeddings (UMAP) ---
-    "lgbm_chemeleon_umap",  # 0.6137
-    "lgbm_chemberta_5m_mtr_umap",  # 0.6218
-    "lgbm_chemeleon_umap_gap1.0",  # 0.6511
-    "lgbm_chemberta_5m_mtr_umap_gap1.0",  # 0.6521
-    "lgbm_molformer_xl_umap",  # 0.6522
+    "lgbm_chemeleon_umap",  # 0.6137 (2026-04-09)
+    "lgbm_chemberta_5m_mtr_umap",  # 0.6218 (2026-04-09)
+    "lgbm_chemeleon_umap_gap1.0",  # 0.6511 (2026-04-09)
+    "lgbm_chemberta_5m_mtr_umap_gap1.0",  # 0.6521 (2026-04-09)
+    "lgbm_molformer_xl_umap",  # 0.6522 (2026-04-09)
     # --- Fingerprint family (UMAP) ---
-    "lgbm_count_morgan_r2_2048_umap",  # 0.6225
-    "lgbm_count_atompair_2048_umap",  # 0.6280
-    "lgbm_count_morgan_r3_2048_umap",  # 0.6310
-    "lgbm_count_morgan_r2_2048_umap_gap1.0",  # 0.6413
-    "lgbm_avalon_2048_umap",  # 0.6536
-    "lgbm_morgan_r2_2048_umap",  # 0.6579
-    "lgbm_atompair_2048_umap",  # 0.6623
-    "lgbm_feat_morgan_r2_2048_umap",  # 0.6774
+    "lgbm_count_morgan_r2_2048_umap",  # 0.6225 (2026-04-09)
+    "lgbm_count_atompair_2048_umap",  # 0.6280 (2026-04-09)
+    "lgbm_count_morgan_r3_2048_umap",  # 0.6310 (2026-04-09)
+    "lgbm_count_morgan_r2_2048_umap_gap1.0",  # 0.6413 (2026-04-09)
+    "lgbm_avalon_2048_umap",  # 0.6536 (2026-04-09)
+    "lgbm_morgan_r2_2048_umap",  # 0.6579 (2026-04-09)
+    "lgbm_atompair_2048_umap",  # 0.6623 (2026-04-09)
+    "lgbm_feat_morgan_r2_2048_umap",  # 0.6774 (2026-04-09)
     # --- Physicochemical (UMAP) ---
-    "lgbm_rdkit_desc_umap",  # 0.6338
-    "lgbm_rdkit_desc_umap_gap1.0",  # 0.6442
+    "lgbm_rdkit_desc_umap",  # 0.6338 (2026-04-09)
+    "lgbm_rdkit_desc_umap_gap1.0",  # 0.6442 (2026-04-09)
 )
 
 
@@ -111,11 +120,22 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
 # ---------------------------------------------------------------------------
 
 
-def load_models(y_train: np.ndarray) -> tuple[list[str], np.ndarray, np.ndarray]:
+def load_models(
+    y_train: np.ndarray, n_test: int
+) -> tuple[list[str], np.ndarray, np.ndarray]:
     """Load OOF + test predictions for every model in ``ENSEMBLE_MODELS``.
 
     Fails loudly if anything is missing: the allow list is authoritative.
+    Weight optimization assumes at least two candidates (a single-model
+    "ensemble" is just the model itself and all six strategies collapse
+    to the same weights), so a pool of < 2 raises.
     """
+    if len(ENSEMBLE_MODELS) < 2:
+        raise RuntimeError(
+            f"ENSEMBLE_MODELS has {len(ENSEMBLE_MODELS)} entries; need >= 2 "
+            "for weight optimization to be meaningful."
+        )
+
     conn = psycopg2.connect(**DB_PARAMS)
     cur = conn.cursor()
     cur.execute(
@@ -150,13 +170,24 @@ def load_models(y_train: np.ndarray) -> tuple[list[str], np.ndarray, np.ndarray]
                 f"{name}: OOF length {len(oof)} != train length {len(y_train)}"
             )
 
-        # Test
+        # Test — validate CSV has the expected column and length
         if sub_path is None:
             raise RuntimeError(f"{name}: experiments.submission_path is NULL")
         csv_path = REPO_ROOT.joinpath(sub_path)
         if not csv_path.exists():
             raise RuntimeError(f"{name}: submission CSV not found at {csv_path}")
-        test_pred = pd.read_csv(csv_path)["pEC50"].values
+        test_df = pd.read_csv(csv_path)
+        if "pEC50" not in test_df.columns:
+            raise RuntimeError(
+                f"{name}: submission CSV {csv_path} has no 'pEC50' column "
+                f"(got {list(test_df.columns)})"
+            )
+        if len(test_df) != n_test:
+            raise RuntimeError(
+                f"{name}: submission CSV has {len(test_df)} rows, "
+                f"expected {n_test} (test_activity length)"
+            )
+        test_pred = test_df["pEC50"].to_numpy()
 
         names.append(name)
         oofs.append(oof)
@@ -173,16 +204,39 @@ def load_models(y_train: np.ndarray) -> tuple[list[str], np.ndarray, np.ndarray]
 
 
 def normalize_weights(w: np.ndarray) -> np.ndarray:
+    """L1-normalize the absolute weights so they sum to 1.
+
+    Raises if the optimizer collapsed to all-zero weights — that outcome
+    is pathological and silently turning it into uniform weights would
+    hide the failure behind an ensemble that looks like a legitimate
+    weighted blend. ``ens_simple_avg`` already covers the "everything
+    uniform" strategy as a distinct, labeled submission.
+    """
     w_abs = np.abs(w)
     total = w_abs.sum()
     if total < 1e-12:
-        return np.ones_like(w_abs) / len(w_abs)
+        raise RuntimeError(
+            "normalize_weights: optimizer produced all-zero weights "
+            "(|sum| < 1e-12). This is pathological — refusing to fall "
+            "back to uniform weights silently. Investigate the objective."
+        )
     return w_abs / total
 
 
 def _check(result, label: str) -> None:
+    """Raise if scipy.optimize.minimize did not converge.
+
+    The previous implementation only printed a warning, which meant
+    non-converged weights silently flowed into the submission CSV and
+    DB record. For a 20-dim Nelder-Mead at maxiter=50000 a non-success
+    return is rare but plausible, and its weights are untrustworthy —
+    stop the run and surface the failure loudly instead.
+    """
     if not result.success:
-        print(f"  [warn] {label}: optimizer did not converge ({result.message})")
+        raise RuntimeError(
+            f"{label}: optimizer did not converge ({result.message}). "
+            "Refusing to use the last iterate as production weights."
+        )
 
 
 def _rae(y_true: np.ndarray, y_pred: np.ndarray) -> float:
@@ -252,6 +306,10 @@ def optimize_fold(
         _check(result, f"fold_{i}(alpha={alpha})")
         per_fold.append(normalize_weights(result.x))
 
+    # Average the per-fold weight vectors, then re-normalize. Each
+    # per_fold entry is already simplex-normalized (sums to 1), so the
+    # mean also sums to 1 in exact arithmetic; the final division
+    # exists only to scrub floating-point drift.
     avg = np.mean(per_fold, axis=0)
     return avg / avg.sum()
 
@@ -279,6 +337,10 @@ def evaluate_and_record(
         f"R2={metrics['R2']:.4f}  Spearman={metrics['Spearman_R']:.4f}"
     )
 
+    # Display threshold: 0.02 keeps the "significant" list focused on
+    # models with >= 2% weight. Below that, contributions are within
+    # normalization noise for a 20-model pool (1/20 = 5% uniform
+    # baseline, so 0.02 is under half of uniform).
     significant = sorted(
         [(n, w) for n, w in zip(model_names, weights) if w > 0.02],
         key=lambda x: -x[1],
@@ -298,22 +360,32 @@ def evaluate_and_record(
     sub_filename = f"{name}.csv"
     sub.to_csv(SUBMISSION_DIR.joinpath(sub_filename), index=False)
 
+    # Record to DB, but don't abort the whole ensemble pipeline if one
+    # strategy fails to record (e.g. UniqueViolation on rerun). The CSV
+    # is already on disk, so a DB failure is recoverable by manual
+    # cleanup — losing the remaining strategies would be worse.
     weight_dict = {n: float(w) for n, w in zip(model_names, weights)}
-    record_experiment(
-        name=name,
-        description=f"Canonical ensemble ({name})",
-        model_type="ensemble",
-        feature_set="weighted_blend",
-        hyperparameters={
-            "weights": weight_dict,
-            "strategy": name.replace("ens_", ""),
-            "pool_size": len(model_names),
-            "pool_models": list(model_names),
-        },
-        fold_metrics=[metrics],
-        submission_path=f"track1_activity/submissions/{sub_filename}",
-        notes=f"OOF RAE={metrics['RAE']:.4f}, canonical (UMAP-only)",
-    )
+    try:
+        record_experiment(
+            name=name,
+            description=f"Canonical ensemble ({name})",
+            model_type="ensemble",
+            feature_set="weighted_blend",
+            hyperparameters={
+                "weights": weight_dict,
+                "strategy": name.replace("ens_", ""),
+                "pool_size": len(model_names),
+                "pool_models": list(model_names),
+            },
+            fold_metrics=[metrics],
+            submission_path=f"track1_activity/submissions/{sub_filename}",
+            notes=f"OOF RAE={metrics['RAE']:.4f}, canonical (UMAP-only)",
+        )
+    except Exception as exc:  # noqa: BLE001 — DB errors are diverse
+        print(
+            f"    [ERROR] {name}: record_experiment failed ({type(exc).__name__}: "
+            f"{exc}). CSV still on disk at submissions/{sub_filename}; continuing."
+        )
 
     return metrics
 
@@ -327,12 +399,12 @@ def main() -> None:
     print("Loading data...")
     train_df = load_train_smiles_target()
     test_df = load_test_smiles()
-    y_train = train_df["pec50"].values
+    y_train = train_df["pec50"].to_numpy()
 
     print(f"Train rows: {len(y_train)}, test rows: {len(test_df)}")
     print(f"Allow list: {len(ENSEMBLE_MODELS)} models")
 
-    model_names, oof_matrix, test_matrix = load_models(y_train)
+    model_names, oof_matrix, test_matrix = load_models(y_train, n_test=len(test_df))
     print(f"\nLoaded {len(model_names)} models with aligned OOF + test.")
 
     # Print per-model OOF RAE as a sanity check
@@ -431,7 +503,10 @@ def main() -> None:
 
     best_strategy, best_metrics = sorted_results[0]
     print(f"\n  Best (by OOF RAE): {best_strategy} = {best_metrics['RAE']:.4f}")
-    print("  LB RAE reference: 0.62 (ens_v7)")
+    print(
+        "  LB RAE reference: 0.62 (ens_v7, 2026-04-07 snapshot — "
+        "update after next submission)"
+    )
     print(
         "\n  Remember: lower OOF RAE may not translate to better LB if "
         "the optimizer overfits weights."
