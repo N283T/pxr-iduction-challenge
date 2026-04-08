@@ -41,6 +41,11 @@ from evaluate import (
     save_oof_predictions,
 )
 from features import FP_REGISTRY, smiles_to_mols
+from pseudo_labels import (
+    augment_fold,
+    build_pseudo_feature_matrix,
+    load_pseudo_labels,
+)
 from splits import scaffold_split_indices, umap_split_indices
 
 SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
@@ -254,12 +259,12 @@ def optuna_search_space(model_type: str, trial):
 # ---------------------------------------------------------------------------
 
 
-def train_predict(model_type: str, params: dict, X_tr, y_tr, X_va, y_va):
+def train_predict(model_type: str, params: dict, X_tr, y_tr, X_va, y_va, w_tr=None):
     """Train a model and return (val_preds, best_iteration)."""
     if model_type == "lgbm":
         import lightgbm as lgb
 
-        dt = lgb.Dataset(X_tr, label=y_tr)
+        dt = lgb.Dataset(X_tr, label=y_tr, weight=w_tr)
         dv = lgb.Dataset(X_va, label=y_va, reference=dt)
         model = lgb.train(
             params,
@@ -269,6 +274,11 @@ def train_predict(model_type: str, params: dict, X_tr, y_tr, X_va, y_va):
             callbacks=[lgb.early_stopping(50), lgb.log_evaluation(0)],
         )
         return model.predict(X_va), model.best_iteration, model
+
+    if w_tr is not None and model_type != "lgbm":
+        raise NotImplementedError(
+            f"Sample weights only supported for lgbm, got {model_type}"
+        )
 
     if model_type == "xgboost":
         import xgboost as xgb
@@ -358,6 +368,36 @@ def run(args):
     X_train, X_test = load_features(args.feature, train_df, test_df)
     print(f"  X_train: {X_train.shape}, X_test: {X_test.shape}")
 
+    # Optional pseudo-labels
+    pseudo_X = None
+    pseudo_y = None
+    pseudo_w = None
+    pseudo_count = 0
+    if args.pseudo:
+        if args.trials > 0:
+            raise ValueError(
+                "--pseudo requires --trials 0 (Optuna+pseudo not supported)"
+            )
+        print(f"Loading pseudo-labels from {args.pseudo}...")
+        pseudo_df = load_pseudo_labels(Path(args.pseudo))
+        train_ids = set(load_compound_ids("train"))
+        pseudo_ids = set(pseudo_df["compound_id"].astype(int))
+        overlap = train_ids & pseudo_ids
+        assert not overlap, (
+            f"Pseudo compound_ids overlap with train ({len(overlap)} ids); "
+            f"fold-safety violated"
+        )
+        pseudo_X = build_pseudo_feature_matrix(args.feature, pseudo_df)
+        pseudo_y = pseudo_df["pseudo_pec50"].values.astype(np.float32)
+        pseudo_w = (
+            pseudo_df["confidence"].values.astype(np.float32) * args.pseudo_weight
+        )
+        pseudo_count = len(pseudo_df)
+        print(
+            f"  pseudo_X: {pseudo_X.shape}, weight={args.pseudo_weight}, "
+            f"effective sum={pseudo_w.sum():.1f}"
+        )
+
     # CV splits
     smiles_list = train_df["smiles"].tolist()
     if args.split == "scaffold":
@@ -375,6 +415,8 @@ def run(args):
         exp_name += "_default"
     if args.gap_lambda > 0:
         exp_name += f"_gap{args.gap_lambda}"
+    if args.pseudo:
+        exp_name += f"_pseudo{args.pseudo_weight}"
     print(f"  Experiment: {exp_name}")
 
     # Training loop
@@ -386,6 +428,17 @@ def run(args):
     for fold, (tr_idx, va_idx) in enumerate(outer_splits):
         X_tr, X_va = X_train[tr_idx], X_train[va_idx]
         y_tr, y_va = y_train[tr_idx], y_train[va_idx]
+        w_tr = None
+
+        if pseudo_X is not None:
+            real_n = len(X_tr)
+            X_tr, y_tr, w_tr = augment_fold(
+                X_tr, y_tr, pseudo_X, pseudo_y, pseudo_w, base_weight=1.0
+            )
+            print(
+                f"  [Fold {fold}] augmented: real={real_n} + pseudo={pseudo_count} "
+                f"= {len(X_tr)} train, val={len(X_va)} (real only)"
+            )
 
         if args.trials > 0:
             # Optuna tuning directly on outer fold val (no inner CV)
@@ -418,7 +471,7 @@ def run(args):
 
         # Train with best params
         vp, best_iter, _ = train_predict(
-            args.model, best_params, X_tr, y_tr, X_va, y_va
+            args.model, best_params, X_tr, y_tr, X_va, y_va, w_tr=w_tr
         )
         oof_preds[va_idx] = vp
         metrics = compute_metrics(y_va, vp)
@@ -441,7 +494,24 @@ def run(args):
         f"(RAE={fold_metrics[best_fold]['RAE']:.4f})"
     )
 
-    final_model = train_final(args.model, final_params, X_train, y_train, avg_rounds)
+    if pseudo_X is not None:
+        X_final = np.concatenate([X_train, pseudo_X], axis=0)
+        y_final = np.concatenate([y_train, pseudo_y], axis=0)
+        w_final = np.concatenate(
+            [np.ones(len(X_train), dtype=np.float32), pseudo_w.astype(np.float32)],
+            axis=0,
+        )
+        import lightgbm as lgb
+
+        final_model = lgb.train(
+            final_params,
+            lgb.Dataset(X_final, label=y_final, weight=w_final),
+            num_boost_round=avg_rounds,
+        )
+    else:
+        final_model = train_final(
+            args.model, final_params, X_train, y_train, avg_rounds
+        )
     test_preds = predict_final(args.model, final_model, X_test)
     print(f"  Test preds: mean={test_preds.mean():.3f}, std={test_preds.std():.3f}")
 
@@ -466,7 +536,15 @@ def run(args):
         fold_metrics=fold_metrics,
         submission_path=f"track1_activity/submissions/{exp_name}.csv",
         num_boost_rounds=num_boost_rounds,
-        notes=f"OOF RAE={oof_metrics['RAE']:.4f}, {args.split}_split, {args.trials}trials, gap_lambda={args.gap_lambda}",
+        notes=(
+            f"OOF RAE={oof_metrics['RAE']:.4f}, {args.split}_split, "
+            f"{args.trials}trials, gap_lambda={args.gap_lambda}"
+            + (
+                f", pseudo={args.pseudo} weight={args.pseudo_weight} n={pseudo_count}"
+                if args.pseudo
+                else ""
+            )
+        ),
     )
     save_oof_predictions(exp_id, oof_preds)
 
@@ -495,6 +573,18 @@ def main():
         type=float,
         default=0.0,
         help="Gap regularization lambda (0=off, 0.5-2.0 recommended)",
+    )
+    parser.add_argument(
+        "--pseudo",
+        type=str,
+        default=None,
+        help="Path to pseudo-label parquet (e.g. data/pseudo_labels.parquet)",
+    )
+    parser.add_argument(
+        "--pseudo-weight",
+        type=float,
+        default=0.3,
+        help="Weight multiplier for pseudo samples (multiplied by per-row confidence)",
     )
     args = parser.parse_args()
 
