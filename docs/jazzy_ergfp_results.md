@@ -67,17 +67,34 @@ The acceptor-strength feature `sa` is the **5th most important feature in the en
 
 This matches what top teams observed: Jazzy does add signal, but you need Optuna-level tuning of the combined feature space to translate that into measurable OOF gains.
 
-## Ensemble contribution (ens_v8 refresh)
+## Optuna-tuned mordred_jazzy (20 trials, UMAP fold)
 
-After inserting `lgbm_mordred_jazzy_umap_default` into the ensemble candidate pool and re-running `run_ensemble_v8.py`:
+Running `run_train.py --model lgbm --feature mordred_jazzy --split umap --trials 20`:
+
+| Experiment | OOF RAE | Δ vs default |
+|---|---:|---:|
+| `lgbm_mordred_jazzy_umap_default` | 0.5804 | — |
+| **`lgbm_mordred_jazzy_umap` (Optuna)** | **0.5729** | **−0.0075** |
+| `lgbm_mordred_umap` (Optuna, no jazzy) | 0.5818 | n/a |
+| `optuna_mordred+morgan` (historical best mordred-family) | 0.5545 | n/a |
+
+Optuna tuning of the combined `mordred+jazzy` space recovers a measurable gain over default-params (−0.0075 RAE) and is −0.0089 better than Optuna-tuned plain Mordred, but still underperforms the `mordred+morgan` combination. This confirms the default-params result was at the noise floor only because hyperparameters were not adapted to the enlarged feature space — the signal was real but needed tuning to emerge.
+
+Next step to beat the `mordred+morgan` reference: try a `mordred+morgan+jazzy` combined feature mode (follow-up PR).
+
+## Ensemble contribution (ens_v8 refresh with tuned mordred_jazzy)
+
+After adding `lgbm_mordred_jazzy_umap` (tuned) to the candidate pool and excluding the weak ErGFP-alone and jazzy-alone models:
 
 | Strategy | OOF RAE | Δ vs prior best (0.5253) |
 |---|---:|---:|
-| `ens_v8_l2_alpha=0.1` | **0.5254** | ±0.000 |
-| `ens_v8_fold_l2_alpha=0.1` | 0.5266 | +0.001 |
-| `ens_v8_top8_avg` | 0.5379 | +0.013 (includes mordred_jazzy at 1/8) |
+| **`ens_v8_vanilla_opt`** | **0.5268** | +0.0015 |
+| `ens_v8_fold_based` | 0.5269 | +0.0016 |
+| `ens_v8_l2_alpha=0.1` | 0.5269 | +0.0016 |
 
-Ensemble result basically unchanged. `lgbm_mordred_jazzy` shows up in top8_avg at 1/8 weight so it is marginally decorrelated from the existing Mordred variants but not enough to move L2-regularized weighted ensemble.
+**Tuned `lgbm_mordred_jazzy` picks up weight 0.0793 (rank 3)** in `ens_v8_vanilla_opt`, behind only `attentivefp_optuna_umap` (0.110) and `chemprop_multitask5_umap_aux0.0_tuned` (0.084). This confirms the new feature is genuinely decorrelated enough to earn real weight.
+
+The overall ensemble OOF RAE is within noise of the prior 0.5253 best. Typical pattern: new models that correlate with existing ones get weight at the expense of incumbents, with marginal net change in OOF. The value is *not* a guaranteed LB improvement — it is an additional diversified component that may help under distribution shift.
 
 **ErGFP alone (OOF RAE 0.7265) is too weak to make it into any significant ensemble weight**, as expected. We add `_ergfp_` to the `EXCLUDE_SUBSTRINGS` list in `run_ensemble_v8.py` so it is skipped by the automated candidate pool. The feature remains available in `FP_REGISTRY` for manual experiments and feature-concat follow-ups. Jazzy-alone (`lgbm_jazzy_*`) is excluded via an `EXCLUDE_PATTERNS` lambda for the same reason.
 
