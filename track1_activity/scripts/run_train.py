@@ -309,13 +309,32 @@ def train_predict(model_type: str, params: dict, X_tr, y_tr, X_va, y_va, w_tr=No
     raise ValueError(f"Unknown model: {model_type}")
 
 
-def train_final(model_type: str, params: dict, X_train, y_train, num_rounds: int):
-    """Train final model on all training data."""
+def train_final(
+    model_type: str,
+    params: dict,
+    X_train,
+    y_train,
+    num_rounds: int,
+    sample_weight=None,
+):
+    """Train final model on all training data.
+
+    ``sample_weight`` is supported for LightGBM only; XGBoost/CatBoost raise
+    NotImplementedError when a non-None weight is supplied (matching
+    ``train_predict``).
+    """
     if model_type == "lgbm":
         import lightgbm as lgb
 
         return lgb.train(
-            params, lgb.Dataset(X_train, label=y_train), num_boost_round=num_rounds
+            params,
+            lgb.Dataset(X_train, label=y_train, weight=sample_weight),
+            num_boost_round=num_rounds,
+        )
+
+    if sample_weight is not None:
+        raise NotImplementedError(
+            f"Sample weights only supported for lgbm, got {model_type}"
         )
 
     if model_type == "xgboost":
@@ -387,7 +406,28 @@ def run(args):
             f"Pseudo compound_ids overlap with train ({len(overlap)} ids); "
             f"fold-safety violated"
         )
-        pseudo_X = build_pseudo_feature_matrix(args.feature, pseudo_df)
+        if args.feature != "mordred":
+            raise NotImplementedError(
+                f"--pseudo currently supports --feature mordred only, "
+                f"got {args.feature!r}"
+            )
+        # Canonical column order: same intersection load_features built above.
+        mordred_train_df, _ = load_train_mordred()
+        mordred_test_df = load_mordred(load_compound_ids("test"))
+        feature_columns = list(
+            mordred_train_df.columns.intersection(mordred_test_df.columns)
+        )
+        assert X_train.shape[1] == len(feature_columns), (
+            f"Train feature column count mismatch: X_train has {X_train.shape[1]} "
+            f"cols, expected {len(feature_columns)}"
+        )
+        pseudo_X = build_pseudo_feature_matrix(
+            args.feature, pseudo_df, feature_columns=feature_columns
+        )
+        assert pseudo_X.shape[1] == X_train.shape[1], (
+            f"Pseudo/train column mismatch: pseudo={pseudo_X.shape[1]}, "
+            f"train={X_train.shape[1]}"
+        )
         pseudo_y = pseudo_df["pseudo_pec50"].values.astype(np.float32)
         pseudo_w = (
             pseudo_df["confidence"].values.astype(np.float32) * args.pseudo_weight
@@ -501,12 +541,13 @@ def run(args):
             [np.ones(len(X_train), dtype=np.float32), pseudo_w.astype(np.float32)],
             axis=0,
         )
-        import lightgbm as lgb
-
-        final_model = lgb.train(
+        final_model = train_final(
+            args.model,
             final_params,
-            lgb.Dataset(X_final, label=y_final, weight=w_final),
-            num_boost_round=avg_rounds,
+            X_final,
+            y_final,
+            avg_rounds,
+            sample_weight=w_final,
         )
     else:
         final_model = train_final(

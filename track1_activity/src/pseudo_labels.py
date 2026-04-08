@@ -10,11 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from data import load_mordred, load_train_mordred
-
-# Re-use the same loaders the main script uses for test compounds
-import psycopg2
-from data import DB_PARAMS
+from data import load_mordred
 
 
 def load_pseudo_labels(path: Path) -> pd.DataFrame:
@@ -28,13 +24,17 @@ def load_pseudo_labels(path: Path) -> pd.DataFrame:
 
 
 def build_pseudo_feature_matrix(
-    feature_name: str, pseudo_df: pd.DataFrame
+    feature_name: str,
+    pseudo_df: pd.DataFrame,
+    feature_columns: list[str],
 ) -> np.ndarray:
     """Build a feature matrix for pseudo compounds matching the train layout.
 
-    Mordred-only for now. The column order is aligned with ``load_train_mordred``
-    via the intersection of train Mordred columns and pseudo Mordred columns,
-    matching how ``load_features`` builds the train matrix.
+    Mordred-only for now. ``feature_columns`` MUST be the exact ordered list of
+    columns used to build the train matrix (canonical source: the column order
+    returned by the same code path that builds ``X_train``). Pseudo Mordred
+    rows are reindexed to that order; missing columns are filled with NaN
+    (LightGBM tolerates NaN) and the count is logged.
     """
     if feature_name != "mordred":
         raise NotImplementedError(
@@ -43,34 +43,30 @@ def build_pseudo_feature_matrix(
         )
 
     pseudo_ids = pseudo_df["compound_id"].astype(int).tolist()
-    mordred_train, _ = load_train_mordred()
-
-    # Load test compound_ids to mirror load_features' intersection logic
-    conn = psycopg2.connect(**DB_PARAMS)
-    cur = conn.cursor()
-    cur.execute("SELECT compound_id FROM test_activity")
-    test_ids = [r[0] for r in cur.fetchall()]
-    cur.close()
-    conn.close()
-    mordred_test = load_mordred(test_ids)
     mordred_pseudo = load_mordred(pseudo_ids)
 
-    missing = set(pseudo_ids) - set(mordred_pseudo.index)
-    if missing:
+    missing_rows = set(pseudo_ids) - set(mordred_pseudo.index)
+    if missing_rows:
         raise ValueError(
-            f"Mordred missing for {len(missing)} pseudo compounds "
-            f"(e.g. {sorted(missing)[:5]})"
+            f"Mordred missing for {len(missing_rows)} pseudo compounds "
+            f"(e.g. {sorted(missing_rows)[:5]})"
         )
 
-    # Match the same column subset that load_features uses for train+test.
-    # We approximate by intersecting with train columns; downstream the train
-    # matrix is built from intersection(train, test), so as long as pseudo
-    # contains the same Mordred descriptors (it does, single source table),
-    # the intersection is identical to what load_features computed.
-    common_cols = mordred_train.columns.intersection(mordred_test.columns).intersection(
-        mordred_pseudo.columns
+    missing_cols = [c for c in feature_columns if c not in mordred_pseudo.columns]
+    if missing_cols:
+        print(
+            f"  [pseudo] {len(missing_cols)} feature columns missing in pseudo "
+            f"Mordred (filled with NaN); e.g. {missing_cols[:5]}"
+        )
+
+    aligned = mordred_pseudo.reindex(
+        index=pseudo_ids, columns=feature_columns, fill_value=np.nan
     )
-    X = mordred_pseudo.loc[pseudo_ids, common_cols].values.astype(np.float32)
+    X = aligned.values.astype(np.float32)
+    assert X.shape[1] == len(feature_columns), (
+        f"Pseudo feature column count mismatch: got {X.shape[1]}, "
+        f"expected {len(feature_columns)}"
+    )
     return np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
 
 
