@@ -37,7 +37,8 @@ from evaluate import (
 )
 from splits import scaffold_split_indices
 
-SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+SUBMISSION_DIR = REPO_ROOT.joinpath("track1_activity", "submissions")
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +122,7 @@ def load_submission_preds(experiment_name: str) -> np.ndarray | None:
     conn.close()
     if row is None or row[0] is None:
         return None
-    sub_path = Path(__file__).resolve().parent.parent.parent.joinpath(row[0])
+    sub_path = REPO_ROOT.joinpath(row[0])
     if not sub_path.exists():
         return None
     return pd.read_csv(sub_path)["pEC50"].values
@@ -187,6 +188,15 @@ def normalize_weights(w):
     return w_abs / total
 
 
+def _check_minimize(result, label: str) -> None:
+    """Log a warning if the scipy.optimize.minimize result didn't converge."""
+    if not result.success:
+        print(
+            f"  [warn] {label}: optimizer did not converge "
+            f"({result.message}); using last iterate"
+        )
+
+
 def optimize_weights_vanilla(oof_matrix, y_true):
     """Original: minimize RAE on full OOF (baseline, known to overfit)."""
     n = oof_matrix.shape[1]
@@ -202,6 +212,7 @@ def optimize_weights_vanilla(oof_matrix, y_true):
         method="Nelder-Mead",
         options={"maxiter": 50000, "xatol": 1e-8, "fatol": 1e-8},
     )
+    _check_minimize(result, "vanilla")
     return normalize_weights(result.x)
 
 
@@ -224,6 +235,7 @@ def optimize_weights_l2(oof_matrix, y_true, alpha=0.1):
         method="Nelder-Mead",
         options={"maxiter": 50000, "xatol": 1e-8, "fatol": 1e-8},
     )
+    _check_minimize(result, f"l2(alpha={alpha})")
     return normalize_weights(result.x)
 
 
@@ -232,7 +244,7 @@ def optimize_weights_fold_based(oof_matrix, y_true, splits):
     n = oof_matrix.shape[1]
     all_weights = []
 
-    for train_idx, val_idx in splits:
+    for fold_i, (train_idx, val_idx) in enumerate(splits):
         oof_val = oof_matrix[val_idx]
         y_val = y_true[val_idx]
 
@@ -249,6 +261,7 @@ def optimize_weights_fold_based(oof_matrix, y_true, splits):
             method="Nelder-Mead",
             options={"maxiter": 50000, "xatol": 1e-8, "fatol": 1e-8},
         )
+        _check_minimize(result, f"fold_based[fold={fold_i}]")
         all_weights.append(normalize_weights(result.x))
 
     # Average weights across folds
@@ -262,7 +275,7 @@ def optimize_weights_fold_l2(oof_matrix, y_true, splits, alpha=0.1):
     equal_w = np.ones(n) / n
     all_weights = []
 
-    for train_idx, val_idx in splits:
+    for fold_i, (train_idx, val_idx) in enumerate(splits):
         oof_val = oof_matrix[val_idx]
         y_val = y_true[val_idx]
 
@@ -279,6 +292,7 @@ def optimize_weights_fold_l2(oof_matrix, y_true, splits, alpha=0.1):
             method="Nelder-Mead",
             options={"maxiter": 50000, "xatol": 1e-8, "fatol": 1e-8},
         )
+        _check_minimize(result, f"fold_l2(alpha={alpha})[fold={fold_i}]")
         all_weights.append(normalize_weights(result.x))
 
     avg_weights = np.mean(all_weights, axis=0)

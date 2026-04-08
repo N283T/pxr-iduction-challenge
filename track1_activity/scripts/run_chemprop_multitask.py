@@ -89,7 +89,7 @@ TUNED_PARAMS = {
     "ffn_dropout": 0.1,
     "warmup_epochs": 3,
     "learning_rate": 0.0001364559692954765,
-    "lr_ratio": 10,
+    "lr_ratio": 10.0,
     "batch_size": 64,
     "max_epochs": 200,
     "patience": 20,
@@ -258,6 +258,8 @@ def assert_chemprop_masks_nan(params, n_tasks: int) -> None:
 def train_fold(
     params, train_smiles, train_targets, val_smiles, val_targets, aux_weight
 ):
+    """Train a multi-task ChemProp model on one CV fold and return main-task
+    val predictions plus the trained model and trainer for downstream use."""
     n_tasks = train_targets.shape[1]
     train_loader = make_dataloader(
         train_smiles, train_targets, params["batch_size"], shuffle=True
@@ -285,6 +287,8 @@ def train_fold(
 
 
 def run(args):
+    """Orchestrate end-to-end multi-task training: load data, sanity-check
+    NaN masking, run CV, write submission CSV, record experiment, save OOF."""
     print(
         f"ChemProp multi-task | split={args.split} | aux_weight={args.aux_weight} "
         f"| max_epochs={args.max_epochs}"
@@ -495,6 +499,7 @@ def run(args):
 
 
 def main():
+    """CLI entry point for multi-task ChemProp training."""
     parser = argparse.ArgumentParser(description="ChemProp multi-task training")
     parser.add_argument("--split", choices=["scaffold", "umap"], default="umap")
     parser.add_argument(
