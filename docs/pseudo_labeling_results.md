@@ -38,15 +38,34 @@ LightGBM + Mordred + UMAP split, trials=0, default hyperparameters.
 
 ## Why did it fail?
 
-Despite the mapping having strong in-sample R²=0.76, augmenting with pseudo-labels consistently hurts. Candidate explanations (not yet verified):
+Despite the mapping having strong in-sample R²=0.76, augmenting with pseudo-labels consistently hurts. We initially blamed feature-space distribution shift, but a follow-up analysis (`track1_activity/scripts/eda_pseudo_distribution_shift.py`, merged separately) provided mixed evidence and a better explanation.
 
-1. **Distribution shift**. The 8,378 pseudo compounds may inhabit a different region of chemical space than the 4,140 real train compounds. UMAP-split CV clusters real train only, so augmenting training folds with out-of-cluster pseudo samples pulls the model toward a distribution the validation doesn't reward.
+**Distribution shift evidence (mixed)**:
 
-2. **Label noise propagation**. R²=0.76 means ~24% of pseudo-label variance is noise. That noise enters the loss proportionally to `pseudo_weight * confidence`, and LightGBM does not discount it beyond the weight. Even at weight=0.05, the cumulative mass of noise across 8,378 samples exceeds the signal of ~3,300 clean real samples per fold.
+| | median nearest-train distance (UMAP-10D) |
+|---|---:|
+| train→train | 0.190 |
+| test→train | 0.350 |
+| pseudo→train | 0.427 |
 
-3. **Range collapse**. Pseudo labels are predictions of a model fit on the overlap. They inherit the regression-toward-the-mean property — pseudo pEC50 mean=3.87, std=0.66, vs real train mean=4.74, std=0.88. The compressed range shifts the predicted distribution downward and tightens it.
+Per-point, pseudo IS farther from train than test is. BUT at the cluster level (50 KMeans clusters, same params as `splits.umap_split_indices`):
 
-4. **UMAP-CV versus leaderboard**. CV RAE 0.58 vs LB RAE 0.62 is a known 0.04 gap. It is *possible* (not tested) that pseudo-labels help LB even while hurting UMAP CV, because LB test is more out-of-distribution. Testing this requires an LB submission — not done in this PR.
+- cos(train_share, pseudo_share) = 0.890, JS = 0.035 (close)
+- cos(train_share, test_share) = 0.651, JS = 0.152 (more divergent)
+
+So pseudo compounds occupy **the same coarse chemotypes as train**, just at the edges of those clusters (intra-cluster sparsity), while test contains genuinely novel chemotypes. Feature-space OOD is therefore NOT the dominant cause.
+
+**The real dominant cause: label-space compression.**
+
+- pseudo_pec50: mean = 3.87 ± 0.66
+- train pec50: mean = 4.74 ± 0.88
+
+The pseudo distribution is shifted down by 0.87 and is narrower by ~25%. This is regression-toward-the-mean in the inner mapping model — the LightGBM regressor on 2,374 overlap compounds collapses extremes toward the population mean. Augmenting training folds with these compressed labels pulls predictions downward in proportion to `pseudo_weight × num_pseudo`, which exactly matches the linear OOF degradation observed across weights {0.05 → 1.0}.
+
+**Other contributors** (lesser):
+
+- **Label noise propagation**: R²=0.76 means ~24% of pseudo-label variance is noise, entering the loss proportionally to `pseudo_weight × confidence`. Concentrated in the same direction as the mean shift, so it amplifies the bias rather than averaging out.
+- **UMAP-CV vs leaderboard distribution**: CV RAE 0.58 vs LB RAE 0.62 is a known 0.04 gap. It is *possible* (not tested) that pseudo-labels help LB even while hurting UMAP CV; testing requires an LB submission, not done in this PR.
 
 ## What's shipped anyway
 
