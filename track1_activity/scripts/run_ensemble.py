@@ -85,6 +85,11 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     "chemprop_optuna_umap",  # 0.5785 (2026-04-09)
     "attentivefp_optuna_umap",  # 0.5871 (2026-04-09)
     "residual_physprop+mordred_umap",  # 0.5861 (2026-04-09) residual 2-stage
+    # --- Phase 1 / Phase 2 additions (PR #48 + feature/pyg-graph-architectures) ---
+    "chemprop_chemeleon_umap",  # 0.6038 (2026-04-09) CheMeleon foundation finetune
+    "gatedgcn_optuna_umap",  # 0.6005 (2026-04-09) ResGatedGraphConv stack (PyG)
+    "gin_optuna_umap",  # 0.6280 (2026-04-09) GINEConv stack (PyG)
+    "graphgps_optuna_umap",  # 0.6281 (2026-04-09) GPSConv MPNN+Transformer (PyG)
     # --- Mordred family (UMAP) ---
     # NOTE: plain lgbm_mordred_umap and the gap0.5/gap1.0 variants were removed
     # because they correlate > 0.95 with lgbm_mordred_jazzy_umap (Pearson 0.983
