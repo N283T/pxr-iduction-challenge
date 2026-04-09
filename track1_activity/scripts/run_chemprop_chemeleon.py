@@ -60,11 +60,21 @@ AGG_REGISTRY = {
 
 
 def load_chemeleon_checkpoint() -> dict:
-    """Download CheMeleon checkpoint from Zenodo if missing, then load."""
+    """Download CheMeleon checkpoint from Zenodo if missing, then load.
+
+    The download goes to a `.tmp` sibling and is atomically renamed on
+    success, so an interrupted download (Ctrl-C, network hiccup) leaves
+    the cache in a valid state — either the previous good file or no
+    file at all, never a partial one that would confuse the next run.
+    """
     if not CHECKPOINT_PATH.exists():
         CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = CHECKPOINT_PATH.with_suffix(CHECKPOINT_PATH.suffix + ".tmp")
+        if tmp_path.exists():
+            tmp_path.unlink()
         print(f"  Downloading CheMeleon checkpoint to {CHECKPOINT_PATH}...")
-        urlretrieve(CHECKPOINT_URL, CHECKPOINT_PATH)
+        urlretrieve(CHECKPOINT_URL, tmp_path)
+        tmp_path.replace(CHECKPOINT_PATH)
     return torch.load(CHECKPOINT_PATH, map_location="cpu", weights_only=True)
 
 
