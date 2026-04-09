@@ -81,7 +81,12 @@ class GatedGCNModel(nn.Module):
             h = bn(h)
             h = F.relu(h)
             h = self.dropout(h)
-            x = x + h  # explicit residual on top of ResGatedGraphConv
+            # Transformer-block-style identity residual. ResGatedGraphConv's
+            # root_weight=True (default) already adds a learned W_root @ x_i
+            # skip, but that is a linear transform, not an identity skip.
+            # Stacking an explicit identity residual on top stabilizes
+            # deeper stacks (3-6 layers in the Optuna search space).
+            x = x + h
         x = global_mean_pool(x, batch)
         return self.ffn(x)
 
