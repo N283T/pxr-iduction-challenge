@@ -24,6 +24,16 @@ track1_activity/submissions/*.csv
 track1_activity/submissions/*.parquet
 track2_structure/submissions/
 
+# Boltz-2 pipeline artifacts (re-creatable from DB + AFDB MSA)
+structures/boltz2/msa/
+structures/boltz2/inputs/
+structures/boltz2/inputs_smoke/
+structures/boltz2/outputs/
+structures/boltz2/outputs_smoke/
+structures/boltz2/manifest*.csv
+structures/boltz2/smoke_inspect.csv
+logs/
+
 # Lightning checkpoints/logs
 checkpoints/
 lightning_logs/

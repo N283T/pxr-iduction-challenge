@@ -94,6 +94,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/fribidi-1.0.16-hb03c661_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/fsspec-2026.3.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/gdk-pixbuf-2.44.6-h2b0a6b4_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/gemmi-0.7.5-py312h27102bb_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/gflags-2.2.2-h5888daf_1005.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/giflib-5.2.2-hd590300_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/glib-tools-2.86.4-hf516916_1.conda
@@ -385,8 +386,8 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/cf/22/fdc2e30d43ff853720042fa15baa3e6122722be1a7950a98233ebb55cd71/eval_type_backport-0.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f0/b3/10cb03cf684aab2bec97cb0b9bbba4f93e7a20c6e0f3b4100c235a55ad93/gradio_client-2.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8a/24/fc256107d23597fa33d319505ce77160fa1a2349c096d01901ffc7cb7fc4/nvidia_ml_py-13.595.45-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/63/d7/97f7e3a6abb67d8080dd406fd4df842c2be0efaf712d1c899c32a075027c/platformdirs-4.9.4-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/65/a9/7a803aed5a5649cf78ea7b31e90d0080181ba21f739243e1741a1e607f1f/posthog-7.9.12-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/75/a6/a0a304dc33b49145b21f4808d763822111e67d1c3a32b524a1baf947b6e1/platformdirs-4.9.6-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/2c/ec/d0050e82b4be2126f4769612f0ef9734348cb736a23754ea238202285343/posthog-7.10.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5a/87/b70ad306ebb6f9b585f114d0ac2137d792b48be34d732d60e597c2f8465a/pydantic-2.12.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0d/76/941cc9f73529988688a665a5c0ecff1112b3d95ab48f81db5f7606f522d3/pydantic_core-2.41.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/00/4b/ccc026168948fec4f7555b9164c724cf4125eac006e176541483d2c959be/pydantic_settings-2.13.1-py3-none-any.whl
@@ -1607,6 +1608,22 @@ packages:
   purls: []
   size: 577414
   timestamp: 1774985848058
+- conda: https://conda.anaconda.org/conda-forge/linux-64/gemmi-0.7.5-py312h27102bb_0.conda
+  sha256: 8bd8b7ea76d1eeb93b3a965c77cd95cb4b12ab0110dd4287766064476af14744
+  md5: 574071c7931a68ab2e0e0c318447503c
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc >=14
+  - libstdcxx >=14
+  - python >=3.12,<3.13.0a0
+  - python_abi 3.12.* *_cp312
+  - zlib-ng >=2.3.3,<2.4.0a0
+  license: MPL-2.0
+  license_family: OTHER
+  purls:
+  - pkg:pypi/gemmi?source=hash-mapping
+  size: 4330568
+  timestamp: 1772446393536
 - conda: https://conda.anaconda.org/conda-forge/linux-64/gflags-2.2.2-h5888daf_1005.conda
   sha256: 6c33bf0c4d8f418546ba9c250db4e4221040936aef8956353bc764d4877bc39a
   md5: d411fc29e338efb48c5fd4576d71d881
@@ -4302,10 +4319,10 @@ packages:
   purls: []
   size: 450960
   timestamp: 1754665235234
-- pypi: https://files.pythonhosted.org/packages/63/d7/97f7e3a6abb67d8080dd406fd4df842c2be0efaf712d1c899c32a075027c/platformdirs-4.9.4-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/75/a6/a0a304dc33b49145b21f4808d763822111e67d1c3a32b524a1baf947b6e1/platformdirs-4.9.6-py3-none-any.whl
   name: platformdirs
-  version: 4.9.4
-  sha256: 68a9a4619a666ea6439f2ff250c12a853cd1cbd5158d258bd824a7df6be2f868
+  version: 4.9.6
+  sha256: e61adb1d5e5cb3441b4b7710bea7e4c12250ca49439228cc1021c00dcfac0917
   requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/conda-forge/noarch/plotly-6.6.0-pyhd8ed1ab_0.conda
   sha256: c418d325359fc7a0074cea7f081ef1bce26e114d2da8a0154c5d27ecc87a08e7
@@ -4347,10 +4364,10 @@ packages:
   purls: []
   size: 5815898
   timestamp: 1772136358208
-- pypi: https://files.pythonhosted.org/packages/65/a9/7a803aed5a5649cf78ea7b31e90d0080181ba21f739243e1741a1e607f1f/posthog-7.9.12-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/2c/ec/d0050e82b4be2126f4769612f0ef9734348cb736a23754ea238202285343/posthog-7.10.3-py3-none-any.whl
   name: posthog
-  version: 7.9.12
-  sha256: 7175bd1698a566bfea98a016c64e3456399f8046aeeca8f1d04ae5bf6c5a38d0
+  version: 7.10.3
+  sha256: bbaeb45dbfd56143343cf93bf091eb500f9996b95b797f4bf99b42905da54fe7
   requires_dist:
   - requests>=2.7,<3.0
   - six>=1.5
@@ -4369,7 +4386,7 @@ packages:
   - types-setuptools ; extra == 'dev'
   - types-six ; extra == 'dev'
   - pre-commit ; extra == 'dev'
-  - pydantic ; extra == 'dev'
+  - pydantic>=2.12.0 ; extra == 'dev'
   - ruff ; extra == 'dev'
   - setuptools ; extra == 'dev'
   - packaging ; extra == 'dev'
@@ -4387,13 +4404,16 @@ packages:
   - openai>=2.0 ; extra == 'test'
   - anthropic>=0.72 ; extra == 'test'
   - langgraph>=1.0 ; extra == 'test'
+  - langgraph-checkpoint>=3.0.1 ; extra == 'test'
+  - tiktoken>=0.12.0 ; extra == 'test'
   - langchain-core>=1.0 ; extra == 'test'
   - langchain-community>=0.4 ; extra == 'test'
   - langchain-openai>=1.0 ; extra == 'test'
   - langchain-anthropic>=1.0 ; extra == 'test'
   - google-genai ; extra == 'test'
-  - pydantic ; extra == 'test'
+  - pydantic>=2.12.0 ; extra == 'test'
   - parameterized>=0.8.1 ; extra == 'test'
+  - claude-agent-sdk ; extra == 'test'
   requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/prometheus-cpp-1.3.0-ha5d0236_0.conda
   sha256: 013669433eb447548f21c3c6b16b2ed64356f726b5f77c1b39d5ba17a8a4b8bc
