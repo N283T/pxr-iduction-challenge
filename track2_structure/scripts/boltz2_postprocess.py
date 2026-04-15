@@ -99,9 +99,7 @@ def upsert_metadata_to_db(records: list[dict]) -> int:
         return 0
     cols = list(METADATA_COLUMNS)
     placeholders = ", ".join(["%s"] * len(cols))
-    update_clause = ", ".join(
-        f"{c} = EXCLUDED.{c}" for c in cols if c != "compound_id"
-    )
+    update_clause = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c != "compound_id")
     sql = (
         f"INSERT INTO compound_boltz2 ({', '.join(cols)}) "
         f"VALUES ({placeholders}) "
@@ -118,15 +116,19 @@ def upsert_metadata_to_db(records: list[dict]) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--smoke", action="store_true",
+        "--smoke",
+        action="store_true",
         help="Operate on the 10-compound smoke set instead of the full run.",
     )
     parser.add_argument(
-        "--db", action="store_true",
+        "--db",
+        action="store_true",
         help="Upsert metadata into the compound_boltz2 table after writing the CSV.",
     )
     parser.add_argument(
-        "--out-csv", type=Path, default=None,
+        "--out-csv",
+        type=Path,
+        default=None,
         help="Override the metadata CSV output path.",
     )
     args = parser.parse_args()

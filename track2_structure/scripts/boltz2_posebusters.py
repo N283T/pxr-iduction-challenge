@@ -47,45 +47,59 @@ from boltz2.constants import BOLTZ2_DIR, OUTPUTS_DIR, OUTPUTS_SMOKE_DIR  # noqa:
 # ---------------------------------------------------------------------------
 
 COLUMN_MAP: dict[str, str] = {
-    "mol_pred_loaded":                          "mol_pred_loaded",
-    "mol_cond_loaded":                          "mol_cond_loaded",
-    "sanitization":                             "sanitization",
-    "inchi_convertible":                        "inchi_convertible",
-    "all_atoms_connected":                      "all_atoms_connected",
-    "no_radicals":                              "no_radicals",
-    "bond_lengths":                             "bond_lengths",
-    "bond_angles":                              "bond_angles",
-    "internal_steric_clash":                    "internal_steric_clash",
-    "aromatic_ring_flatness":                   "aromatic_ring_flatness",
-    "non-aromatic_ring_non-flatness":           "non_aromatic_ring_non_flatness",
-    "double_bond_flatness":                     "double_bond_flatness",
-    "internal_energy":                          "internal_energy",
-    "protein-ligand_maximum_distance":          "protein_ligand_maximum_distance",
-    "minimum_distance_to_protein":              "minimum_distance_to_protein",
-    "minimum_distance_to_organic_cofactors":    "minimum_distance_to_organic_cofactors",
-    "minimum_distance_to_inorganic_cofactors":  "minimum_distance_to_inorganic_cofactors",
-    "minimum_distance_to_waters":               "minimum_distance_to_waters",
-    "volume_overlap_with_protein":              "volume_overlap_with_protein",
-    "volume_overlap_with_organic_cofactors":    "volume_overlap_with_organic_cofactors",
-    "volume_overlap_with_inorganic_cofactors":  "volume_overlap_with_inorganic_cofactors",
-    "volume_overlap_with_waters":               "volume_overlap_with_waters",
+    "mol_pred_loaded": "mol_pred_loaded",
+    "mol_cond_loaded": "mol_cond_loaded",
+    "sanitization": "sanitization",
+    "inchi_convertible": "inchi_convertible",
+    "all_atoms_connected": "all_atoms_connected",
+    "no_radicals": "no_radicals",
+    "bond_lengths": "bond_lengths",
+    "bond_angles": "bond_angles",
+    "internal_steric_clash": "internal_steric_clash",
+    "aromatic_ring_flatness": "aromatic_ring_flatness",
+    "non-aromatic_ring_non-flatness": "non_aromatic_ring_non_flatness",
+    "double_bond_flatness": "double_bond_flatness",
+    "internal_energy": "internal_energy",
+    "protein-ligand_maximum_distance": "protein_ligand_maximum_distance",
+    "minimum_distance_to_protein": "minimum_distance_to_protein",
+    "minimum_distance_to_organic_cofactors": "minimum_distance_to_organic_cofactors",
+    "minimum_distance_to_inorganic_cofactors": "minimum_distance_to_inorganic_cofactors",
+    "minimum_distance_to_waters": "minimum_distance_to_waters",
+    "volume_overlap_with_protein": "volume_overlap_with_protein",
+    "volume_overlap_with_organic_cofactors": "volume_overlap_with_organic_cofactors",
+    "volume_overlap_with_inorganic_cofactors": "volume_overlap_with_inorganic_cofactors",
+    "volume_overlap_with_waters": "volume_overlap_with_waters",
 }
 
-INTRAMOL_COLS: frozenset[str] = frozenset({
-    "sanitization", "inchi_convertible", "all_atoms_connected", "no_radicals",
-    "bond_lengths", "bond_angles", "internal_steric_clash",
-    "aromatic_ring_flatness", "non_aromatic_ring_non_flatness",
-    "double_bond_flatness", "internal_energy",
-})
+INTRAMOL_COLS: frozenset[str] = frozenset(
+    {
+        "sanitization",
+        "inchi_convertible",
+        "all_atoms_connected",
+        "no_radicals",
+        "bond_lengths",
+        "bond_angles",
+        "internal_steric_clash",
+        "aromatic_ring_flatness",
+        "non_aromatic_ring_non_flatness",
+        "double_bond_flatness",
+        "internal_energy",
+    }
+)
 
-INTERMOL_COLS: frozenset[str] = frozenset({
-    "protein_ligand_maximum_distance", "minimum_distance_to_protein",
-    "minimum_distance_to_organic_cofactors",
-    "minimum_distance_to_inorganic_cofactors",
-    "minimum_distance_to_waters",
-    "volume_overlap_with_protein", "volume_overlap_with_organic_cofactors",
-    "volume_overlap_with_inorganic_cofactors", "volume_overlap_with_waters",
-})
+INTERMOL_COLS: frozenset[str] = frozenset(
+    {
+        "protein_ligand_maximum_distance",
+        "minimum_distance_to_protein",
+        "minimum_distance_to_organic_cofactors",
+        "minimum_distance_to_inorganic_cofactors",
+        "minimum_distance_to_waters",
+        "volume_overlap_with_protein",
+        "volume_overlap_with_organic_cofactors",
+        "volume_overlap_with_inorganic_cofactors",
+        "volume_overlap_with_waters",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +107,9 @@ INTERMOL_COLS: frozenset[str] = frozenset({
 # ---------------------------------------------------------------------------
 
 
-def write_protein_only_pdb(cif_path: Path, pdb_path: Path, ligand_chain: str = "B") -> None:
+def write_protein_only_pdb(
+    cif_path: Path, pdb_path: Path, ligand_chain: str = "B"
+) -> None:
     """Strip ligand chain from a Boltz cif and write a protein-only PDB."""
     structure = gemmi.read_structure(str(cif_path))
     model = structure[0]
@@ -158,9 +174,7 @@ def _run_one(args: tuple[int, str, str, str]) -> dict[str, Any]:
     record["all_passed"] = (
         record["num_checks"] > 0 and record["num_passed"] == record["num_checks"]
     )
-    record["intramol_passed"] = all(
-        record.get(col) is True for col in INTRAMOL_COLS
-    )
+    record["intramol_passed"] = all(record.get(col) is True for col in INTRAMOL_COLS)
     record["intermol_passed"] = all(
         record.get(col) in (True, None) for col in INTERMOL_COLS
     )
@@ -196,7 +210,9 @@ def fetch_compound_file_paths(smoke: bool) -> list[tuple[int, str, str]]:
             return [(int(cid), str(sdf), str(cif)) for cid, sdf, cif in cur.fetchall()]
 
 
-SCHEMA_PATH = Path(__file__).resolve().parents[2].joinpath("db", "boltz2_posebusters_schema.sql")
+SCHEMA_PATH = (
+    Path(__file__).resolve().parents[2].joinpath("db", "boltz2_posebusters_schema.sql")
+)
 
 
 def apply_schema() -> None:
@@ -209,8 +225,11 @@ def apply_schema() -> None:
 
 DB_COLUMNS: tuple[str, ...] = (
     "compound_id",
-    "num_checks", "num_passed", "all_passed",
-    "intramol_passed", "intermol_passed",
+    "num_checks",
+    "num_passed",
+    "all_passed",
+    "intramol_passed",
+    "intermol_passed",
     *COLUMN_MAP.values(),
     "posebusters_version",
 )
@@ -219,9 +238,7 @@ DB_COLUMNS: tuple[str, ...] = (
 def upsert_records(records: list[dict[str, Any]], pb_version: str) -> int:
     cols = list(DB_COLUMNS)
     placeholders = ", ".join(["%s"] * len(cols))
-    update_clause = ", ".join(
-        f"{c} = EXCLUDED.{c}" for c in cols if c != "compound_id"
-    )
+    update_clause = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c != "compound_id")
     sql = (
         f"INSERT INTO compound_boltz2_posebusters ({', '.join(cols)}) "
         f"VALUES ({placeholders}) "
@@ -247,14 +264,20 @@ def upsert_records(records: list[dict[str, Any]], pb_version: str) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--smoke", action="store_true", help="Process only 10 compounds.")
+    parser.add_argument(
+        "--smoke", action="store_true", help="Process only 10 compounds."
+    )
     parser.add_argument("--db", action="store_true", help="Upsert results into DB.")
     parser.add_argument(
-        "--workers", type=int, default=max(1, mp.cpu_count() // 2),
+        "--workers",
+        type=int,
+        default=max(1, mp.cpu_count() // 2),
         help="Number of worker processes (default: CPU count / 2)",
     )
     parser.add_argument(
-        "--out-csv", type=Path, default=None,
+        "--out-csv",
+        type=Path,
+        default=None,
         help="Override results CSV output path.",
     )
     args = parser.parse_args()
@@ -286,7 +309,9 @@ def main() -> None:
             records.append(_run_one(wa))
     else:
         with mp.Pool(processes=args.workers) as pool:
-            for i, rec in enumerate(pool.imap_unordered(_run_one, worker_args, chunksize=4)):
+            for i, rec in enumerate(
+                pool.imap_unordered(_run_one, worker_args, chunksize=4)
+            ):
                 records.append(rec)
                 if (i + 1) % 100 == 0:
                     print(f"[posebusters] processed {i + 1}/{len(worker_args)}")
@@ -315,12 +340,13 @@ def main() -> None:
 
     if args.db and successes:
         import posebusters
+
         pb_version = getattr(posebusters, "__version__", "unknown")
         inserted = upsert_records(successes, pb_version)
         print(f"[posebusters] upserted {inserted} rows")
 
     if errors:
-        print(f"[posebusters] errored compounds:")
+        print("[posebusters] errored compounds:")
         for r in errors[:10]:
             print(f"  [{r['compound_id']}] {r['error']}")
         if len(errors) > 10:

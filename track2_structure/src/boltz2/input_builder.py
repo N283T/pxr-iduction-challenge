@@ -74,9 +74,7 @@ def build_yaml(
         ]
 
     if request_affinity:
-        yaml_dict["properties"] = [
-            {"affinity": {"binder": LIGAND_CHAIN_ID}}
-        ]
+        yaml_dict["properties"] = [{"affinity": {"binder": LIGAND_CHAIN_ID}}]
 
     return yaml_dict
 

@@ -55,7 +55,19 @@ assert len(PXR_SEQUENCE) == 434, (
 
 # Core pocket: residues contacted in >=50/72 holo PDB structures.
 PXR_CORE_POCKET_RESIDUES: tuple[int, ...] = (
-    209, 211, 240, 243, 247, 281, 285, 288, 299, 306, 323, 407, 411,
+    209,
+    211,
+    240,
+    243,
+    247,
+    281,
+    285,
+    288,
+    299,
+    306,
+    323,
+    407,
+    411,
 )
 
 # Soft constraint distance for the Boltz pocket directive (Angstroms).

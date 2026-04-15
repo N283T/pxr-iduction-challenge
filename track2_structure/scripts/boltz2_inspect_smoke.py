@@ -95,7 +95,9 @@ def count_chain_atoms(model: gemmi.Model, chain_id: str) -> int:
 def inspect_one(compound_dir: Path) -> dict[str, Any]:
     compound_id = compound_dir.name
     cif_files = sorted(compound_dir.glob(f"{compound_id}_model_*.cif"))
-    confidence_files = sorted(compound_dir.glob(f"confidence_{compound_id}_model_*.json"))
+    confidence_files = sorted(
+        compound_dir.glob(f"confidence_{compound_id}_model_*.json")
+    )
     affinity_files = sorted(compound_dir.glob(f"affinity_{compound_id}.json"))
 
     record: dict[str, Any] = {
