@@ -164,15 +164,49 @@ The small tail is even less ambiguous: amino acids and amines at MW 60 -
 150 cannot occupy the large hydrophobic LBD and their reporter readouts
 are indistinguishable from counter-assay noise.
 
+## Drop experiment (ChemBERTa -> LightGBM, UMAP 5-fold)
+
+Single-model before / after comparison, run via
+`eda_redo_09_drop_experiment.py`. ChemBERTa-77M-MLM embeddings + LightGBM
+default params across six drop configurations.
+
+| Config            |    N | OOF RAE | ΔvsBaseline | Gap (val - train) | Dropped |
+|-------------------|-----:|--------:|------------:|------------------:|--------:|
+| baseline          | 4140 |  0.6917 |           — |             0.663 |       0 |
+| drop_big_tail     | 4108 |**0.6749** |    **-0.017** |           **0.598** |      32 |
+| drop_small_tail   | 4038 |  0.7087 |       +0.017 |             0.629 |     102 |
+| drop_union        | 4014 |  0.7099 |       +0.018 |             0.629 |     126 |
+| drop_n_out_ge_3   | 4061 |  0.6823 |       -0.009 |             0.615 |      79 |
+| drop_n_out_ge_4   | 4087 |  0.6877 |       -0.004 |             0.634 |      53 |
+
+![Drop experiment](figures/eda_redo_09_drop_experiment.png)
+
+**Takeaways:**
+- **Drop the 32 big-tail compounds**: RAE improves 0.692 → 0.675 and
+  the train-val generalisation gap tightens from 0.66 → 0.60.
+  Rifampin / cyclosporine / taxanes etc. were actively distracting the
+  model.
+- **Keep the 102 small-tail compounds**: dropping them makes RAE
+  *worse* (0.692 → 0.709). Fragment-sized inactives are useful negative
+  anchors; removing them leaves the model with less contrast between
+  "active drug-like" and "inactive fragment".
+- **Do not drop the union**: the small-tail penalty dominates the
+  big-tail gain.
+- `n_out ≥ 3` (79 drops) also beats baseline but underperforms the pure
+  big-tail filter, because it pulls in a few compounds that sit in
+  drug-like range on size / logP but hit p1/p99 on other descriptors.
+
+**Proposed drop list**: the 32 compounds with `n_out ≥ 5` in
+`data/eda_redo/06_outlier_scorecard.parquet`. Equivalently, the
+`big_tail` + `both` rows of
+`data/eda_redo/07_drop_candidates.parquet` (32 compounds).
+
 ## Next step
 
-No compounds have been dropped yet. The drop candidate list is in
-`data/eda_redo/07_drop_candidates.parquet` (126 compounds, tagged
-`big_tail`, `small_tail`, or `both`) and enriched with ChEMBL metadata in
-`data/eda_redo/08_drop_candidates_chembl.parquet`. The next PR runs a
-single-model before / after comparison (LightGBM on existing descriptor
-features) to measure the effect size, plus threshold sensitivity (vary
-`n_out` and HA floor).
+Integrate the big-tail drop into the ensemble training pipeline
+(`track1_activity/scripts/run_train.py` + downstream ensemble), measure
+the effect across all feature types (ChemBERTa variants, Mordred,
+Morgan, ChemProp, AttentiveFP, PyG), and submit. Tracked separately.
 
 ## Artefacts
 
