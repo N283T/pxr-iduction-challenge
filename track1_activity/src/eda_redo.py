@@ -170,3 +170,60 @@ def save_master(df: pd.DataFrame, path: Path = MASTER_PARQUET_PATH) -> Path:
 
 def load_master(path: Path = MASTER_PARQUET_PATH) -> pd.DataFrame:
     return pd.read_parquet(path)
+
+
+# ---------------------------------------------------------------------------
+# Molecule rendering helpers (for static PNG grids and marimo SVG tables)
+# ---------------------------------------------------------------------------
+
+
+def mol_to_svg(smiles: str, width: int = 250, height: int = 200) -> str:
+    """Render a SMILES to an SVG string.
+
+    Matches the pattern in https://github.com/N283T/cheminfo-in-marimo and
+    chemspace-marimo so notebooks can wrap the output in `mo.Html`.
+    """
+    from rdkit import Chem
+    from rdkit.Chem.Draw import rdMolDraw2D
+
+    mol = Chem.MolFromSmiles(smiles) if smiles else None
+    if mol is None:
+        return f"<svg width='{width}' height='{height}'><text x='10' y='20'>invalid SMILES</text></svg>"
+    drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
+    drawer.DrawMolecule(mol)
+    drawer.FinishDrawing()
+    return drawer.GetDrawingText()
+
+
+def draw_mol_grid_png(
+    smiles_list: list[str],
+    legends: list[str],
+    out_path: Path,
+    mols_per_row: int = 5,
+    sub_img_size: tuple[int, int] = (280, 220),
+) -> Path:
+    """Render a grid of 2D structures to PNG with custom legends.
+
+    Used by eda_redo scripts to visually confirm that flagged compounds
+    really are the chemotypes we think they are (cardenolides, peptide
+    dimers, etc.) rather than trusting descriptor numbers alone.
+    """
+    from rdkit import Chem
+    from rdkit.Chem import Draw
+
+    mols = [Chem.MolFromSmiles(s) if s else None for s in smiles_list]
+    keep = [(m, lg) for m, lg in zip(mols, legends) if m is not None]
+    if not keep:
+        out_path.write_bytes(b"")
+        return out_path
+    mols_ok, legends_ok = zip(*keep)
+    img = Draw.MolsToGridImage(
+        list(mols_ok),
+        molsPerRow=mols_per_row,
+        subImgSize=sub_img_size,
+        legends=list(legends_ok),
+        useSVG=False,
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    img.save(out_path)
+    return out_path
