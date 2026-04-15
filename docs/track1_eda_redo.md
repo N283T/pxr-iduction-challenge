@@ -1,155 +1,184 @@
 # Track 1 re-EDA for train noise removal (Issue #52)
 
-Date: 2026-04-15
 Branch: `research/issue-52-eda-redo`
+Date: 2026-04-15
 
-This note analyses the training set as a collection of chemical objects rather
-than as activity distributions. Every structural view is joined to the
-measured pEC50 / Emax so that outliers are never judged on structure alone.
-The goal is to understand *what kind* of noise sits in the training set before
-deciding what (if anything) to drop.
+This note analyses the training set as a collection of chemical objects:
+what do the train compounds look like as structures, where does that
+overlap (or fail to overlap) with the drug-like test set, and which
+training compounds are structurally so unusual that their activity labels
+cannot reasonably generalise to the blinded test set?
 
-All data joins come from `data/eda_redo/master.parquet` produced by
-`track1_activity/scripts/eda_redo_00_build_master.py`.
+The analysis is driven by two sanity checks that leave activity out of
+the outlier criterion:
+  1. Multi-descriptor outlier scorecard based on train-internal p1/p99
+     percentiles of 11 drug-likeness descriptors.
+  2. Absolute size floor: HA ≤ 10 flags molecular fragments that cannot
+     occupy the PXR LBD cavity.
 
-## TL;DR
+ChEMBL 36 is then used to confirm the identity of each drop candidate.
+Activity values are kept in the output tables for reference but are
+deliberately not part of the outlier decision.
 
-| Noise category                    | N (train) | Potent (pEC50 ≥ 6) | Most are... |
-|---------------------------------- |----------:|-------------------:|-------------|
-| Size outliers (HA > 32 or MW > 477) | 130       | 7                  | low activity, but 7 genuine potent hits – do not drop blindly |
-| Pose outliers (pocket dist > 4 Å)  | 36        | 0                  | low pEC50, safe candidates to down-weight |
-| HDBSCAN train-only clusters       | 176       | 1                  | niche chemotypes with no test neighbors |
-| Non-selective (|counter − train| < 0.5) | 493 | 12                 | **largest single noise source**; 122 are pEC50 ≥ 5 reporter artifacts |
-| Single-conc disagreement          | 15        | 15                 | small number, worth manual review |
+## Pipeline
 
-**Headline:** counter-assay selectivity is a far bigger cleanup lever than any
-structural filter. 493 / 2,648 compounds with counter data (19 %) give the same
-pEC50 in the PXR-null control as in the PXR assay – they are not real PXR hits.
+```
+eda_redo_00_build_master.py           compounds + descriptors + activity + Boltz-2 + PoseBusters -> master.parquet
+eda_redo_01_descriptor_distributions  11-panel train-vs-test density histograms
+eda_redo_01b_descriptor_vs_activity   11-panel descriptor-vs-pEC50 scatter
+eda_redo_06_outlier_scorecard         per-compound tail-outlier count on 11 descriptors
+eda_redo_07_drop_candidate_grids      2D grids of big tail + small tail
+eda_redo_08_chembl_lookup             InChIKey -> ChEMBL name / phase / reported PXR activity
+```
 
-## Test set is drug-like and narrow
+Other scripts (02 pocket-fit, 03 chemotype UMAP, 04 activity cross-check, 05
+molecule grids for earlier flags) explore orthogonal views that were useful
+but ended up not driving the drop list; see the individual PNGs under
+`docs/figures/eda_redo_*.png`.
 
-| Metric           | Train range          | Test range |
-|------------------|----------------------|------------|
-| Heavy atom count | 4 – 123 (median 24)  | 18 – 32 (median 24) |
-| Molecular weight | 61 – 1736            | 240 – 477 |
-| Rings            | 0 – 14               | 1 – 6 |
-| logP             | -5.4 – 10.8          | -1.6 – 5.4 |
+## Headline numbers
 
-Test compounds are drug-like small molecules sourced from Enamine DD10 + FDA
-approved drugs. Every structural train outlier has no test analog and, if
-learned as signal, will pull the model away from drug-like space.
+| Group                         | Definition                          | N    | In ChEMBL | Approved drugs |
+|-------------------------------|-------------------------------------|-----:|----------:|---------------:|
+| Big tail                      | `n_out ≥ 5` (train p1/p99, 11 descs) |   32 |        18 |             17 |
+| Small tail                    | HA ≤ 10                             |  102 |        76 |              9 |
+| Overlap (fragments flagged twice) | both criteria                   |    8 |         — |              — |
+| Combined (union)              |                                     |  126 |        94 |             26 |
 
-![Size distribution](figures/eda_redo_01_size_dist.png)
+26 of the 126 drop candidates are FDA-approved drugs, and 22 of them have
+a published activity row against human PXR (CHEMBL2034) in ChEMBL. These
+are real PXR ligands, but their structural class is completely absent
+from the test set: the challenge test = 46 potent drug-like inducers plus
+their Enamine / FDA analogs, not macrolides, peptide dimers, taxanes, or
+cardiac glycosides.
 
-*Circled points in panels C/D are the 130 train compounds larger than any
-test compound. Seven of them are genuinely potent (red dots inside circles),
-including compounds 1607 (pEC50=6.22), 2814 (6.12), 1733 (6.69).*
+## Distributions
 
-## Boltz-2 pose fit catches pure noise, but misses most of the issue
+![Descriptor distributions](figures/eda_redo_01_descriptor_panels.png)
 
-- Test compounds *all* fit the PXR pocket (max pocket distance = 3.72 Å).
-- 36 train compounds sit > 4 Å from the pocket centroid. **None are potent.**
-- 23 / 36 have pEC50 < 4; pose is a clean noise signal for those.
-- Only PoseBusters check that fails meaningfully: `intramol_passed` (574
-  compounds, median pEC50 = 4.57 – noisy but not a noise oracle).
-- **Boltz-2 affinity head vs measured pEC50: Pearson r = -0.54** (sign is
-  convention; the head is a useful signal and will feed Track 1 as a feature
-  in the next ensemble PR).
+Train has significant tails on both sides of test for every size-related
+descriptor. Test is a narrow drug-like window (HA 18 – 32, MW 240 – 477,
+TPSA 32 – 142, RotBonds 1 – 10, HBA 3 – 10). Train includes:
+- very large molecules (HA up to 123, MW up to 1736) and
+- fragment-sized molecules (307 compounds with MW < 240, 361 with HA < 18)
+  that the earlier size-only EDA had not noticed.
 
-![Pocket fit + affinity](figures/eda_redo_02_pocket_fit.png)
+## Descriptor vs activity
 
-Pose outliers by pEC50 (top 12):
+![Descriptor vs pEC50](figures/eda_redo_01b_descriptor_vs_activity.png)
 
-![Pose outliers](figures/eda_redo_mols_pose_outliers.png)
+| Descriptor            | Spearman ρ vs pEC50 |
+|-----------------------|--------------------:|
+| **logp**              | **+0.45** (strongest) |
+| amw                   | +0.34 |
+| num_heavy_atoms       | +0.33 |
+| num_rings             | +0.31 |
+| num_aromatic_rings    | +0.19 |
+| hbd                   | -0.17 |
+| num_rotatable_bonds   | +0.10 |
+| fractioncsp3          | +0.09 |
+| num_heteroatoms       | +0.08 |
+| tpsa                  | -0.06 |
+| hba                   | -0.02 |
 
-*The two obvious cardenolide / Daclatasvir-like outliers (1789, 1720) sit at
-pEC50 ~ 4.3 – not noise in activity, just unusual in geometry. These are the
-compounds Issue #51 flagged; dropping them is safe for Track 1 but keep them
-in mind for Track 2.*
+Lipophilicity and size dominate activity; polar surface / H-bond
+acceptors contribute almost nothing. This is consistent with the PXR LBD
+being a large hydrophobic cavity and also confirms the "LogP shortcut"
+risk flagged in `CLAUDE.md` (LogP ~17k-24k gain in LightGBM feature
+importance).
 
-## Chemotype clustering surfaces four train-only islands
+## Scorecard
 
-Morgan r=2, fp=2048 → UMAP (jaccard, n_neighbors=30) → HDBSCAN
-(min_cluster_size=20) on 4,653 train + test compounds.
+![Outlier scorecard](figures/eda_redo_06_outlier_scorecard.png)
 
-![Chemotype UMAP](figures/eda_redo_03_chemotype.png)
+Per-compound outlier count uses train-internal p1/p99 so the criterion
+does not lean on the test set.
 
-- 7 clusters + 506 noise points.
-- One dominant "drug-like core" (cluster 5, N=3,816, covers 94 % of test).
-- **Four train-only clusters** (N=61 + 55 + 32 + 28 = 176 train compounds),
-  none of them with test neighbors. One compound in cluster 2 is potent
-  (pEC50 = 6.32, cid 3007) – do not drop the whole cluster blindly.
+| `n_out` (tails on train p1/p99) | N train |
+|--------------------------------:|--------:|
+| 0                               |  3,840 |
+| 1                               |    168 |
+| 2                               |     53 |
+| 3                               |     26 |
+| 4                               |     21 |
+| 5                               |     15 |
+| ≥ 6                             |     17 |
 
-Representatives per train-only cluster (top 4 per cluster, sorted by pEC50):
+n_out ≥ 5 gives 32 compounds; that is the "big tail" cutoff used below.
+The small tail (HA ≤ 10) is orthogonal: 102 compounds, 8 also flagged by
+n_out ≥ 5.
 
-![Train-only cluster members](figures/eda_redo_mols_train_only_clusters.png)
+## Drop candidates
 
-Visually:
-- Cluster 0 (pEC50 median 2.92): long alkyl surfactants / steroid-glycosides.
-- Cluster 1 (pEC50 median 3.87): sugar-derived conjugates.
-- Cluster 2 (pEC50 median 4.04): small heterocycles (includes the one potent).
-- Cluster 3 (pEC50 median 3.25): ring-opened / flexible actinomycin-like.
+### Big tail (N=32) - macrolides, peptides, glycosides, taxanes
 
-## Counter-assay is the biggest noise source
+![Big tail grid](figures/eda_redo_07_drop_big_tail.png)
 
-`counter_assay` runs the same reporter in a PXR-null background. If a compound
-activates both equally, the response is not PXR-specific.
+Approved drugs confirmed via ChEMBL 36 InChIKey match
+(`data/eda_redo/08_drop_candidates_chembl.parquet`):
 
-| Subset                                             | N     | Median train pEC50 |
-|----------------------------------------------------|------:|-------------------:|
-| Selective (counter − train ≤ -0.5)                 | 2,155 | 4.27 |
-| Non-selective (\|counter − train\| < 0.5)          | 493   | 4.14 |
-|  → non-selective AND pEC50 ≥ 5 (reporter artifacts) | 122   | 5.28 |
+| cid  | HA  | MW    | pEC50 | ChEMBL name        | Notes                                  |
+|-----:|----:|------:|------:|--------------------|----------------------------------------|
+| 2814 |  59 |   823 |  6.12 | RIFAMPIN           | **Textbook PXR inducer**               |
+| 1733 |  59 |   823 |  6.69 | RIFAMPIN family    | rifamycin                              |
+| 1607 |  63 |   877 |  6.22 | RIFAMYCIN          | ansa macrolide                         |
+| 1585 |  85 |  1203 |  3.27 | CYCLOSPORINE       | immunosuppressant, cyclic peptide       |
+| 1677 |  39 |   544 |  6.08 | DOXORUBICIN        | anthracycline, pchembl 5.59 on PXR     |
+| 1692 |  61 |   868 |  2.40 | VENETOCLAX         | BCL-2 inhibitor                        |
+| 1800 |  58 |   808 |  2.45 | DOCETAXEL ANHYDROUS| taxane                                 |
+| 1720 |  54 |   739 |  4.57 | DACLATASVIR        | HCV NS5A                               |
+| 1789 |  54 |   765 |  4.26 | DIGITOXIN          | cardiac glycoside (pose outlier 10.9 Å)|
+| 1684 |  51 |   705 |  5.52 | ATAZANAVIR         | HIV protease inhibitor                  |
+| 1772 |  50 |   721 |  5.55 | RITONAVIR          | HIV PI                                 |
+| 1644 |  42 |   603 |  1.86 | REMDESIVIR         | COVID antiviral                        |
+| 1810 |  41 |   559 |  1.75 | OLMESARTAN MEDOXOMIL| ARB                                   |
+| 1632 |  40 |   580 |  4.27 | FOSTAMATINIB       | Syk inhibitor                          |
+| 1778 |  40 |   581 |  5.09 | LAPATINIB          | EGFR / HER2                            |
+| 1646 |  39 |   552 |  5.01 | ALISKIREN          | renin inhibitor                        |
+| 1826 |  39 |   552 |  5.25 | BOSENTAN           | endothelin antagonist                  |
 
-122 compounds look like reasonable PXR hits (pEC50 ≥ 5) but respond just as
-strongly in the null control. These are the most dangerous label-noise in
-training, and they are invisible to any structural filter.
+### Small tail (N=102) - fragments and simple reagents
 
-![Activity cross-check](figures/eda_redo_04_activity_cross.png)
+![Small tail grid](figures/eda_redo_07_drop_small_tail.png)
 
-Non-selective hi-activity compounds (top 12 by pEC50):
+Essentially amino acids, ethanolamine-class small amines, pyridines,
+anilines, benzoic acids, simple thiols. Nine of them are approved drugs
+but in very different mechanistic classes (5-FU, niacin, hydroxyurea,
+enflurane, succimer, trimethadione, pyrithione, dalfampridine, mequinol).
+All have pEC50 ≤ 3.7 and the lowest are indistinguishable between the
+PXR and counter assays; cannot realistically engage the LBD.
 
-![Non-selective](figures/eda_redo_mols_non_selective_hi.png)
+## Why drop them, even if they are real PXR ligands?
 
-*Most are reactive aromatics, nitro groups, or fused polycycles – classic
-promiscuous reporter hits, not real PXR binders.*
+Rifampin (pEC50 6.12) is the canonical PXR ligand and does bind the LBD
+- but as a 59-atom / 823-Da ansa macrolide. The test set consists of
+drug-like small molecules (HA 18 - 32, MW 240 - 477, logP ≤ 5.4) that
+are Enamine / FDA analogs of 46 potent hits. No ansa macrolide, cyclic
+peptide, cardiac glycoside, or taxane appears in test. The binding mode
+these compounds use is not the mode the model needs to learn to
+generalise on the test set. Keeping them in training teaches the model
+that high pEC50 can also look like rifampin or cyclosporine, which is a
+distraction, not signal, for the benchmark.
 
-## What the potent training compounds look like
+The small tail is even less ambiguous: amino acids and amines at MW 60 -
+150 cannot occupy the large hydrophobic LBD and their reporter readouts
+are indistinguishable from counter-assay noise.
 
-For reference – the 67 compounds with pEC50 ≥ 6, top 12 by pEC50:
+## Next step
 
-![Top potent](figures/eda_redo_mols_top_potent.png)
+No compounds have been dropped yet. The drop candidate list is in
+`data/eda_redo/07_drop_candidates.parquet` (126 compounds, tagged
+`big_tail`, `small_tail`, or `both`) and enriched with ChEMBL metadata in
+`data/eda_redo/08_drop_candidates_chembl.parquet`. The next PR runs a
+single-model before / after comparison (LightGBM on existing descriptor
+features) to measure the effect size, plus threshold sensitivity (vary
+`n_out` and HA floor).
 
-*Mostly drug-sized lipophilic scaffolds (biaryl-amides, extended ureas,
-kinase-inhibitor-like cores). These are the chemotype the model must learn
-to mimic on the blinded test compounds.*
+## Artefacts
 
-## Tiered noise-reduction options
-
-Nothing is dropped as part of this note. What we now have is a *menu* with
-measured consequences, to feed into the next ensemble iteration.
-
-| Tier | Filter                                                           | Drops | Potent lost |
-|------|------------------------------------------------------------------|------:|------------:|
-| T1   | `b2_preprocessing_failed = True`                                 | 2     | 0  (#50 book-keeping) |
-| T1   | `pocket_distance > 4 Å AND pEC50 < 5`                            | 32    | 0  (safe) |
-| T2   | Non-selective AND \|counter - train\| < 0.3 AND pEC50 ≥ 5        | ~80   | small – manual review |
-| T2   | Train-only HDBSCAN clusters, excluding any potent member         | 175   | 0  (by construction) |
-| T3   | Oversize (HA > 32) AND non-potent AND pocket > 3 Å               | ~20   | 0  (size + pose agreeing) |
-
-The obvious first pass is T1 + the "safe" slice of T2 – around 200 - 250
-compounds total. Model retraining lives in a follow-up PR (`ensemble v10`).
-
-## Next actions
-
-- [x] Script 00-05 + this note.
-- [ ] Counter-assay audit: use `pec50_std_error` to separate "really
-      non-selective" from "noisy counter measurement".
-- [ ] Feed Boltz-2 affinity (r = -0.54 with pEC50) and pose distance into
-      the Track 1 ensemble as new learners. Tracked separately from this note.
-- [ ] marimo explorer notebook reading the five parquets under
-      `data/eda_redo/` for interactive drill-down.
-
-Generated by `track1_activity/scripts/eda_redo_*.py`. All numbers are
-reproducible from `master.parquet`; re-run `eda_redo_00_build_master.py`
-whenever the DB changes.
+- `track1_activity/src/eda_redo.py` - master SQL + `mol_to_svg` /
+  `draw_mol_grid_png` helpers.
+- `track1_activity/scripts/eda_redo_*.py` - 0 .. 8 scripts above.
+- `data/eda_redo/*.parquet` - master, scorecard, drop candidates,
+  ChEMBL lookups (gitignored, regeneratable).
+- `docs/figures/eda_redo_*.png` - committed.
