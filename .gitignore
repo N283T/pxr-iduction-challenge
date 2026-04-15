@@ -35,6 +35,7 @@ structures/boltz2/ligands_smoke/
 structures/boltz2/manifest*.csv
 structures/boltz2/smoke_inspect.csv
 structures/boltz2/postprocess*.csv
+structures/boltz2/posebusters*.csv
 logs/
 
 # Lightning checkpoints/logs
