@@ -23,12 +23,19 @@ deliberately not part of the outlier decision.
 ## Pipeline
 
 ```
-eda_redo_00_build_master.py           compounds + descriptors + activity + Boltz-2 + PoseBusters -> master.parquet
-eda_redo_01_descriptor_distributions  11-panel train-vs-test density histograms
-eda_redo_01b_descriptor_vs_activity   11-panel descriptor-vs-pEC50 scatter
-eda_redo_06_outlier_scorecard         per-compound tail-outlier count on 11 descriptors
-eda_redo_07_drop_candidate_grids      2D grids of big tail + small tail
-eda_redo_08_chembl_lookup             InChIKey -> ChEMBL name / phase / reported PXR activity
+track1_activity/scripts/eda_redo/
+  00_build_master.py              compounds + descriptors + activity + Boltz-2 + PoseBusters -> master.parquet
+  01_descriptor_distributions.py  11-panel train-vs-test density histograms
+  01_size_distribution.py         size-specific view used by 05_molgrids
+  01b_descriptor_vs_activity.py   11-panel descriptor-vs-pEC50 scatter
+  02_pocket_fit.py                Boltz-2 pocket distance + PoseBusters vs activity
+  03_chemotype.py                 Morgan FP -> UMAP -> HDBSCAN
+  04_activity_cross.py            counter-assay + single-conc agreement
+  05_molgrids.py                  early mol grids for flagged subsets
+  06_outlier_scorecard.py         per-compound tail-outlier count on 11 descriptors
+  07_drop_candidate_grids.py      2D grids of big tail + small tail
+  08_chembl_lookup.py             InChIKey -> ChEMBL name / phase / reported PXR activity
+  09_drop_experiment.py           LightGBM CV before/after across 3 features x 6 drop configs
 ```
 
 Other scripts (02 pocket-fit, 03 chemotype UMAP, 04 activity cross-check, 05
@@ -248,7 +255,7 @@ Morgan, ChemProp, AttentiveFP, PyG), and submit. Tracked separately.
 
 - `track1_activity/src/eda_redo.py` - master SQL + `mol_to_svg` /
   `draw_mol_grid_png` helpers.
-- `track1_activity/scripts/eda_redo_*.py` - 0 .. 8 scripts above.
+- `track1_activity/scripts/eda_redo/*.py` - 12 scripts listed above.
 - `data/eda_redo/*.parquet` - master, scorecard, drop candidates,
   ChEMBL lookups (gitignored, regeneratable).
 - `docs/figures/eda_redo_*.png` - committed.

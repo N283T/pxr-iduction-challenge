@@ -22,9 +22,9 @@ from pathlib import Path
 import pandas as pd
 from sqlalchemy import create_engine, text
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.joinpath("src")))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.joinpath("src")))
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 DATA_DIR = REPO_ROOT.joinpath("data", "eda_redo")
 
 CHEMBL_URL = "postgresql+psycopg2:///chembl_36?host=/tmp&port=5433"

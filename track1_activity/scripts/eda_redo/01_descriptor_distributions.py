@@ -26,11 +26,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.joinpath("src")))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.joinpath("src")))
 
-from eda_redo import POTENT_PEC50, load_master
+from eda_redo import load_master
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 FIG_DIR = REPO_ROOT.joinpath("docs", "figures")
 DATA_DIR = REPO_ROOT.joinpath("data", "eda_redo")
 
@@ -55,22 +55,48 @@ def _range_str(s: pd.Series) -> str:
     return f"{s.min():.2f} - {s.max():.2f} (med {s.median():.2f})"
 
 
-def _panel(ax, col: str, label: str, bins: int, tr: pd.DataFrame, te: pd.DataFrame,
-           potent: pd.DataFrame) -> None:
+def _panel(
+    ax,
+    col: str,
+    label: str,
+    bins: int,
+    tr: pd.DataFrame,
+    te: pd.DataFrame,
+    potent: pd.DataFrame,
+) -> None:
     all_vals = pd.concat([tr[col], te[col]]).dropna()
     lo, hi = all_vals.min(), all_vals.max()
     # Small padding so the test bracket is visible
     span = max(hi - lo, 1e-6)
     edges = np.linspace(lo - 0.02 * span, hi + 0.02 * span, bins + 1)
 
-    ax.hist(tr[col].dropna(), bins=edges, color="grey", alpha=0.45,
-            density=True, label=f"train (N={tr[col].notna().sum()})")
-    ax.hist(te[col].dropna(), bins=edges, color="C1", alpha=0.55,
-            density=True, label=f"test (N={te[col].notna().sum()})")
+    ax.hist(
+        tr[col].dropna(),
+        bins=edges,
+        color="grey",
+        alpha=0.45,
+        density=True,
+        label=f"train (N={tr[col].notna().sum()})",
+    )
+    ax.hist(
+        te[col].dropna(),
+        bins=edges,
+        color="C1",
+        alpha=0.55,
+        density=True,
+        label=f"test (N={te[col].notna().sum()})",
+    )
     if len(potent) and potent[col].notna().any():
-        ax.hist(potent[col].dropna(), bins=edges, color="C3", alpha=0.85,
-                density=True, histtype="step", linewidth=1.6,
-                label=f"potent (N={potent[col].notna().sum()})")
+        ax.hist(
+            potent[col].dropna(),
+            bins=edges,
+            color="C3",
+            alpha=0.85,
+            density=True,
+            histtype="step",
+            linewidth=1.6,
+            label=f"potent (N={potent[col].notna().sum()})",
+        )
 
     t_lo = te[col].min()
     t_hi = te[col].max()
@@ -81,7 +107,10 @@ def _panel(ax, col: str, label: str, bins: int, tr: pd.DataFrame, te: pd.DataFra
     below = (tr[col] < t_lo).sum()
     above = (tr[col] > t_hi).sum()
     out_pct = (below + above) / max(tr[col].notna().sum(), 1) * 100
-    ax.set_title(f"{label}\ntrain outside test range: {below}+{above} ({out_pct:.1f}%)", fontsize=10)
+    ax.set_title(
+        f"{label}\ntrain outside test range: {below}+{above} ({out_pct:.1f}%)",
+        fontsize=10,
+    )
     ax.set_xlabel(col)
     ax.set_ylabel("density")
     ax.legend(fontsize=7, loc="best")
@@ -102,18 +131,22 @@ def main() -> None:
         t_lo, t_hi = te[col].min(), te[col].max()
         below = int((tr[col] < t_lo).sum())
         above = int((tr[col] > t_hi).sum())
-        stats_rows.append({
-            "descriptor": col,
-            "train_range": _range_str(tr[col]),
-            "test_range": _range_str(te[col]),
-            "potent_range": _range_str(potent[col]),
-            "train_below_test_min": below,
-            "train_above_test_max": above,
-            "train_outside_pct": (below + above) / max(tr[col].notna().sum(), 1) * 100.0,
-            "potent_outside_test_range": int(
-                ((potent[col] < t_lo) | (potent[col] > t_hi)).sum()
-            ),
-        })
+        stats_rows.append(
+            {
+                "descriptor": col,
+                "train_range": _range_str(tr[col]),
+                "test_range": _range_str(te[col]),
+                "potent_range": _range_str(potent[col]),
+                "train_below_test_min": below,
+                "train_above_test_max": above,
+                "train_outside_pct": (below + above)
+                / max(tr[col].notna().sum(), 1)
+                * 100.0,
+                "potent_outside_test_range": int(
+                    ((potent[col] < t_lo) | (potent[col] > t_hi)).sum()
+                ),
+            }
+        )
     stats = pd.DataFrame(stats_rows)
     print()
     print(stats.to_string(index=False))

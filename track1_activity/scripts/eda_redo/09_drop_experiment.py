@@ -38,14 +38,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.joinpath("src")))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.joinpath("src")))
 
 from data import get_engine, load_train_chemberta, load_train_mordred  # noqa: E402
 from evaluate import compute_metrics  # noqa: E402
 from features import morgan_fp, smiles_to_mols  # noqa: E402
 from splits import umap_split_indices  # noqa: E402
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 FIG_DIR = REPO_ROOT.joinpath("docs", "figures")
 DATA_DIR = REPO_ROOT.joinpath("data", "eda_redo")
 

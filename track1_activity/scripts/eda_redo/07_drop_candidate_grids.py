@@ -20,11 +20,11 @@ from pathlib import Path
 
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.joinpath("src")))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.joinpath("src")))
 
 from eda_redo import draw_mol_grid_png, load_master
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 FIG_DIR = REPO_ROOT.joinpath("docs", "figures")
 DATA_DIR = REPO_ROOT.joinpath("data", "eda_redo")
 

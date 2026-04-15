@@ -26,11 +26,11 @@ from rdkit import Chem, DataStructs
 from rdkit.Chem import rdFingerprintGenerator
 from sklearn.cluster import HDBSCAN
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.joinpath("src")))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.joinpath("src")))
 
 from eda_redo import POTENT_PEC50, load_master
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 FIG_DIR = REPO_ROOT.joinpath("docs", "figures")
 DATA_DIR = REPO_ROOT.joinpath("data", "eda_redo")
 
