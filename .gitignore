@@ -16,8 +16,9 @@ wheels/
 # PostgreSQL data (local only, re-creatable from db/*.sql + data/)
 db/pgdata/
 
-# Data files (re-downloadable via download_data.py)
+# Data files (re-downloadable via download_data.py / eda_redo_*.py)
 data/*.parquet
+data/eda_redo/
 
 # Submission files (generated artifacts)
 track1_activity/submissions/*.csv
