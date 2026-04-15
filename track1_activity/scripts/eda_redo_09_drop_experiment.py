@@ -1,25 +1,31 @@
 #!/usr/bin/env -S pixi run python
-"""Light before/after single-model experiment to measure drop-list impact.
+"""Drop-list before/after experiment across multiple feature types.
 
-For each drop configuration, train LightGBM on ChemBERTa-77M-MLM
-embeddings with the standard UMAP-split 5-fold CV used elsewhere in
-this project. Compare OOF RAE / MAE vs the baseline (no drops).
+Runs 3 independent feature representations x 6 drop configurations. The
+multi-feature pass matters because the drop list was defined using 11
+RDKit descriptors, so a model fed Mordred (which overlaps with those
+descriptors) could show an artificial bias; we want to see if the
+Morgan-FP picture agrees.
 
-Configurations:
-  - baseline         : no drops
-  - drop_big_tail    : n_out >= 5 (32 compounds)
-  - drop_small_tail  : HA <= 10 (102 compounds)
-  - drop_union       : big_tail OR small_tail (126 compounds)
-  - drop_n_out_ge_3  : more aggressive -- 79 compounds
-  - drop_n_out_ge_4  : mid threshold    -- 53 compounds
+Features:
+  - chemberta   : ChemBERTa-77M-MLM embeddings (compound_chemberta, 384d).
+                  Weak ensemble member, sanity check only.
+  - morgan_r2   : Morgan fingerprints r=2, 2048 bits (computed on the fly).
+                  Independent of the descriptor definitions used to build
+                  the drop list - cleanest test.
+  - mordred     : Mordred 2D descriptors (compound_mordred, ~1460d).
+                  Overlaps with the outlier descriptors so there is some
+                  "circular" risk, but the bulk of the feature space is
+                  independent.
 
-ChemBERTa was chosen because the embeddings are already materialised in
-`compound_chemberta` and LightGBM on 384 features is fast enough to run
-all six configs in a few minutes.
+For each (feature, drop) pair:
+  - LightGBM default params
+  - UMAP 5-fold CV (seed=42)
+  - OOF RAE / MAE / R2 / Spearman + train-val gap
 
 Outputs:
-  - eda_redo_09_drop_experiment.png     - bar chart of RAE per config
-  - 09_drop_experiment.parquet          - per-config CV metrics
+  - eda_redo_09_drop_experiment.png     - 3-panel bar chart (one per feature)
+  - 09_drop_experiment.parquet          - per-config x per-feature metrics
 """
 
 from __future__ import annotations
@@ -34,8 +40,9 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.joinpath("src")))
 
-from data import load_train_chemberta  # noqa: E402
+from data import get_engine, load_train_chemberta, load_train_mordred  # noqa: E402
 from evaluate import compute_metrics  # noqa: E402
+from features import morgan_fp, smiles_to_mols  # noqa: E402
 from splits import umap_split_indices  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -60,13 +67,7 @@ LGBM_PARAMS = {
 }
 
 
-def _run_cv(
-    X: np.ndarray,
-    y: np.ndarray,
-    smiles: list[str],
-    label: str,
-) -> dict:
-    """Train LightGBM across UMAP-split folds, return OOF metrics + gap."""
+def _run_cv(X, y, smiles, label):
     splits = umap_split_indices(smiles, n_splits=N_SPLITS, seed=SEED)
     oof = np.full_like(y, np.nan, dtype=float)
     fold_train_rae = []
@@ -86,18 +87,14 @@ def _run_cv(
         va_m = compute_metrics(y[va_idx], va_pred)
         fold_train_rae.append(tr_m["RAE"])
         fold_val_rae.append(va_m["RAE"])
-        print(
-            f"  [{label}] fold {fi}: train RAE {tr_m['RAE']:.4f}"
-            f"  val RAE {va_m['RAE']:.4f}  val MAE {va_m['MAE']:.4f}"
-        )
-    oof_metrics = compute_metrics(y, oof)
+    oof_m = compute_metrics(y, oof)
     return {
         "config": label,
-        "n_train": len(y),
-        "oof_rae": oof_metrics["RAE"],
-        "oof_mae": oof_metrics["MAE"],
-        "oof_r2": oof_metrics["R2"],
-        "oof_spearman": oof_metrics["Spearman_R"],
+        "n_train": int(len(y)),
+        "oof_rae": float(oof_m["RAE"]),
+        "oof_mae": float(oof_m["MAE"]),
+        "oof_r2": float(oof_m["R2"]),
+        "oof_spearman": float(oof_m["Spearman_R"]),
         "val_rae_mean": float(np.mean(fold_val_rae)),
         "val_rae_std": float(np.std(fold_val_rae)),
         "train_rae_mean": float(np.mean(fold_train_rae)),
@@ -105,118 +102,135 @@ def _run_cv(
     }
 
 
-def main() -> None:
-    # ------------------------------------------------------------------
-    # Load baseline data
-    # ------------------------------------------------------------------
-    feats_df, y_series = load_train_chemberta()
-    # load_chemberta returns DataFrame with compound_id as index
-    compound_ids = feats_df.index.to_numpy()
-    X = feats_df.to_numpy(dtype=np.float32)
-    y = y_series.to_numpy(dtype=float)
-    print(f"[09] baseline: N={len(y)}, features={X.shape[1]}")
-
-    # We also need SMILES for the UMAP split. Pull from master.
-    from eda_redo import load_master  # lazy import
+def _prepare_feature(name: str):
+    """Return (compound_ids: np.ndarray, X: np.ndarray, y: np.ndarray, smiles: list[str])."""
+    if name == "chemberta":
+        emb, y_s = load_train_chemberta()
+        cids = emb.index.to_numpy()
+        X = emb.to_numpy(dtype=np.float32)
+        y = y_s.to_numpy(dtype=float)
+    elif name == "morgan_r2":
+        train_df = pd.read_sql(
+            """SELECT t.compound_id, c.std_smiles AS smiles, t.pec50
+               FROM train_activity t
+               JOIN compounds c ON c.id = t.compound_id
+               ORDER BY t.id""",
+            get_engine(),
+        )
+        cids = train_df["compound_id"].to_numpy()
+        mols = smiles_to_mols(train_df["smiles"])
+        X = morgan_fp(mols, radius=2, n_bits=2048).astype(np.float32)
+        y = train_df["pec50"].to_numpy(dtype=float)
+    elif name == "mordred":
+        mord_df, y_s = load_train_mordred()
+        cids = mord_df.index.to_numpy()
+        X = mord_df.to_numpy(dtype=np.float32)
+        y = y_s.to_numpy(dtype=float)
+    else:
+        raise ValueError(name)
+    # Align SMILES via master
+    from eda_redo import load_master
 
     master = load_master()
-    smiles_map = dict(zip(master["compound_id"], master["smiles"]))
-    smiles = [smiles_map[int(c)] for c in compound_ids]
+    smap = dict(zip(master["compound_id"], master["smiles"]))
+    smiles = [smap[int(c)] for c in cids]
+    return cids, X, y, smiles
 
-    # ------------------------------------------------------------------
-    # Build drop configurations
-    # ------------------------------------------------------------------
+
+def _load_drop_sets() -> dict[str, set[int]]:
     drops = pd.read_parquet(DATA_DIR.joinpath("07_drop_candidates.parquet"))
     scorecard = pd.read_parquet(DATA_DIR.joinpath("06_outlier_scorecard.parquet"))
+    big = set(scorecard[scorecard["n_out"] >= 5]["compound_id"].tolist())
+    small = set(drops[drops["drop_reason"].isin(["small_tail", "both"])]["compound_id"])
+    return {
+        "baseline": set(),
+        "drop_big_tail": big,
+        "drop_small_tail": small,
+        "drop_union": big | small,
+        "drop_n_out_ge_3": set(
+            scorecard[scorecard["n_out"] >= 3]["compound_id"].tolist()
+        ),
+        "drop_n_out_ge_4": set(
+            scorecard[scorecard["n_out"] >= 4]["compound_id"].tolist()
+        ),
+    }
 
-    big_ids = set(scorecard[scorecard["n_out"] >= 5]["compound_id"].tolist())
-    small_ids = set(
-        drops[drops["drop_reason"].isin(["small_tail", "both"])]["compound_id"]
-    )
-    union_ids = big_ids | small_ids
-    n3_ids = set(scorecard[scorecard["n_out"] >= 3]["compound_id"].tolist())
-    n4_ids = set(scorecard[scorecard["n_out"] >= 4]["compound_id"].tolist())
 
-    configs = [
-        ("baseline", set()),
-        ("drop_big_tail", big_ids),
-        ("drop_small_tail", small_ids),
-        ("drop_union", union_ids),
-        ("drop_n_out_ge_3", n3_ids),
-        ("drop_n_out_ge_4", n4_ids),
-    ]
+def main() -> None:
+    drop_sets = _load_drop_sets()
 
-    # ------------------------------------------------------------------
-    # Run each config
-    # ------------------------------------------------------------------
-    results = []
-    for label, drop_set in configs:
-        mask = ~np.isin(compound_ids, list(drop_set))
-        Xc = X[mask]
-        yc = y[mask]
-        sm = [s for s, m in zip(smiles, mask) if m]
-        print(f"\n[09] --- {label} (dropped {len(drop_set):>4d}, N={len(yc):>5d}) ---")
-        r = _run_cv(Xc, yc, sm, label)
-        r["n_dropped"] = len(drop_set)
-        results.append(r)
+    all_rows = []
+    for feat_name in ["morgan_r2", "chemberta", "mordred"]:
+        print(f"\n\n====================  feature = {feat_name}  ====================")
+        cids, X, y, smiles = _prepare_feature(feat_name)
+        print(f"[09] feature={feat_name}  N={len(y)}  dim={X.shape[1]}")
+        for cfg_name, drop_ids in drop_sets.items():
+            mask = ~np.isin(cids, list(drop_ids))
+            Xc = X[mask]
+            yc = y[mask]
+            sm = [s for s, m in zip(smiles, mask) if m]
+            print(
+                f"\n[09] --- {feat_name} / {cfg_name} (dropped {len(drop_ids):>4d}, N={len(yc):>5d}) ---"
+            )
+            r = _run_cv(Xc, yc, sm, cfg_name)
+            r["feature"] = feat_name
+            r["n_dropped"] = int(len(drop_ids))
+            all_rows.append(r)
+            print(
+                f"      OOF RAE {r['oof_rae']:.4f}  val_std {r['val_rae_std']:.4f}"
+                f"  gap {r['gap']:.4f}"
+            )
 
-    df = pd.DataFrame(results)
+    df = pd.DataFrame(all_rows)
     print()
-    print("=" * 80)
-    print(df.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
+    print("=" * 90)
+    pivot = df.pivot_table(index="config", columns="feature", values="oof_rae")
+    print(pivot.to_string(float_format=lambda x: f"{x:.4f}"))
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     df.to_parquet(DATA_DIR.joinpath("09_drop_experiment.parquet"), index=False)
 
     # ------------------------------------------------------------------
-    # Figure
+    # Figure: 1 row x 3 feature panels (OOF RAE bars vs baseline line)
     # ------------------------------------------------------------------
     FIG_DIR.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
-    # OOF RAE
-    ax = axes[0]
-    xs = np.arange(len(df))
-    base_rae = df[df["config"] == "baseline"]["oof_rae"].iloc[0]
-    colors = [
-        "grey" if r == base_rae else ("C2" if r < base_rae else "C3")
-        for r in df["oof_rae"]
-    ]
-    ax.bar(xs, df["oof_rae"], color=colors, alpha=0.85)
-    ax.axhline(
-        base_rae,
-        color="black",
-        linestyle=":",
-        linewidth=1,
-        label=f"baseline RAE = {base_rae:.4f}",
+    features_order = ["morgan_r2", "chemberta", "mordred"]
+    fig, axes = plt.subplots(
+        1, len(features_order), figsize=(6 * len(features_order), 5.5), sharey=False
     )
-    ax.set_xticks(xs)
-    ax.set_xticklabels(df["config"], rotation=30, ha="right", fontsize=9)
-    ax.set_ylabel("OOF RAE (lower = better)")
-    ax.set_title("OOF RAE by drop configuration")
-    for i, v in enumerate(df["oof_rae"]):
-        ax.text(i, v + 0.001, f"{v:.4f}", ha="center", fontsize=8)
-    ax.legend()
-
-    # Gap (val - train)
-    ax = axes[1]
-    ax.bar(xs, df["gap"], color="C0", alpha=0.85)
-    ax.set_xticks(xs)
-    ax.set_xticklabels(df["config"], rotation=30, ha="right", fontsize=9)
-    ax.set_ylabel("val RAE - train RAE  (generalisation gap)")
-    ax.set_title("Train-val gap by drop configuration")
-    for i, v in enumerate(df["gap"]):
-        ax.text(i, v + 0.001, f"{v:.4f}", ha="center", fontsize=8)
-
+    configs = list(drop_sets.keys())
+    for ax, feat in zip(axes, features_order):
+        sub = df[df["feature"] == feat].set_index("config").loc[configs]
+        base = sub.loc["baseline", "oof_rae"]
+        colors = [
+            "grey" if c == "baseline" else ("C2" if r < base else "C3")
+            for c, r in zip(sub.index, sub["oof_rae"])
+        ]
+        xs = np.arange(len(sub))
+        ax.bar(xs, sub["oof_rae"], color=colors, alpha=0.85)
+        ax.axhline(
+            base,
+            color="black",
+            linestyle=":",
+            linewidth=1,
+            label=f"baseline {base:.4f}",
+        )
+        for i, v in enumerate(sub["oof_rae"]):
+            ax.text(i, v + 0.001, f"{v:.4f}", ha="center", fontsize=8)
+        ax.set_xticks(xs)
+        ax.set_xticklabels(sub.index, rotation=30, ha="right", fontsize=8)
+        ax.set_ylabel("OOF RAE")
+        ax.set_title(f"feature = {feat}")
+        ax.legend(fontsize=8)
     fig.suptitle(
-        "Issue #52 09: drop experiment (ChemBERTa -> LightGBM, UMAP 5-fold)",
+        "Issue #52 09: drop experiment across 3 feature types (UMAP 5-fold, LightGBM)",
         fontsize=13,
     )
     fig.tight_layout()
     fig_path = FIG_DIR.joinpath("eda_redo_09_drop_experiment.png")
     fig.savefig(fig_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
-    print(f"\n[09] wrote {fig_path}")
+    print(f"[09] wrote {fig_path}")
 
 
 if __name__ == "__main__":

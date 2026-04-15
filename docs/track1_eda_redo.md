@@ -164,42 +164,78 @@ The small tail is even less ambiguous: amino acids and amines at MW 60 -
 150 cannot occupy the large hydrophobic LBD and their reporter readouts
 are indistinguishable from counter-assay noise.
 
-## Drop experiment (ChemBERTa -> LightGBM, UMAP 5-fold)
+## Drop experiment (3 feature types, LightGBM, UMAP 5-fold)
 
-Single-model before / after comparison, run via
-`eda_redo_09_drop_experiment.py`. ChemBERTa-77M-MLM embeddings + LightGBM
-default params across six drop configurations.
+`eda_redo_09_drop_experiment.py` runs six drop configurations under
+three independent feature representations so we can see whether the
+result depends on a specific encoding. Single LightGBM per
+configuration, default params, UMAP 5-fold CV (seed=42).
 
-| Config            |    N | OOF RAE | ΔvsBaseline | Gap (val - train) | Dropped |
-|-------------------|-----:|--------:|------------:|------------------:|--------:|
-| baseline          | 4140 |  0.6917 |           — |             0.663 |       0 |
-| drop_big_tail     | 4108 |**0.6749** |    **-0.017** |           **0.598** |      32 |
-| drop_small_tail   | 4038 |  0.7087 |       +0.017 |             0.629 |     102 |
-| drop_union        | 4014 |  0.7099 |       +0.018 |             0.629 |     126 |
-| drop_n_out_ge_3   | 4061 |  0.6823 |       -0.009 |             0.615 |      79 |
-| drop_n_out_ge_4   | 4087 |  0.6877 |       -0.004 |             0.634 |      53 |
+- **morgan_r2**: Morgan FP r=2, 2048 bits. Structurally independent of
+  the 11 descriptors used to build the drop list - cleanest test.
+- **chemberta**: ChemBERTa-77M-MLM embeddings (384d). Weak ensemble
+  member; included as a sanity check.
+- **mordred**: Mordred 2D descriptors (1531d). Overlaps with the
+  outlier descriptors so there is some "circular" risk, included for
+  completeness.
+
+### OOF RAE per (feature, drop config)
+
+| Config            | morgan_r2 | chemberta | mordred |
+|-------------------|---------:|---------:|---------:|
+| baseline          |    0.6841 |    0.6917 |    0.5900 |
+| **drop_big_tail** | **0.6707** | **0.6749** | **0.5818** |
+| drop_n_out_ge_3   |    0.6702 |    0.6823 |    0.5875 |
+| drop_n_out_ge_4   |    0.6750 |    0.6877 |    0.5847 |
+| drop_small_tail   |    0.7036 |    0.7087 |    0.6239 |
+| drop_union        |    0.6958 |    0.7099 |    0.6135 |
+
+### Delta vs baseline (negative = improvement)
+
+| Config          | morgan_r2 | chemberta | mordred |
+|-----------------|---------:|---------:|---------:|
+| drop_big_tail   | **-0.013** | **-0.017** | **-0.008** |
+| drop_n_out_ge_3 | **-0.014** |   -0.009  |   -0.002  |
+| drop_n_out_ge_4 |   -0.009  |   -0.004  |   -0.005  |
+| drop_small_tail | **+0.019** | **+0.017** | **+0.034** |
+| drop_union      | +0.012    | +0.018    | +0.024    |
 
 ![Drop experiment](figures/eda_redo_09_drop_experiment.png)
 
-**Takeaways:**
-- **Drop the 32 big-tail compounds**: RAE improves 0.692 → 0.675 and
-  the train-val generalisation gap tightens from 0.66 → 0.60.
-  Rifampin / cyclosporine / taxanes etc. were actively distracting the
-  model.
-- **Keep the 102 small-tail compounds**: dropping them makes RAE
-  *worse* (0.692 → 0.709). Fragment-sized inactives are useful negative
-  anchors; removing them leaves the model with less contrast between
-  "active drug-like" and "inactive fragment".
-- **Do not drop the union**: the small-tail penalty dominates the
-  big-tail gain.
-- `n_out ≥ 3` (79 drops) also beats baseline but underperforms the pure
-  big-tail filter, because it pulls in a few compounds that sit in
-  drug-like range on size / logP but hit p1/p99 on other descriptors.
+### Takeaways
 
-**Proposed drop list**: the 32 compounds with `n_out ≥ 5` in
-`data/eda_redo/06_outlier_scorecard.parquet`. Equivalently, the
-`big_tail` + `both` rows of
-`data/eda_redo/07_drop_candidates.parquet` (32 compounds).
+- **`drop_big_tail` (32 compounds) helps across every feature type** -
+  improvement is largest for ChemBERTa (-0.017) and Morgan (-0.013),
+  smaller for Mordred (-0.008) because the Mordred baseline is already
+  strong (0.590) and has less headroom. Rifampin / cyclosporine /
+  taxanes / peptide dimers / cardiac glycosides were actively
+  distracting the model on all three feature types.
+- **`drop_small_tail` (102 compounds) hurts across every feature type** -
+  consistently +0.017 to +0.034 in OOF RAE. Fragment-sized inactives
+  (amino acids, simple amines, pyridines) are useful negative anchors;
+  removing them leaves the model with less contrast between "active
+  drug-like" and "inactive fragment". The Mordred impact is largest
+  (+0.034) because Mordred carries size / polarity information that
+  the model was using to separate these compounds.
+- **`drop_union` also hurts** - the small-tail penalty dominates the
+  big-tail gain.
+- **`n_out ≥ 3` (79 compounds) is best on Morgan** (-0.014) and beats
+  baseline on the other two features. This superset of `big_tail`
+  picks up a handful of compounds that are extreme on 3-4 descriptors
+  without being in the "clear macrolide / peptide" class; on a
+  structural fingerprint (Morgan) these extras help slightly more
+  than the strict cutoff.
+
+### Proposed drop list
+
+**32 compounds with `n_out ≥ 5`** (the `big_tail` + `both` rows of
+`data/eda_redo/07_drop_candidates.parquet`). Robust signal: all three
+feature types agree and magnitudes are meaningful (-0.008 to -0.017 on
+OOF RAE, reducing the train-val gap too).
+
+The slightly wider `n_out ≥ 3` filter (79 compounds) could be worth
+testing in the ensemble - Morgan suggests it might actually be better
+there. Decide empirically at ensemble stage.
 
 ## Next step
 
