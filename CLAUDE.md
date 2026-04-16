@@ -131,6 +131,7 @@ track2_structure/
     boltz2_build_inputs.py     # DB -> 4653 YAML files + manifest.csv
     boltz2_smoke_run.sh        # 10-compound smoke test (R1 settings, LD_LIBRARY_PATH fix)
     boltz2_full_run.sh         # 4653-compound full run (same wrapper, different dirs)
+    boltz2_embeddings_run.sh   # trunk-only re-run, dumps s/z embeddings to existing outputs (issue #57)
     boltz2_inspect_smoke.py    # smoke output QC (pocket distance, confidence, affinity)
     boltz2_postprocess.py      # 4653 pose pkl+sdf + metadata CSV + compound_boltz2 upsert
     boltz2_posebusters.py      # PoseBusters pose quality checks (19 booleans) + DB upsert
