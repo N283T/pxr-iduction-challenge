@@ -46,6 +46,8 @@ pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/experiments_schema.sql
 pixi run python db/compute_mordred.py
 pixi run python db/compute_embeddings.py
 pixi run python db/compute_chemeleon.py
+pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/compound_descriptors_full_schema.sql
+pixi run python db/compute_rdkit_descriptors_full.py
 ```
 
 ### Boltz-2 Setup (structure prediction + affinity)
@@ -88,7 +90,9 @@ db/
   schema.sql                 # Core tables: compounds, train/test/counter/single_conc
   add_std_columns.sql        # Add std_smiles/std_mol columns
   standardize_compounds.py   # ChEMBL pipeline standardization
-  recompute_descriptors.sql  # RDKit descriptors & fingerprints from std_mol
+  recompute_descriptors.sql  # RDKit descriptors & fingerprints from std_mol (41 cols)
+  compound_descriptors_full_schema.sql  # Full RDKit descriptor table (JSONB)
+  compute_rdkit_descriptors_full.py     # Compute all 217 RDKit 2D descriptors
   compute_mordred.py         # Mordred 2D descriptors -> compound_mordred (JSONB)
   compute_embeddings.py      # ChemBERTa/BERT/MoLFormer variants -> DB tables
   compute_chemeleon.py       # CheMeleon MPNN fingerprints -> compound_chemeleon
@@ -156,6 +160,10 @@ structures/
 
 ### Pre-computed Feature Tables
 - `compound_descriptors` -- 38 RDKit 2D descriptors + scaffold + formula + InChIKey
+  (PostgreSQL RDKit cartridge `mol_*` functions only; narrow subset for SQL-level filtering)
+- `compound_descriptors_full` -- Full 217 RDKit 2D descriptors (BCUT2D, fr_*, VSA family,
+  EState, MQN, etc.) computed via Python RDKit `Descriptors._descList`, JSONB storage.
+  2 compounds have partial coverage (metal-containing; BCUT2D fails).
 - `compound_fingerprints` -- Morgan, FeatMorgan, MACCS, AtomPair, Avalon FPs
 - `compound_mordred` -- Mordred 2D descriptors (~1460 per compound, JSONB)
 - `compound_chemberta` -- ChemBERTa-77M-MLM (384d)
