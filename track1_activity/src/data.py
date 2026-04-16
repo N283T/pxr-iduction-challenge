@@ -221,6 +221,72 @@ def load_test_mordred() -> pd.DataFrame:
     return load_mordred(compound_ids)
 
 
+def load_rdkit_full(compound_ids: list[int] | None = None) -> pd.DataFrame:
+    """Load full 217-descriptor RDKit set from compound_descriptors_full.
+
+    Returns DataFrame indexed by compound_id with descriptor names as columns.
+    Missing descriptors (e.g. BCUT2D on metal-containing molecules) appear as
+    NaN. Caller is responsible for imputation / dropping.
+    """
+    import json
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    if compound_ids:
+        placeholders = ",".join(["%s"] * len(compound_ids))
+        cur.execute(
+            "SELECT compound_id, descriptors FROM compound_descriptors_full "
+            f"WHERE compound_id IN ({placeholders})",
+            compound_ids,
+        )
+    else:
+        cur.execute(
+            "SELECT compound_id, descriptors FROM compound_descriptors_full "
+            "ORDER BY compound_id"
+        )
+
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    records = []
+    for cid, desc_json in rows:
+        desc = desc_json if isinstance(desc_json, dict) else json.loads(desc_json)
+        desc["compound_id"] = cid
+        records.append(desc)
+
+    return pd.DataFrame(records).set_index("compound_id")
+
+
+def load_train_rdkit_full() -> tuple[pd.DataFrame, pd.Series]:
+    """Load train full-RDKit descriptors + pEC50."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT compound_id, pec50 FROM train_activity")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    compound_ids = [r[0] for r in rows]
+    y = pd.Series({r[0]: r[1] for r in rows}, name="pec50")
+
+    desc_df = load_rdkit_full(compound_ids)
+    return desc_df, y.loc[desc_df.index]
+
+
+def load_test_rdkit_full() -> pd.DataFrame:
+    """Load test full-RDKit descriptors."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT compound_id FROM test_activity")
+    compound_ids = [r[0] for r in cur.fetchall()]
+    cur.close()
+    conn.close()
+
+    return load_rdkit_full(compound_ids)
+
+
 SINGLECONC_FEATURE_COLS = (
     "log2fc_8_25e_6",
     "log2fc_3_30e_5",
