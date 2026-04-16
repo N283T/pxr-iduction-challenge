@@ -29,6 +29,7 @@ from data import (
     get_conn,
     load_jazzy,
     load_mordred,
+    load_rdkit_full,
     load_test_descriptors,
     load_test_smiles,
     load_train_descriptors,
@@ -160,6 +161,24 @@ def load_features(feature_name: str, train_df, test_df):
         train_desc = load_train_descriptors()
         test_desc = load_test_descriptors()
         return train_desc[DESCRIPTOR_COLS].values, test_desc[DESCRIPTOR_COLS].values
+
+    if feature_name == "rdkit_desc_full":
+        train_full = load_rdkit_full(train_ids)
+        test_full = load_rdkit_full(test_ids)
+        missing_tr = set(train_ids) - set(train_full.index)
+        missing_te = set(test_ids) - set(test_full.index)
+        if missing_tr or missing_te:
+            raise ValueError(
+                f"rdkit_desc_full missing: train={len(missing_tr)}, test={len(missing_te)}"
+            )
+        common_cols = train_full.columns.intersection(test_full.columns)
+        X_train = train_full.loc[train_ids, common_cols].to_numpy(dtype=np.float32)
+        X_test = test_full.loc[test_ids, common_cols].to_numpy(dtype=np.float32)
+        print(
+            f"  rdkit_desc_full loaded: {X_train.shape[1]} descriptor cols "
+            f"(NaN handled natively by LightGBM/XGBoost; CatBoost requires impute)"
+        )
+        return X_train, X_test
 
     if feature_name == "jazzy":
         jazzy_train = load_jazzy(train_ids).reindex(index=train_ids)
@@ -655,7 +674,14 @@ def run(args):
 
 def main():
     all_features = (
-        ["rdkit_desc", "mordred", "mordred_singleconc", "mordred_jazzy", "jazzy"]
+        [
+            "rdkit_desc",
+            "rdkit_desc_full",
+            "mordred",
+            "mordred_singleconc",
+            "mordred_jazzy",
+            "jazzy",
+        ]
         + list(FP_REGISTRY.keys())
         + list(EMBEDDING_TABLES.keys())
     )
