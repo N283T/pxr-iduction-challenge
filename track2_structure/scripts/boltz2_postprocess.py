@@ -26,6 +26,8 @@ sys.path.insert(0, str(SCRIPT_DIR.parent.joinpath("src")))
 
 from boltz2.constants import (  # noqa: E402
     BOLTZ2_DIR,
+    INPUTS_DIR,
+    INPUTS_SMOKE_DIR,
     MANIFEST_PATH,
     MANIFEST_SMOKE_PATH,
     OUTPUTS_DIR,
@@ -68,20 +70,44 @@ METADATA_COLUMNS: tuple[str, ...] = (
 )
 
 
-def find_predictions_root(out_dir: Path) -> Path:
-    """Locate the ``boltz_results_*/predictions`` subdirectory."""
-    candidates = sorted(out_dir.glob("boltz_results_*/predictions"))
+def _resolve_results_subdir(out_dir: Path, input_dir: Path, subpath: str) -> Path:
+    """Resolve ``<out_dir>/boltz_results_<input_name>/<subpath>``.
+
+    Boltz writes into ``boltz_results_<basename>`` derived from the input
+    directory's name, so we can compute the expected location instead of
+    globbing. The glob-then-sorted-alphabetically fallback used previously
+    silently routed post-processing to the wrong tree whenever more than
+    one ``boltz_results_*`` directory was present (e.g. a leftover smoke
+    directory next to the full run), which upserted failure rows for every
+    compound. Require the expected directory; fall back to the legacy glob
+    only when there is exactly one match and error out on ambiguity.
+    """
+    expected = out_dir.joinpath(f"boltz_results_{input_dir.name}", subpath)
+    if expected.is_dir():
+        return expected
+
+    candidates = sorted(out_dir.glob(f"boltz_results_*/{subpath}"))
     if not candidates:
-        raise FileNotFoundError(f"no boltz_results_*/predictions under {out_dir}")
+        raise FileNotFoundError(
+            f"No {subpath} found under {out_dir}; expected {expected}."
+        )
+    if len(candidates) > 1:
+        raise RuntimeError(
+            f"Multiple boltz_results_*/{subpath} directories under {out_dir} "
+            f"but expected path {expected} is missing. Candidates: "
+            f"{[str(c) for c in candidates]}"
+        )
     return candidates[0]
 
 
-def find_mols_dir(out_dir: Path) -> Path:
-    """Locate the ``boltz_results_*/processed/mols`` subdirectory."""
-    candidates = sorted(out_dir.glob("boltz_results_*/processed/mols"))
-    if not candidates:
-        raise FileNotFoundError(f"no boltz_results_*/processed/mols under {out_dir}")
-    return candidates[0]
+def find_predictions_root(out_dir: Path, input_dir: Path) -> Path:
+    """Locate the ``boltz_results_<input>/predictions`` subdirectory."""
+    return _resolve_results_subdir(out_dir, input_dir, "predictions")
+
+
+def find_mols_dir(out_dir: Path, input_dir: Path) -> Path:
+    """Locate the ``boltz_results_<input>/processed/mols`` subdirectory."""
+    return _resolve_results_subdir(out_dir, input_dir, "processed/mols")
 
 
 def write_metadata_csv(records: list[dict], out_csv: Path) -> None:
@@ -134,18 +160,20 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.smoke:
+        input_dir = INPUTS_SMOKE_DIR
         out_dir = OUTPUTS_SMOKE_DIR
         manifest_path = MANIFEST_SMOKE_PATH
         pose_out_dir = BOLTZ2_DIR.joinpath("ligands_smoke")
         out_csv = args.out_csv or BOLTZ2_DIR.joinpath("postprocess_smoke.csv")
     else:
+        input_dir = INPUTS_DIR
         out_dir = OUTPUTS_DIR
         manifest_path = MANIFEST_PATH
         pose_out_dir = BOLTZ2_DIR.joinpath("ligands")
         out_csv = args.out_csv or BOLTZ2_DIR.joinpath("postprocess.csv")
 
-    predictions_root = find_predictions_root(out_dir)
-    mols_dir = find_mols_dir(out_dir)
+    predictions_root = find_predictions_root(out_dir, input_dir)
+    mols_dir = find_mols_dir(out_dir, input_dir)
     print(f"[postprocess] predictions root: {predictions_root}")
     print(f"[postprocess] mols cache       : {mols_dir}")
     print(f"[postprocess] pose output dir  : {pose_out_dir}")
