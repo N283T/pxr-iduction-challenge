@@ -110,6 +110,12 @@ DEFAULT_PARAMS = {
         "random_strength": 1.0,
         "border_count": 128,
     },
+    "tabpfn": {
+        "n_estimators": 8,
+        "device": "cpu",
+        "softmax_temperature": 0.9,
+        "random_state": 42,
+    },
 }
 
 
@@ -311,6 +317,15 @@ def optuna_search_space(model_type: str, trial):
             ),
             "border_count": trial.suggest_int("border_count", 32, 255),
         }
+    if model_type == "tabpfn":
+        return {
+            "n_estimators": trial.suggest_int("n_estimators", 2, 32),
+            "device": "cpu",
+            "softmax_temperature": trial.suggest_float(
+                "softmax_temperature", 0.1, 2.0, log=True
+            ),
+            "random_state": 42,
+        }
     raise ValueError(f"Unknown model: {model_type}")
 
 
@@ -366,6 +381,13 @@ def train_predict(model_type: str, params: dict, X_tr, y_tr, X_va, y_va, w_tr=No
         )
         return model.predict(X_va), model.best_iteration_, model
 
+    if model_type == "tabpfn":
+        from tabpfn import TabPFNRegressor
+
+        model = TabPFNRegressor(**params)
+        model.fit(X_tr, y_tr)
+        return model.predict(X_va), params["n_estimators"], model
+
     raise ValueError(f"Unknown model: {model_type}")
 
 
@@ -412,6 +434,13 @@ def train_final(
         model.fit(cb.Pool(X_train, label=y_train))
         return model
 
+    if model_type == "tabpfn":
+        from tabpfn import TabPFNRegressor
+
+        model = TabPFNRegressor(**params)
+        model.fit(X_train, y_train)
+        return model
+
     raise ValueError(f"Unknown model: {model_type}")
 
 
@@ -446,6 +475,12 @@ def run(args):
 
     X_train, X_test = load_features(args.feature, train_df, test_df)
     print(f"  X_train: {X_train.shape}, X_test: {X_test.shape}")
+
+    if args.model == "tabpfn" and X_train.shape[1] > 500:
+        print(
+            f"  WARNING: TabPFN with {X_train.shape[1]} features may be slow on CPU. "
+            f"Consider rdkit_desc_full (217d) or chemeleon (300d)."
+        )
 
     # Optional pseudo-labels
     pseudo_X = None
@@ -600,10 +635,17 @@ def run(args):
     avg_rounds = int(np.median(num_boost_rounds))
     best_fold = int(np.argmin([m["RAE"] for m in fold_metrics]))
     final_params = fold_best_params[best_fold]
-    print(
-        f"\n  Final model: {avg_rounds} rounds, params from fold {best_fold} "
-        f"(RAE={fold_metrics[best_fold]['RAE']:.4f})"
-    )
+    if args.model == "tabpfn":
+        print(
+            f"\n  Final model: n_estimators={final_params['n_estimators']}, "
+            f"params from fold {best_fold} "
+            f"(RAE={fold_metrics[best_fold]['RAE']:.4f})"
+        )
+    else:
+        print(
+            f"\n  Final model: {avg_rounds} rounds, params from fold {best_fold} "
+            f"(RAE={fold_metrics[best_fold]['RAE']:.4f})"
+        )
 
     if pseudo_X is not None:
         X_final = np.concatenate([X_train, pseudo_X], axis=0)
@@ -679,7 +721,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="Unified model training")
     parser.add_argument(
-        "--model", choices=["lgbm", "xgboost", "catboost"], required=True
+        "--model", choices=["lgbm", "xgboost", "catboost", "tabpfn"], required=True
     )
     parser.add_argument("--feature", choices=all_features, required=True)
     parser.add_argument("--split", choices=["scaffold", "umap"], default="scaffold")
