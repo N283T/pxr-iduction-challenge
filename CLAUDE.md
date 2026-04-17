@@ -41,6 +41,7 @@ pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/schema.sql
 pixi run python db/load_data.py
 pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/add_std_columns.sql
 pixi run python db/standardize_compounds.py
+pixi run python db/fix_bridged_stereo.py --apply
 pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/recompute_descriptors.sql
 pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/experiments_schema.sql
 pixi run python db/compute_mordred.py
@@ -227,8 +228,11 @@ structures/
     RDKit `LargestFragmentChooser` (62 HAs, oversize warning applies).
   - `01657` (train) -- Auranofin, Au-containing metal complex. Excluded by Boltz-2
     standardize; drop (train-only, no metal compounds in test).
-  - `03840` (train) -- (1S,4S)-2-azanorbornane (PubChem CID 131950785). RDKit ETKDGv3
-    cannot embed the bridged bicyclic; drop (train-only, no external 3D source).
+  - `03840` (train) -- 2-azabicyclo[2.2.1] derivative. Original DB SMILES specified
+    geometrically impossible trans-bridgeheads, so RDKit ETKDGv3 refused to embed.
+    Repaired by `db/fix_bridged_stereo.py` (Hamming-1 cis-bridgehead enantiomer);
+    Boltz-2 inference pending (delete cached failure in `compound_boltz2` and
+    rerun `boltz2_full_run.sh` once no other GPU job is active).
 - 9 compounds exceed the 56-heavy-atom training cap of the Boltz-2 affinity head
   (`ligand_oversize=TRUE` in compound_boltz2). Their `affinity_pred_value` should be
   treated as low-confidence.
