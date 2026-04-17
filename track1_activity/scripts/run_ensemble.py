@@ -115,8 +115,7 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     "lgbm_atompair_2048_umap",  # 0.6623 (2026-04-09)
     "lgbm_feat_morgan_r2_2048_umap",  # 0.6774 (2026-04-09)
     # --- Physicochemical (UMAP) ---
-    "lgbm_rdkit_desc_umap",  # 0.6338 (2026-04-09)
-    "lgbm_rdkit_desc_umap_gap1.0",  # 0.6442 (2026-04-09)
+    "lgbm_rdkit_desc_full_umap",  # 0.5887 (2026-04-17) full 217-desc (replaces rdkit_desc 41)
 )
 
 

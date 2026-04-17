@@ -75,7 +75,7 @@ TARGETS: tuple[tuple[str, int, str], ...] = (
     ("lgbm_morgan_r2_2048_umap", 115, "morgan_r2_2048"),
     ("lgbm_atompair_2048_umap", 119, "atompair_2048"),
     ("lgbm_feat_morgan_r2_2048_umap", 120, "feat_morgan_r2_2048"),
-    ("lgbm_rdkit_desc_umap", 113, "rdkit_desc"),
+    ("lgbm_rdkit_desc_full_umap", 321, "rdkit_desc_full"),
 )
 
 N_SPLITS = 5
