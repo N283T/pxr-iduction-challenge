@@ -121,41 +121,68 @@ def main() -> None:
     parser.add_argument("--dbname", default="pxr_challenge")
     args = parser.parse_args()
 
-    conn = psycopg2.connect(host=args.host, port=args.port, dbname=args.dbname)
-    conn.autocommit = False
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id, std_smiles FROM compounds "
-        "WHERE std_smiles IS NOT NULL ORDER BY id"
-    )
-    rows = cur.fetchall()
-    print(f"Scanning {len(rows)} compounds...")
-
-    fixes: list[dict] = []
-    for i, (cid, smi) in enumerate(rows):
-        result = find_repair(smi)
-        if result is not None:
-            fixed_smi, orig_cip, fixed_cip, h = result
-            fixes.append(
-                {
-                    "compound_id": cid,
-                    "original_smiles": smi,
-                    "fixed_smiles": fixed_smi,
-                    "original_cip": str(orig_cip),
-                    "fixed_cip": str(fixed_cip),
-                    "hamming_distance": h,
-                }
+    with psycopg2.connect(host=args.host, port=args.port, dbname=args.dbname) as conn:
+        conn.autocommit = False
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, std_smiles FROM compounds "
+                "WHERE std_smiles IS NOT NULL ORDER BY id"
             )
-            print(f"  id={cid}  h={h}  {smi}  ->  {fixed_smi}")
-        if (i + 1) % 2000 == 0:
-            print(f"  scanned {i+1}/{len(rows)}")
+            rows = cur.fetchall()
+            print(f"Scanning {len(rows)} compounds...")
 
-    print(f"\nRepair candidates: {len(fixes)}")
-    if not fixes:
-        print("No fixes needed; DB already consistent.")
-        return
+            fixes: list[dict] = []
+            for i, (cid, smi) in enumerate(rows):
+                result = find_repair(smi)
+                if result is not None:
+                    fixed_smi, orig_cip, fixed_cip, h = result
+                    fixes.append(
+                        {
+                            "compound_id": cid,
+                            "original_smiles": smi,
+                            "fixed_smiles": fixed_smi,
+                            "original_cip": str(orig_cip),
+                            "fixed_cip": str(fixed_cip),
+                            "hamming_distance": h,
+                        }
+                    )
+                    print(f"  id={cid}  h={h}  {smi}  ->  {fixed_smi}")
+                if (i + 1) % 2000 == 0:
+                    print(f"  scanned {i + 1}/{len(rows)}")
 
-    fixes.sort(key=lambda x: x["compound_id"])
+            print(f"\nRepair candidates: {len(fixes)}")
+            if not fixes:
+                print("No fixes needed; DB already consistent.")
+                return
+
+            fixes.sort(key=lambda x: x["compound_id"])
+
+            if not args.apply:
+                print(
+                    "\n[DRY-RUN] DB not modified and audit CSV not written. "
+                    "Pass --apply to commit changes."
+                )
+                return
+
+            try:
+                for fx in fixes:
+                    cur.execute(
+                        "UPDATE compounds "
+                        "SET std_smiles = %s, "
+                        "    std_mol = mol_from_smiles(%s::cstring) "
+                        "WHERE id = %s",
+                        (
+                            fx["fixed_smiles"],
+                            fx["fixed_smiles"],
+                            fx["compound_id"],
+                        ),
+                    )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+            print(f"Applied {len(fixes)} DB updates (committed).")
+
     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
     CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
     with CSV_PATH.open("w", newline="") as f:
@@ -175,20 +202,6 @@ def main() -> None:
         for fx in fixes:
             writer.writerow({**fx, "fix_timestamp": timestamp})
     print(f"Audit CSV -> {CSV_PATH}")
-
-    if not args.apply:
-        print("\n[DRY-RUN] DB not modified. Pass --apply to commit changes.")
-        return
-
-    for fx in fixes:
-        cur.execute(
-            "UPDATE compounds "
-            "SET std_smiles = %s, std_mol = mol_from_smiles(%s::cstring) "
-            "WHERE id = %s",
-            (fx["fixed_smiles"], fx["fixed_smiles"], fx["compound_id"]),
-        )
-    conn.commit()
-    print(f"Applied {len(fixes)} DB updates (committed).")
 
 
 if __name__ == "__main__":
