@@ -47,6 +47,7 @@ METADATA_COLUMNS: tuple[str, ...] = (
     "plddt_npz_path",
     "pae_npz_path",
     "pde_npz_path",
+    "embeddings_npz_path",
     "preprocessing_failed",
     "failure_reason",
     "ligand_oversize",

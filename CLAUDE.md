@@ -180,7 +180,7 @@ structures/
 
 ### Boltz-2 Prediction Outputs (Track 2 + Track 1 structure features)
 - `compound_boltz2` -- One row per compound (4653 rows). File paths (pose cif, ligand
-  pkl/sdf, confidence/affinity/plddt/pae/pde), status flags (preprocessing_failed,
+  pkl/sdf, confidence/affinity/plddt/pae/pde, embeddings npz), status flags (preprocessing_failed,
   ligand_oversize), 6 affinity head outputs (mean + 2 ensemble members), 9 confidence
   metrics, and geometry sanity (ligand_atom_count, ligand_to_pocket_distance_a).
   Populated by `boltz2_postprocess.py` + `boltz2_record_failures.py`.

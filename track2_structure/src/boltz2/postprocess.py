@@ -210,6 +210,7 @@ PREDICTION_FILE_TEMPLATES = {
     "plddt_npz_path": "plddt_{cid}_model_0.npz",
     "pae_npz_path": "pae_{cid}_model_0.npz",
     "pde_npz_path": "pde_{cid}_model_0.npz",
+    "embeddings_npz_path": "embeddings_{cid}.npz",
 }
 
 CONFIDENCE_KEYS = (
