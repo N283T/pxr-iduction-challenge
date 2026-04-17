@@ -48,6 +48,11 @@ SCRATCH_INPUT="${SCRATCH_DIR}/inputs"
 mkdir -p "$SCRATCH_INPUT" "$OUTPUT_DIR" "$LOG_DIR"
 trap 'rm -rf "$SCRATCH_DIR"' EXIT
 
+if ! boltz predict --help 2>&1 | grep -q -- '--write_embeddings'; then
+    echo "ERROR: installed boltz lacks --write_embeddings support." >&2
+    exit 1
+fi
+
 echo "[boltz2_recover] start: $(date -Is)" | tee "$LOG_FILE"
 
 for arg in "$@"; do
@@ -55,7 +60,7 @@ for arg in "$@"; do
         echo "ERROR: compound id must be numeric: $arg" >&2
         exit 2
     fi
-    padded=$(printf "%05d" "$arg")
+    padded=$(printf "%05d" "$((10#$arg))")
     yaml="${INPUT_MAIN}/${padded}.yaml"
     if [[ ! -f "$yaml" ]]; then
         echo "ERROR: input YAML missing: $yaml" >&2
@@ -81,13 +86,19 @@ echo "[boltz2_recover] yaml count: $yaml_count" | tee -a "$LOG_FILE"
 echo "[boltz2_recover] boltz: $(boltz --help 2>&1 | head -1)" | tee -a "$LOG_FILE"
 echo | tee -a "$LOG_FILE"
 
-# R1 settings (match boltz2_full_run.sh)
+# R1 settings + seed pin + embeddings dump. The seed makes the trunk pass
+# reproducible (see issue #57 / feedback_pin_seed_for_long_runs memory); the
+# embeddings output makes the recovered compounds match the coverage of
+# boltz2_embeddings_run.sh in a single pass, since we are already doing the
+# full trunk + diffusion + affinity here.
 boltz predict "$SCRATCH_INPUT" \
     --out_dir "$OUTPUT_DIR" \
     --use_potentials \
     --diffusion_samples 1 \
     --recycling_steps 3 \
     --output_format mmcif \
+    --write_embeddings \
+    --seed 42 \
     --accelerator gpu \
     --devices 1 \
     --num_workers 2 \
