@@ -24,15 +24,12 @@ import psycopg2
 
 from data import (
     DB_PARAMS,
-    DESCRIPTOR_COLS,
     JAZZY_FEATURE_COLS,
     get_conn,
     load_jazzy,
     load_mordred,
     load_rdkit_full,
-    load_test_descriptors,
     load_test_smiles,
-    load_train_descriptors,
     load_train_mordred,
     load_train_smiles_target,
 )
@@ -157,11 +154,6 @@ def load_features(feature_name: str, train_df, test_df):
     train_ids = load_compound_ids("train")
     test_ids = load_compound_ids("test")
 
-    if feature_name == "rdkit_desc":
-        train_desc = load_train_descriptors()
-        test_desc = load_test_descriptors()
-        return train_desc[DESCRIPTOR_COLS].values, test_desc[DESCRIPTOR_COLS].values
-
     if feature_name == "rdkit_desc_full":
         train_full = load_rdkit_full(train_ids)
         test_full = load_rdkit_full(test_ids)
@@ -259,7 +251,7 @@ def load_features(feature_name: str, train_df, test_df):
 
     raise ValueError(
         f"Unknown feature: {feature_name}. "
-        f"Available: rdkit_desc, mordred, {list(EMBEDDING_TABLES)}, {list(FP_REGISTRY)}"
+        f"Available: rdkit_desc_full, mordred, {list(EMBEDDING_TABLES)}, {list(FP_REGISTRY)}"
     )
 
 
@@ -675,7 +667,6 @@ def run(args):
 def main():
     all_features = (
         [
-            "rdkit_desc",
             "rdkit_desc_full",
             "mordred",
             "mordred_singleconc",
