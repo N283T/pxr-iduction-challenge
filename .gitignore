@@ -19,6 +19,7 @@ db/pgdata/
 # Data files (re-downloadable via download_data.py / eda_redo_*.py)
 data/*.parquet
 data/eda_redo/
+data/eda_cv_prep/
 data/chembl/
 
 # Submission files (generated artifacts)
