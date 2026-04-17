@@ -160,6 +160,33 @@ def load_embeddings(table: str, compound_ids: list[int]) -> np.ndarray:
     return np.array([rows[cid] for cid in compound_ids])
 
 
+def _build_umap_split_features(
+    embedding_space: str, train_ids: list[int]
+) -> tuple[np.ndarray | None, str]:
+    """Feature matrix + UMAP metric for umap_split_indices, for the given
+    embedding-space selector. Returns (None, "jaccard") for the default
+    Morgan-FP path (backward-compatible)."""
+    if embedding_space in (None, "", "morgan"):
+        return None, "jaccard"
+    if embedding_space == "mordred":
+        mordred_train, _ = load_train_mordred()
+        missing = set(train_ids) - set(mordred_train.index)
+        if missing:
+            raise ValueError(
+                f"Mordred missing for {len(missing)} train compounds when "
+                f"building split features"
+            )
+        mat = mordred_train.loc[train_ids].to_numpy(dtype=np.float32)
+        return np.nan_to_num(mat, nan=0.0, posinf=0.0, neginf=0.0), "cosine"
+    if embedding_space in EMBEDDING_TABLES:
+        mat = load_embeddings(EMBEDDING_TABLES[embedding_space], train_ids)
+        return mat.astype(np.float32), "cosine"
+    raise ValueError(
+        f"Unknown --embedding-space {embedding_space!r}. "
+        f"Use 'morgan' (default), 'mordred', or one of {list(EMBEDDING_TABLES)}."
+    )
+
+
 def load_features(feature_name: str, train_df, test_df):
     """Load feature matrices for train and test."""
     train_ids = load_compound_ids("train")
@@ -552,8 +579,17 @@ def run(args):
     if args.split == "scaffold":
         outer_splits = scaffold_split_indices(smiles_list, n_splits=5, seed=42)
     elif args.split == "umap":
+        train_ids_ordered = load_compound_ids("train")
+        split_features, split_metric = _build_umap_split_features(
+            args.embedding_space, train_ids_ordered
+        )
         outer_splits = umap_split_indices(
-            smiles_list, n_splits=5, n_clusters=50, seed=42
+            smiles_list,
+            n_splits=5,
+            n_clusters=50,
+            seed=args.umap_seed,
+            features=split_features,
+            metric=split_metric,
         )
     elif args.split == "analog":
         counter_df = load_train_smiles_with_counter()
@@ -578,6 +614,10 @@ def run(args):
     exp_name = f"{args.model}_{args.feature}_{args.split}"
     if args.split == "analog" and args.analog_threshold != 0.25:
         exp_name += f"{args.analog_threshold}"
+    if args.split == "umap" and args.embedding_space != "morgan":
+        exp_name += f"_{args.embedding_space}"
+    if args.split == "umap" and args.umap_seed != 42:
+        exp_name += f"_s{args.umap_seed}"
     if args.trials == 0:
         exp_name += "_default"
     if args.gap_lambda > 0:
@@ -768,6 +808,22 @@ def main():
         type=float,
         default=0.25,
         help="Tanimoto NN threshold for analog-aware split (default 0.25)",
+    )
+    parser.add_argument(
+        "--umap-seed",
+        type=int,
+        default=42,
+        help="Seed for UMAP+KMeans clustering (default 42). Use to estimate "
+        "split-variance across seeds.",
+    )
+    parser.add_argument(
+        "--embedding-space",
+        default="morgan",
+        choices=["morgan", "mordred"] + list(EMBEDDING_TABLES.keys()),
+        help="Feature space used by UMAP split for clustering. Default 'morgan' "
+        "matches the canonical split. Other choices re-cluster in an alternative "
+        "representation (e.g. chemberta_5m_mtr, molformer_xl, mordred) to test "
+        "whether split-shape is similarity-space dependent.",
     )
     parser.add_argument(
         "--trials", type=int, default=20, help="Optuna trials (0=default params)"

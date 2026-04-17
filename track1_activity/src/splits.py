@@ -72,37 +72,69 @@ def scaffold_split_indices(
     return _groups_to_splits(list(scaffold_to_indices.values()), n_splits, rng)
 
 
+def _morgan_fp_matrix(smiles_list: list[str]) -> np.ndarray:
+    """Build a (n, 2048) Morgan r=2 fingerprint matrix. Used by Morgan-space
+    UMAP splits and shared with other callers that want consistent FPs."""
+    gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+    mols = [Chem.MolFromSmiles(s) for s in smiles_list]
+    invalid = [i for i, m in enumerate(mols) if m is None]
+    if invalid:
+        raise ValueError(f"Invalid SMILES at indices: {invalid[:10]}")
+    return np.array(
+        [gen.GetFingerprintAsNumPy(m) for m in mols],
+        dtype=np.float32,
+    )
+
+
 def umap_split_indices(
     smiles_list: list[str],
     n_splits: int = 5,
     n_clusters: int = 50,
     seed: int = 42,
+    features: np.ndarray | None = None,
+    metric: str = "jaccard",
 ) -> list[tuple[np.ndarray, np.ndarray]]:
     """UMAP + KMeans clustering split (strictest separation).
 
-    Projects Morgan FPs into UMAP space, clusters with KMeans,
-    then distributes clusters across folds.
+    Default behaviour: projects Morgan FPs (r=2, 2048 bits) into UMAP
+    space with Jaccard metric, clusters with KMeans, then distributes
+    clusters across folds. This is the canonical split used throughout
+    the project up to PR #69.
+
+    Parameters
+    ----------
+    smiles_list:
+        Length-N SMILES (used only to build the default Morgan matrix
+        when ``features`` is None; ignored otherwise).
+    n_splits, n_clusters, seed:
+        Standard K-fold / KMeans knobs.
+    features:
+        Optional (N, D) feature matrix to replace the default Morgan
+        fingerprints. Intended for non-fingerprint embedding spaces
+        (ChemBERTa, MoLFormer, Mordred, etc.). When provided the caller
+        should also pick an appropriate ``metric`` (see below).
+    metric:
+        UMAP distance metric. Default ``"jaccard"`` matches the
+        binary Morgan FP case. For dense embeddings pass
+        ``"cosine"`` (or ``"euclidean"``) -- Jaccard is undefined for
+        non-binary features and will give meaningless neighbours.
     """
     import umap
     from sklearn.cluster import KMeans
 
     rng = np.random.RandomState(seed)
 
-    gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
-    mols = [Chem.MolFromSmiles(s) for s in smiles_list]
-    invalid = [i for i, m in enumerate(mols) if m is None]
-    if invalid:
-        raise ValueError(f"Invalid SMILES at indices: {invalid[:10]}")
-
-    fps = np.array(
-        [gen.GetFingerprintAsNumPy(m) for m in mols],
-        dtype=np.float32,
-    )
+    if features is None:
+        features = _morgan_fp_matrix(smiles_list)
+    elif len(features) != len(smiles_list):
+        raise ValueError(
+            f"features length {len(features)} != smiles_list length {len(smiles_list)}"
+        )
 
     reducer = umap.UMAP(
-        n_components=10, metric="jaccard", random_state=seed, n_neighbors=30
+        n_components=10, metric=metric, random_state=seed, n_neighbors=30
     )
-    embedding = reducer.fit_transform(fps)
+    embedding = reducer.fit_transform(features)
 
     km = KMeans(n_clusters=n_clusters, random_state=seed, n_init=10)
     cluster_labels = km.fit_predict(embedding)
