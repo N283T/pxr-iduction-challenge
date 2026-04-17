@@ -133,6 +133,7 @@ track2_structure/
     boltz2_smoke_run.sh        # 10-compound smoke test (R1 settings, LD_LIBRARY_PATH fix)
     boltz2_full_run.sh         # 4653-compound full run (same wrapper, different dirs)
     boltz2_embeddings_run.sh   # trunk-only re-run, dumps s/z embeddings to existing outputs (issue #57)
+    boltz2_recover_run.sh      # re-run selected compound IDs into the main output tree (stereo fix, failure recovery)
     boltz2_inspect_smoke.py    # smoke output QC (pocket distance, confidence, affinity)
     boltz2_postprocess.py      # 4653 pose pkl+sdf + metadata CSV + compound_boltz2 upsert
     boltz2_posebusters.py      # PoseBusters pose quality checks (19 booleans) + DB upsert
@@ -232,7 +233,8 @@ structures/
     geometrically impossible trans-bridgeheads, so RDKit ETKDGv3 refused to embed.
     Repaired by `db/fix_bridged_stereo.py` (Hamming-1 cis-bridgehead enantiomer);
     Boltz-2 inference pending (delete cached failure in `compound_boltz2` and
-    rerun `boltz2_full_run.sh` once no other GPU job is active).
+    rerun via `boltz2_recover_run.sh 03840` once no other GPU job is active,
+    then `boltz2_postprocess.py --db`).
 - 9 compounds exceed the 56-heavy-atom training cap of the Boltz-2 affinity head
   (`ligand_oversize=TRUE` in compound_boltz2). Their `affinity_pred_value` should be
   treated as low-confidence.
