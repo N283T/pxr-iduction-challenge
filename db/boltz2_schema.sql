@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS compound_boltz2 (
     plddt_npz_path       TEXT,
     pae_npz_path         TEXT,
     pde_npz_path         TEXT,
+    embeddings_npz_path  TEXT,    -- trunk s+z tensors (issue #57 embeddings run)
 
     -- Status flags
     preprocessing_failed BOOLEAN NOT NULL DEFAULT FALSE,

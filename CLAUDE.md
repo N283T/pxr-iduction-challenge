@@ -69,9 +69,8 @@ bash track2_structure/scripts/boltz2_full_run.sh
 
 Recovery + DB registration:
 ```bash
-# If 01576-style salt/complex fails: largest-fragment recovery
-pixi run python track2_structure/scripts/boltz2_recover_01576.py
-bash track2_structure/scripts/boltz2_full_run.sh   # re-run, only the missing compound
+# Targeted re-run for a handful of compound IDs (stereo repair, failure recovery)
+bash track2_structure/scripts/boltz2_recover_run.sh <compound_id> [<compound_id> ...]
 
 # Record permanently-failed compounds (see issue #50)
 pixi run python track2_structure/scripts/boltz2_record_failures.py
@@ -135,7 +134,6 @@ track2_structure/
     boltz2_recover_run.sh      # re-run selected compound IDs into the main output tree (stereo fix, failure recovery)
     boltz2_postprocess.py      # 4653 pose pkl+sdf + metadata CSV + compound_boltz2 upsert
     boltz2_posebusters.py      # PoseBusters pose quality checks (19 booleans) + DB upsert
-    boltz2_recover_01576.py    # largest-fragment recovery for 2-component salt
     boltz2_record_failures.py  # insert permanently-failed compounds into compound_boltz2
 structures/
   boltz2/                      # All runtime artifacts (gitignored)
@@ -182,7 +180,7 @@ structures/
 
 ### Boltz-2 Prediction Outputs (Track 2 + Track 1 structure features)
 - `compound_boltz2` -- One row per compound (4653 rows). File paths (pose cif, ligand
-  pkl/sdf, confidence/affinity/plddt/pae/pde), status flags (preprocessing_failed,
+  pkl/sdf, confidence/affinity/plddt/pae/pde, embeddings npz), status flags (preprocessing_failed,
   ligand_oversize), 6 affinity head outputs (mean + 2 ensemble members), 9 confidence
   metrics, and geometry sanity (ligand_atom_count, ligand_to_pocket_distance_a).
   Populated by `boltz2_postprocess.py` + `boltz2_record_failures.py`.
