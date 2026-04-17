@@ -161,7 +161,7 @@ def load_embeddings(table: str, compound_ids: list[int]) -> np.ndarray:
 
 
 def _build_umap_split_features(
-    embedding_space: str, train_ids: list[int]
+    embedding_space: str | None, train_ids: list[int]
 ) -> tuple[np.ndarray | None, str]:
     """Feature matrix + UMAP metric for umap_split_indices, for the given
     embedding-space selector. Returns (None, "jaccard") for the default
@@ -177,6 +177,7 @@ def _build_umap_split_features(
                 f"building split features"
             )
         mat = mordred_train.loc[train_ids].to_numpy(dtype=np.float32)
+        # NaN/inf -> 0 only affects cluster assignment, never model features.
         return np.nan_to_num(mat, nan=0.0, posinf=0.0, neginf=0.0), "cosine"
     if embedding_space in EMBEDDING_TABLES:
         mat = load_embeddings(EMBEDDING_TABLES[embedding_space], train_ids)
