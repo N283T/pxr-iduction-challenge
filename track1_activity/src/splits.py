@@ -231,12 +231,12 @@ def analog_aware_split_indices(
         sims = DataStructs.BulkTanimotoSimilarity(all_fps[i], potent_fps)
         nn_to_potent[i] = max(sims) if sims else 0.0
 
-    analog_mask = (~potent_mask) & (nn_to_potent >= analog_tanimoto_threshold)
+    # NaN >= threshold is False in numpy, so potent indices (which have
+    # nn_to_potent=NaN) are automatically excluded here.
+    analog_mask = nn_to_potent >= analog_tanimoto_threshold
     analog_idx = np.where(analog_mask)[0]
-    non_analog_idx = np.array(
-        [i for i in non_potent_idx if i not in set(analog_idx.tolist())],
-        dtype=np.int64,
-    )
+    non_analog_mask = (~potent_mask) & (~analog_mask)
+    non_analog_idx = np.where(non_analog_mask)[0]
 
     if len(analog_idx) < n_splits:
         raise ValueError(

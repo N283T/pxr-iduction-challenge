@@ -11,6 +11,7 @@ Verifies:
 
 from __future__ import annotations
 
+import inspect
 import sys
 from pathlib import Path
 
@@ -22,6 +23,12 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT.joinpath("track1_activity", "src")))
 from data import DB_PARAMS  # noqa: E402
 from splits import analog_aware_split_indices  # noqa: E402
+
+# Single source of truth: pull the potent-subset definition straight from the
+# function we're validating, so the sanity check cannot silently diverge.
+_sig = inspect.signature(analog_aware_split_indices)
+POTENT_PEC50 = _sig.parameters["potent_pec50_threshold"].default
+POTENT_SEL = _sig.parameters["potent_sel_threshold"].default
 
 
 def load_train() -> pd.DataFrame:
@@ -58,8 +65,8 @@ def main() -> None:
     )
 
     # Compute potent mask once for checks
-    potent_mask = (df["pec50"] >= 6.0) & (
-        df["selectivity"].fillna(-np.inf) >= 1.5
+    potent_mask = (df["pec50"] >= POTENT_PEC50) & (
+        df["selectivity"].fillna(-np.inf) >= POTENT_SEL
     )
     potent_idx = set(np.where(potent_mask.to_numpy())[0].tolist())
 
@@ -126,13 +133,16 @@ def main() -> None:
             analog_total = sum(len(v) for _, v in s)
             avg_val_y_disp = np.mean(
                 [
-                    np.mean(np.abs(df.loc[v, "pec50"].to_numpy() - np.median(df.loc[v, "pec50"].to_numpy())))
+                    np.mean(
+                        np.abs(
+                            df.loc[v, "pec50"].to_numpy()
+                            - np.median(df.loc[v, "pec50"].to_numpy())
+                        )
+                    )
                     for _, v in s
                 ]
             )
-            avg_val_mean = np.mean(
-                [df.loc[v, "pec50"].to_numpy().mean() for _, v in s]
-            )
+            avg_val_mean = np.mean([df.loc[v, "pec50"].to_numpy().mean() for _, v in s])
             print(
                 f"  threshold={t}: analog_pool={analog_total}, "
                 f"avg_val_pec50_mean={avg_val_mean:.3f}, "
