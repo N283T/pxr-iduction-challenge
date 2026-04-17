@@ -102,11 +102,31 @@ def record_experiment(
     return exp_id
 
 
-def save_oof_predictions(experiment_id: int, oof_preds: np.ndarray):
-    """Save OOF predictions to DB for ensemble weight optimization."""
+def save_oof_predictions(
+    experiment_id: int,
+    oof_preds: np.ndarray,
+    covered_mask: np.ndarray | None = None,
+):
+    """Save OOF predictions to DB for ensemble weight optimization.
+
+    ``covered_mask`` is an optional boolean array of the same length as
+    ``oof_preds``; when provided, only indices with ``covered_mask[i] ==
+    True`` are persisted. This is required for partial-coverage CV
+    splits (e.g. analog-aware) where most train rows are never in val
+    and their ``oof_preds[i]`` value is a placeholder (zero), not a
+    real prediction. Saving those zeros would corrupt downstream
+    ensemble weight optimisation.
+    """
+    if covered_mask is not None and len(covered_mask) != len(oof_preds):
+        raise ValueError(
+            f"covered_mask length {len(covered_mask)} does not match "
+            f"oof_preds length {len(oof_preds)}"
+        )
     conn = psycopg2.connect(**DB_PARAMS)
     cur = conn.cursor()
     for i, pred in enumerate(oof_preds):
+        if covered_mask is not None and not covered_mask[i]:
+            continue
         cur.execute(
             """INSERT INTO experiment_oof_predictions (experiment_id, train_idx, oof_prediction)
                VALUES (%s, %s, %s)

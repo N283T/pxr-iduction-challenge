@@ -32,6 +32,7 @@ from data import (
     load_test_smiles,
     load_train_mordred,
     load_train_smiles_target,
+    load_train_smiles_with_counter,
 )
 from evaluate import (
     compute_metrics,
@@ -46,7 +47,11 @@ from pseudo_labels import (
     build_pseudo_feature_matrix,
     load_pseudo_labels,
 )
-from splits import scaffold_split_indices, umap_split_indices
+from splits import (
+    analog_aware_split_indices,
+    scaffold_split_indices,
+    umap_split_indices,
+)
 
 SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
 SUBMISSION_DIR.mkdir(parents=True, exist_ok=True)
@@ -550,11 +555,29 @@ def run(args):
         outer_splits = umap_split_indices(
             smiles_list, n_splits=5, n_clusters=50, seed=42
         )
+    elif args.split == "analog":
+        counter_df = load_train_smiles_with_counter()
+        assert len(counter_df) == len(train_df), (
+            f"Row count mismatch: train_df={len(train_df)}, "
+            f"counter_df={len(counter_df)}; both must ORDER BY t.id"
+        )
+        selectivity = (counter_df["pec50"] - counter_df["counter_pec50"]).to_numpy()
+        outer_splits = analog_aware_split_indices(
+            smiles_list=smiles_list,
+            pec50=y_train,
+            selectivity=selectivity,
+            n_splits=5,
+            analog_tanimoto_threshold=args.analog_threshold,
+            seed=42,
+            verbose=True,
+        )
     else:
         raise ValueError(f"Unknown split: {args.split}")
 
     # Experiment name
     exp_name = f"{args.model}_{args.feature}_{args.split}"
+    if args.split == "analog" and args.analog_threshold != 0.25:
+        exp_name += f"{args.analog_threshold}"
     if args.trials == 0:
         exp_name += "_default"
     if args.gap_lambda > 0:
@@ -567,6 +590,11 @@ def run(args):
 
     # Training loop
     oof_preds = np.zeros(len(y_train))
+    # Tracks which train indices were covered by at least one val fold.
+    # Standard UMAP/scaffold K-fold covers every index exactly once, but
+    # partial-coverage splits (e.g. analog-aware) only predict a subset.
+    # Overall OOF metrics must ignore uncovered positions.
+    oof_covered = np.zeros(len(y_train), dtype=bool)
     fold_metrics = []
     fold_best_params = []
     num_boost_rounds = []
@@ -620,14 +648,22 @@ def run(args):
             args.model, best_params, X_tr, y_tr, X_va, y_va, w_tr=w_tr
         )
         oof_preds[va_idx] = vp
+        oof_covered[va_idx] = True
         metrics = compute_metrics(y_va, vp)
         fold_metrics.append(metrics)
         num_boost_rounds.append(best_iter)
         print_metrics(metrics, label=f"Fold {fold}")
 
-    # OOF summary
-    oof_metrics = compute_metrics(y_train, oof_preds)
-    print("\n  Overall OOF:")
+    # OOF summary (covered subset only; identical to all-rows for
+    # standard K-fold, but required for partial-coverage splits)
+    covered_count = int(oof_covered.sum())
+    if covered_count < len(y_train):
+        print(
+            f"\n  Partial-coverage split: {covered_count}/{len(y_train)} "
+            f"({100 * covered_count / len(y_train):.1f}%) train rows appeared in val."
+        )
+    oof_metrics = compute_metrics(y_train[oof_covered], oof_preds[oof_covered])
+    print("\n  Overall OOF (covered subset):")
     print_metrics(oof_metrics)
     print_fold_summary(fold_metrics)
 
@@ -700,7 +736,7 @@ def run(args):
             )
         ),
     )
-    save_oof_predictions(exp_id, oof_preds)
+    save_oof_predictions(exp_id, oof_preds, covered_mask=oof_covered)
 
     print(f"\n  Done: {exp_name} -> RAE={oof_metrics['RAE']:.4f}")
     return oof_metrics
@@ -724,7 +760,15 @@ def main():
         "--model", choices=["lgbm", "xgboost", "catboost", "tabpfn"], required=True
     )
     parser.add_argument("--feature", choices=all_features, required=True)
-    parser.add_argument("--split", choices=["scaffold", "umap"], default="scaffold")
+    parser.add_argument(
+        "--split", choices=["scaffold", "umap", "analog"], default="scaffold"
+    )
+    parser.add_argument(
+        "--analog-threshold",
+        type=float,
+        default=0.25,
+        help="Tanimoto NN threshold for analog-aware split (default 0.25)",
+    )
     parser.add_argument(
         "--trials", type=int, default=20, help="Optuna trials (0=default params)"
     )
