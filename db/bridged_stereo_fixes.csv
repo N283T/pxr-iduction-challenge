@@ -1,0 +1,3 @@
+compound_id,original_smiles,fixed_smiles,original_cip,fixed_cip,hamming_distance,fix_timestamp
+3840,CS(=O)(=O)CCC(=O)N1C[C@H]2CC[C@H]1C2,CS(=O)(=O)CCC(=O)N1C[C@@H]2CC[C@H]1C2,"((10, 'S'), (13, 'S'))","((10, 'R'), (13, 'S'))",1,2026-04-17T01:56:15+00:00
+13023,C[C@@]12C[C@H](CO1)[C@@H](C(=O)NCCOc1ccc(-c3noc(=O)[nH]3)cc1)C2,C[C@@]12C[C@@H](CO1)[C@@H](C(=O)NCCOc1ccc(-c3noc(=O)[nH]3)cc1)C2,"((1, 'S'), (3, 'S'), (6, 'S'))","((1, 'S'), (3, 'R'), (6, 'S'))",1,2026-04-17T01:56:15+00:00
