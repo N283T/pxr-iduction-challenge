@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.joinpath("src")))
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 import numpy as np
 import pandas as pd
@@ -319,6 +320,114 @@ def load_features(feature_name: str, train_df, test_df):
                 f"{n_sc_train_with_data}/{len(train_ids)} train compounds have data"
             )
 
+        return X_train, X_test
+
+    if feature_name == "2d_full_boltz":
+        # Mordred (1531) + pose-Jazzy (6, from compound_boltz2_jazzy) +
+        # RDKit_desc_full (217) + Boltz-2 Tier-0 (17 cols + 2 derived = 19) +
+        # Tier-1 (44 confidence aggregates) = 1817 features.
+        #
+        # Uses pose-specific Jazzy instead of Jazzy's self-relaxed conformer
+        # (the default 2d_full does the latter). Rationale: all pose-derived
+        # Boltz features are already in the bundle, so keeping Jazzy
+        # consistent with the binding pose is more principled. Pose-Jazzy
+        # correlates 0.98-0.999 with self-Jazzy per prior A/B, so signal
+        # loss is minimal but interpretability gains.
+        #
+        # Excluded: Tier-2 (IFP 114, 0.05x Mordred gain/feature) and
+        # PoseBusters (19 bool, near-constant across PXR drug-like train,
+        # variance ~= 0). See memory:project_posebusters_low_variance and
+        # PR #72.
+
+        # Mordred 1531
+        mordred_train, _ = load_train_mordred()
+        mordred_test = load_mordred(test_ids)
+        common_m = mordred_train.columns.intersection(mordred_test.columns)
+        Xm_tr = mordred_train.loc[train_ids, common_m].values.astype(np.float32)
+        Xm_te = mordred_test.loc[test_ids, common_m].values.astype(np.float32)
+        Xm_tr = np.nan_to_num(Xm_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xm_te = np.nan_to_num(Xm_te, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # Pose-Jazzy 6 (from compound_boltz2_jazzy)
+        with psycopg2.connect(**DB_PARAMS) as conn:
+            pose_jazzy_df = pd.read_sql(
+                """
+                SELECT compound_id, sdc, sdx, sa, dga, dgp, dgtot
+                FROM compound_boltz2_jazzy
+                """,
+                conn,
+            ).set_index("compound_id")
+        jz_cols = list(JAZZY_FEATURE_COLS)
+        Xj_tr = pose_jazzy_df.reindex(train_ids)[jz_cols].to_numpy(dtype=np.float32)
+        Xj_te = pose_jazzy_df.reindex(test_ids)[jz_cols].to_numpy(dtype=np.float32)
+        Xj_tr = np.nan_to_num(Xj_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xj_te = np.nan_to_num(Xj_te, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # RDKit 217
+        rdkit_train = load_rdkit_full(train_ids)
+        rdkit_test = load_rdkit_full(test_ids)
+        common_r = rdkit_train.columns.intersection(rdkit_test.columns)
+        Xr_tr = rdkit_train.loc[train_ids, common_r].to_numpy(dtype=np.float32)
+        Xr_te = rdkit_test.loc[test_ids, common_r].to_numpy(dtype=np.float32)
+        Xr_tr = np.nan_to_num(Xr_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xr_te = np.nan_to_num(Xr_te, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # Tier-0: scalar + derived from compound_boltz2
+        boltz2_cols = [
+            "affinity_pred_value",
+            "affinity_pred_value_1",
+            "affinity_pred_value_2",
+            "affinity_probability_binary",
+            "affinity_probability_binary_1",
+            "affinity_probability_binary_2",
+            "confidence_score",
+            "ptm",
+            "iptm",
+            "ligand_iptm",
+            "protein_iptm",
+            "complex_plddt",
+            "complex_iplddt",
+            "complex_pde",
+            "complex_ipde",
+            "ligand_atom_count",
+            "ligand_to_pocket_distance_a",
+        ]
+        col_sql = ", ".join(f"b.{c}" for c in boltz2_cols)
+        with psycopg2.connect(**DB_PARAMS) as conn:
+            boltz_df = pd.read_sql(
+                f"""
+                SELECT c.id AS compound_id, {col_sql},
+                       (b.affinity_pred_value_1 - b.affinity_pred_value_2)
+                           AS ensemble_diff_affinity,
+                       (b.affinity_probability_binary_1
+                          - b.affinity_probability_binary_2) AS ensemble_diff_prob
+                FROM compounds c
+                LEFT JOIN compound_boltz2 b ON b.compound_id = c.id
+                """,
+                conn,
+            ).set_index("compound_id")
+        tier0_cols = boltz2_cols + ["ensemble_diff_affinity", "ensemble_diff_prob"]
+        Xt0_tr = boltz_df.reindex(train_ids)[tier0_cols].to_numpy(dtype=np.float32)
+        Xt0_te = boltz_df.reindex(test_ids)[tier0_cols].to_numpy(dtype=np.float32)
+        Xt0_tr = np.nan_to_num(Xt0_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xt0_te = np.nan_to_num(Xt0_te, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # Tier-1: confidence aggregates from parquet
+        tier1_path = REPO_ROOT.joinpath("data", "boltz2_confidence_features.parquet")
+        tier1_df = pd.read_parquet(tier1_path)
+        Xt1_tr = tier1_df.reindex(train_ids).to_numpy(dtype=np.float32)
+        Xt1_te = tier1_df.reindex(test_ids).to_numpy(dtype=np.float32)
+        Xt1_tr = np.nan_to_num(Xt1_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xt1_te = np.nan_to_num(Xt1_te, nan=0.0, posinf=0.0, neginf=0.0)
+
+        X_train = np.concatenate([Xm_tr, Xj_tr, Xr_tr, Xt0_tr, Xt1_tr], axis=1)
+        X_test = np.concatenate([Xm_te, Xj_te, Xr_te, Xt0_te, Xt1_te], axis=1)
+        print(
+            f"  2d_full_boltz: mordred {Xm_tr.shape[1]} + "
+            f"pose-jazzy {Xj_tr.shape[1]} + rdkit {Xr_tr.shape[1]} + "
+            f"tier0 {Xt0_tr.shape[1]} + tier1 {Xt1_tr.shape[1]} "
+            f"= {X_train.shape[1]} features"
+        )
         return X_train, X_test
 
     if feature_name == "2d_full":
@@ -934,6 +1043,7 @@ def main():
             "mordred_singleconc",
             "mordred_jazzy",
             "2d_full",
+            "2d_full_boltz",
             "jazzy",
         ]
         + list(FP_REGISTRY.keys())
