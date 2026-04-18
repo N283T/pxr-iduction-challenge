@@ -273,3 +273,102 @@ Still actionable:
   splits. The analog lesson (tiny val = overfit-prone) is especially
   relevant for DL and suggests Mordred-space is the safer DL
   candidate if we revisit analog-style CV.
+
+## Update (2026-04-18): why Mordred-space OOF was lower, and FP+Mordred
+
+The Mordred-space OOF-lower result looked counterintuitive ("splitting
+in the same space as model features should be *harder*, not easier"),
+so we ran an extra diagnostic (`track1_activity/scripts/eda_cv_prep/
+04_split_space_compare.py`) measuring per-fold val->train NN Tanimoto
+(on Morgan r=2 FPs) plus val y statistics.
+
+| Split | val y mean | val y std | val y abs-dev-median | **val->train NN mean** | **OOF RAE** | **OOF MAE** |
+|---|---:|---:|---:|---:|---:|---:|
+| Morgan only         | 4.32 | 1.11 | 0.861 | **0.340** | 0.586 | 0.528 |
+| Mordred only        | 4.32 | 1.12 | 0.862 | **0.384** | **0.574** | **0.515** |
+| Morgan + Mordred    | 4.32 | 1.11 | 0.860 | **0.375** | 0.594 | 0.529 |
+
+Mechanism: val y distributions are essentially identical across the
+three splits, so the RAE denominator is NOT the confound. What changes
+is how structurally similar val is to train. Under Mordred clustering,
+val has a 0.044 higher Morgan NN to train than under Morgan
+clustering. That is because KMeans on Mordred groups compounds with
+similar physicochemical profiles but leaves substructure-similar
+compounds in other clusters (which stay in train). The LightGBM model,
+which uses Mordred features, can interpolate from those
+substructurally-similar training compounds, and val gets easier.
+
+So Mordred-space's lower OOF reflects an *easier val*, not a *better
+CV*. By the same logic that falsified analog-CV on 2026-04-17, we do
+not treat this as a submittable improvement.
+
+### Morgan + Mordred combined
+
+z-score Mordred (so each column is ~unit variance), concatenate with
+raw Morgan FPs, UMAP with cosine metric.
+
+- Combined val->train NN (0.375) lands close to Mordred alone (0.384),
+  NOT halfway between Morgan (0.340) and Mordred. That is because
+  after z-score, Mordred contributes ~sqrt(1460)=38 to the row L2 norm
+  vs Morgan's ~sqrt(30)=5.5 -- the cosine distance is ~7x dominated
+  by the Mordred block.
+- Despite the Mordred-like NN, combined OOF RAE (0.594) is slightly
+  *worse* than Mordred alone (0.574). The extra Morgan contribution
+  nudges the cluster boundaries off the "easiest" Mordred cuts
+  without fully reaching Morgan's strictness.
+- A principled fix would be to L2-normalise each block separately
+  before concat, but the combined split showed no sign of being the
+  "best of both", so we did not pursue the normalised variant.
+
+## Update (2026-04-18): UMAP cluster-count sweep
+
+Fixed features=Morgan, seed=42, mordred_jazzy default params. Varying
+``n_clusters``:
+
+| k (clusters) | OOF RAE | fold RAE std | OOF MAE |
+|---:|---:|---:|---:|
+|  25 | 0.6180 | **0.093** | 0.5276 |
+|  50 (canonical) | 0.5856 | 0.044 | 0.5280 |
+|  75 | 0.5885 | 0.049 | 0.5270 |
+| **100** | **0.5814** | **0.029** | 0.5271 |
+| 150 | 0.5907 | 0.068 | 0.5244 |
+
+Observations:
+
+- k=25 is too coarse (5 clusters per fold -> fold-to-fold RAE std
+  0.093, dominating the mean).
+- k=50 (canonical) through k=100 form a stable plateau at OOF RAE
+  ~0.58, MAE ~0.527.
+- k=100 has the lowest fold variance (std 0.029) and marginally the
+  lowest OOF RAE (0.581). Worth using as a slightly more robust
+  default if we retune, but the improvement over k=50 is within
+  measurement noise (seed std 0.006 is smaller, but cluster-count
+  std isn't quite at seed level).
+- k=150 fold variance creeps back up (0.068) -- too many small
+  clusters, some folds get unlucky assignments.
+
+### Decision
+
+Keep ``n_clusters=50`` as the canonical project default. No evidence
+that switching delivers an LB-meaningful improvement, and ``k=50`` is
+what every previously recorded experiment used.
+
+## Final takeaway on CV
+
+After two rounds of investigation (PR #69 + this PR) covering
+scaffold / UMAP / analog splits, 5 seeds on Morgan UMAP, 4 alternative
+embedding spaces, and a 5-point cluster-count sweep, the decision is:
+
+- **Canonical split stays: UMAP + Morgan FP + Jaccard, 50 clusters,
+  seed 42.** No tested variant improves on it in an LB-transferable
+  way.
+- The OOF->LB gap we observe (~0.045 MAE for single-model UMAP tune,
+  ~0.013 MAE for the ensemble) is structural, not a CV knob.
+- Future leverage is on the *model* side (competitor-style chemprop +
+  TabPFN ensembles, better feature mixes, stacking) or on the
+  *ensemble overfit* problem (single-model LB has been within 0.08
+  MAE of our 20-model ensemble, so the ensemble's contribution is
+  thinner than the weight distribution implied).
+- CV side: unless a qualitatively different idea emerges (mixed
+  analog+diversity fold, stratified pEC50 x chemotype, DL-side
+  variance under these splits), no further CV experiments planned.
