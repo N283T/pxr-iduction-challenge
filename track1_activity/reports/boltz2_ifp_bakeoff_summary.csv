@@ -1,0 +1,8 @@
+,MAE,RAE,Pearson
+mordred,0.5369,0.59,0.7483
+boltz_tier0,0.6055,0.6654,0.6845
+boltz_tier0+tier1,0.5909,0.6494,0.7011
+boltz_tier0+tier1+tier2,0.5894,0.6478,0.7012
+mordred+tier0,0.5246,0.5765,0.7657
+mordred+tier0+tier1,0.5204,0.5719,0.7648
+mordred+tier0+tier1+tier2,0.5204,0.5719,0.7659
