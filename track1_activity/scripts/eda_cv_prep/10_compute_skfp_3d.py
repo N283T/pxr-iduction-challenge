@@ -33,7 +33,11 @@ import numpy as np
 import psycopg2
 from psycopg2.extras import execute_batch
 from rdkit import Chem
-from skfp.fingerprints import E3FPFingerprint, ElectroShapeFingerprint
+from skfp.fingerprints import (
+    E3FPFingerprint,
+    ElectroShapeFingerprint,
+    PharmacophoreFingerprint,
+)
 
 warnings.filterwarnings("ignore")
 
@@ -47,8 +51,12 @@ CREATE TABLE IF NOT EXISTS compound_boltz2_skfp3d (
     compound_id INTEGER PRIMARY KEY REFERENCES compounds(id),
     e3fp JSONB,
     electroshape JSONB,
+    pharmacophore3d JSONB,
     computed_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE compound_boltz2_skfp3d
+  ADD COLUMN IF NOT EXISTS pharmacophore3d JSONB;
 """
 
 E3FP_BITS = 1024
@@ -95,10 +103,20 @@ def main() -> None:
     rows = cur.fetchall()
     print(f"Candidates with PKL: {len(rows)}")
 
-    cur.execute("SELECT compound_id FROM compound_boltz2_skfp3d")
+    # Idempotent, but skip only rows that are FULLY populated (all 3
+    # columns present). Adding a new FP later must re-run the missing
+    # compounds transparently.
+    cur.execute(
+        """
+        SELECT compound_id FROM compound_boltz2_skfp3d
+        WHERE e3fp IS NOT NULL
+          AND electroshape IS NOT NULL
+          AND pharmacophore3d IS NOT NULL
+        """
+    )
     already = {r[0] for r in cur.fetchall()}
     todo = [(cid, p) for cid, p in rows if cid not in already]
-    print(f"Already done: {len(already)}, to compute: {len(todo)}")
+    print(f"Already fully populated: {len(already)}, to compute: {len(todo)}")
     if not todo:
         return
 
@@ -131,24 +149,35 @@ def main() -> None:
     es_arr = fp_es.transform(mols)
     print(f"  ElectroShape done: shape={es_arr.shape} in {time.time() - t1:.1f}s")
 
+    t2 = time.time()
+    print("Running Pharmacophore3D (folded 2048, parallel)...")
+    fp_ph = PharmacophoreFingerprint(
+        variant="folded", fp_size=2048, use_3D=True, n_jobs=-1
+    )
+    ph_arr = fp_ph.transform(mols)
+    print(f"  Pharmacophore3D done: shape={ph_arr.shape} in {time.time() - t2:.1f}s")
+
     print("Writing to DB...")
     batch = []
-    for cid, e3_row, es_row in zip(ids, e3fp_arr, es_arr):
+    for cid, e3_row, es_row, ph_row in zip(ids, e3fp_arr, es_arr, ph_arr):
         batch.append(
             (
                 cid,
                 json.dumps(to_list_int(e3_row)),
                 json.dumps(to_list_float(es_row)),
+                json.dumps(to_list_int(ph_row)),
             )
         )
     execute_batch(
         cur,
         """
-        INSERT INTO compound_boltz2_skfp3d (compound_id, e3fp, electroshape)
-        VALUES (%s, %s, %s)
+        INSERT INTO compound_boltz2_skfp3d
+            (compound_id, e3fp, electroshape, pharmacophore3d)
+        VALUES (%s, %s, %s, %s)
         ON CONFLICT (compound_id) DO UPDATE SET
             e3fp = EXCLUDED.e3fp,
             electroshape = EXCLUDED.electroshape,
+            pharmacophore3d = EXCLUDED.pharmacophore3d,
             computed_at = NOW()
         """,
         batch,
@@ -158,12 +187,12 @@ def main() -> None:
 
     cur.execute(
         """
-        SELECT COUNT(*), COUNT(e3fp), COUNT(electroshape)
+        SELECT COUNT(*), COUNT(e3fp), COUNT(electroshape), COUNT(pharmacophore3d)
         FROM compound_boltz2_skfp3d
         """
     )
-    n, ne3, nes = cur.fetchone()
-    print(f"\nRows: total={n}  e3fp non-null={ne3}  electroshape non-null={nes}")
+    n, ne3, nes, nph = cur.fetchone()
+    print(f"\nRows: total={n}  e3fp={ne3}  electroshape={nes}  pharmacophore3d={nph}")
     conn.close()
 
 
