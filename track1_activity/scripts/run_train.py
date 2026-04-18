@@ -322,6 +322,121 @@ def load_features(feature_name: str, train_df, test_df):
 
         return X_train, X_test
 
+    if feature_name == "3d_ligand":
+        # 3D ligand-only bundle (1212 features):
+        #   scalar3d       11  (compound_boltz2_desc3d)
+        #   autocorr3d     80  (compound_boltz2_desc3d_vector.autocorr3d)
+        #   getaway       273  (compound_boltz2_desc3d_vector.getaway)
+        #   morse         224  (compound_boltz2_desc3d_vector.morse)
+        #   rdf           210  (compound_boltz2_desc3d_vector.rdf)
+        #   whim          114  (compound_boltz2_desc3d_vector.whim)
+        #   usr            12  (compound_boltz2_desc3d_vector.usr)
+        #   usrcat         60  (compound_boltz2_desc3d_vector.usrcat)
+        #   electroshape   15  (compound_boltz2_skfp3d.electroshape)
+        #   mordred3d     213  (compound_boltz2_mordred3d)
+        #
+        # Excluded:
+        #   pose_jazzy (6) -- in 2d_full_boltz; skipped here for orthogonality
+        #   e3fp (1024)   -- 4% gain / dim is very inefficient per today's EDA
+        #   pharmacophore3d (2048) -- 8% gain / dim likewise inefficient
+        #
+        # Compound 1657 (Auranofin) is missing from all three tables
+        # (Boltz-2 preprocessing refused the Au complex). NaN cells filled
+        # with zeros -- same treatment as 2d_full_boltz.
+        scalar_cols = [
+            "asphericity",
+            "eccentricity",
+            "inertial_shape_factor",
+            "npr1",
+            "npr2",
+            "pmi1",
+            "pmi2",
+            "pmi3",
+            "radius_of_gyration",
+            "spherocity_index",
+            "pbf",
+        ]
+        with psycopg2.connect(**DB_PARAMS) as conn:
+            scalar_df = pd.read_sql(
+                f"SELECT compound_id, {', '.join(scalar_cols)} "
+                f"FROM compound_boltz2_desc3d",
+                conn,
+            ).set_index("compound_id")
+            vec_df = pd.read_sql(
+                "SELECT compound_id, autocorr3d, getaway, morse, rdf, "
+                "whim, usr, usrcat FROM compound_boltz2_desc3d_vector",
+                conn,
+            ).set_index("compound_id")
+            skfp_df = pd.read_sql(
+                "SELECT compound_id, electroshape FROM compound_boltz2_skfp3d",
+                conn,
+            ).set_index("compound_id")
+            mord_df = pd.read_sql(
+                "SELECT compound_id, descriptors FROM compound_boltz2_mordred3d",
+                conn,
+            ).set_index("compound_id")
+
+        def _fill_vec(series, dim):
+            out = []
+            for v in series:
+                if v is None or (isinstance(v, float) and np.isnan(v)):
+                    out.append(np.zeros(dim, dtype=np.float32))
+                else:
+                    a = np.asarray(v, dtype=np.float64)
+                    a = np.where(np.isnan(a) | np.isinf(a), 0.0, a)
+                    out.append(a.astype(np.float32))
+            return np.stack(out, axis=0)
+
+        def _mord_matrix(series, train_idx):
+            # Build stable column ordering from first non-null row
+            mord_cols = None
+            for v in series:
+                if v is not None:
+                    mord_cols = sorted(v.keys())
+                    break
+            if mord_cols is None:
+                raise RuntimeError("compound_boltz2_mordred3d is empty")
+            rows = []
+            for v in series:
+                if v is None or (isinstance(v, float) and np.isnan(v)):
+                    rows.append(np.zeros(len(mord_cols), dtype=np.float32))
+                else:
+                    vals = [v.get(c) for c in mord_cols]
+                    arr = np.asarray(
+                        [float(x) if x is not None else 0.0 for x in vals],
+                        dtype=np.float64,
+                    )
+                    arr = np.where(np.isnan(arr) | np.isinf(arr), 0.0, arr)
+                    rows.append(arr.astype(np.float32))
+            return np.stack(rows, axis=0), mord_cols
+
+        def _build(ids):
+            s = scalar_df.reindex(ids)[scalar_cols].to_numpy(dtype=np.float32)
+            s = np.nan_to_num(s, nan=0.0, posinf=0.0, neginf=0.0)
+            v = vec_df.reindex(ids)
+            autocorr = _fill_vec(v["autocorr3d"], 80)
+            getaway = _fill_vec(v["getaway"], 273)
+            morse = _fill_vec(v["morse"], 224)
+            rdf = _fill_vec(v["rdf"], 210)
+            whim = _fill_vec(v["whim"], 114)
+            usr = _fill_vec(v["usr"], 12)
+            usrcat = _fill_vec(v["usrcat"], 60)
+            es = _fill_vec(skfp_df.reindex(ids)["electroshape"], 15)
+            mord, _ = _mord_matrix(mord_df.reindex(ids)["descriptors"], ids)
+            return np.concatenate(
+                [s, autocorr, getaway, morse, rdf, whim, usr, usrcat, es, mord],
+                axis=1,
+            )
+
+        X_train = _build(train_ids)
+        X_test = _build(test_ids)
+        print(
+            f"  3d_ligand: scalar 11 + autocorr 80 + getaway 273 + morse 224 "
+            f"+ rdf 210 + whim 114 + usr 12 + usrcat 60 + electroshape 15 "
+            f"+ mordred3d 213 = {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
     if feature_name == "2d_full_boltz":
         # Mordred (1531) + pose-Jazzy (6, from compound_boltz2_jazzy) +
         # RDKit_desc_full (217) + Boltz-2 Tier-0 (17 cols + 2 derived = 19) +
@@ -1044,6 +1159,7 @@ def main():
             "mordred_jazzy",
             "2d_full",
             "2d_full_boltz",
+            "3d_ligand",
             "jazzy",
         ]
         + list(FP_REGISTRY.keys())
