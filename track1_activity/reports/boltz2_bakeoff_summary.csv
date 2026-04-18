@@ -1,0 +1,6 @@
+,MAE,RAE,Pearson
+mordred,0.5369,0.59,0.7483
+rdkit_desc_full,0.5468,0.6009,0.7384
+boltz2,0.604,0.6638,0.6877
+mordred_boltz2,0.5248,0.5768,0.7641
+rdkit_desc_full_boltz2,0.5333,0.5861,0.7533

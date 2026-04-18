@@ -385,15 +385,24 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2a/09/f8d8f8f31e4483c10a906437b4ce31bdf3d6d417b73fe33f1a8b59e34228/einops-0.8.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/cf/22/fdc2e30d43ff853720042fa15baa3e6122722be1a7950a98233ebb55cd71/eval_type_backport-0.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/68/72/a4611ed242a7936d38bd5262c6071fff8dda86cab1c06172a1e372783772/gradio_client-2.4.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/5e/ed/139ce29a650d9d4d35ce78b3fc4741da3d2a6d0f4db7b88d5f4ffcff8c77/griddataformats-1.1.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/4f/4b/5fe3a00833a9f9775b3c237624a6212798167278ffe10fe0de04f58612d0/mda_xdrlib-0.2.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/4c/16/ad7fc0f8948075b9ab7f6957519492e861b2f16469f1ab0a916f7c3c4243/mdanalysis-2.10.0-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/3c/f1/efea3da858043ed9c078f507ab744b6d00933c7bc8a75a24821937600178/mmtf_python-1.1.3-py2.py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/6f/cb/3f4ee8233f30c7926f1ed4885ff32b79ec7ce3210370f43e1cb2b385bed6/mrcfile-1.5.4-py2.py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/65/92/a5100f7185a800a5d29f8d14041f61475b9de465ffcc0f3b9fba606e4505/msgpack-1.1.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/8a/24/fc256107d23597fa33d319505ce77160fa1a2349c096d01901ffc7cb7fc4/nvidia_ml_py-13.595.45-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/fe/ff/c64e11fca12c8c51062bcdc9eedfe35a08d3350edc91ddbe3536556afa67/openmm-8.3.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/da/bd/394c3185e4b9fbacf803651a374e99e597d3411d316784f8ea6d8fc17af5/pdbfixer-1.12.0.tar.gz
       - pypi: https://files.pythonhosted.org/packages/75/a6/a0a304dc33b49145b21f4808d763822111e67d1c3a32b524a1baf947b6e1/platformdirs-4.9.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f5/76/62fbbfc0c6b1df40b3d424d33a8588f23d22a59b81498c07ca629c99b3fb/posebusters-0.6.5-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/12/cc/ddec4c8bfa52d966c4f8447422758c1a4f03c3a6e7f0ddccca0dadc107b8/posthog-7.11.1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/01/d7/c3a52c61f5b7be648e919005820fbac33028c6149994cd64453f49951c17/pydantic-2.13.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/8b/86/c63b12fafa2d86a515bfd1840b39c23a49302f02b653161bf9c3a0566c50/pydantic_core-2.46.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/eb/4b/40894963647d5044f591099cfe10fe16b688e8e6fb6ed980ccc2c784a3f5/posthog-7.12.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/fa/0c/dc4091cee1e37cb919849cad7e79227bc47fa922bb1fd220bf6c29bbc161/prolif-2.1.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/77/ca/b45c378e6e8d0b90577288b533e04e95b7afd61bb1d51b6c263176435489/pydantic-2.13.2-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/e4/51/5d6155eb737db55b0ad354ca5f333ef009f75feb67df2d79a84bace45af6/pydantic_core-2.46.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/00/4b/ccc026168948fec4f7555b9164c724cf4125eac006e176541483d2c959be/pydantic_settings-2.13.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0b/d7/1959b9648791274998a9c3526f6d0ec8fd2233e4d4acce81bbae76b44b2a/python_dotenv-1.2.2-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/bc/bb/7ddb00a83760ff4a83c4e2fc231fd63937cc7317c10c82f583302e0f6586/ruff-0.15.10-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/30/c3/bb5168fc4d233cc06e95f482770d0f3c87945a0cd9f614b90ea8dc2f2833/ruff-0.15.11-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/1f/13/3f7fbe98e6ff733cc1a5bdb62a72130cee9b9a57e4438c8f008249c1fe01/tabpfn-7.1.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/34/dd/4b6095777970f3f9e50144b5cfd993ad2e70a9c08fed3425d8c9e8f88784/tabpfn_common_utils-0.2.19-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/dc/9b/47798a6c91d8bdb567fe2698fe81e0c6b7cb7ef4d13da4114b41d239f65d/typing_inspection-0.4.2-py3-none-any.whl
@@ -1761,6 +1770,17 @@ packages:
   - pkg:pypi/greenlet?source=hash-mapping
   size: 253793
   timestamp: 1771658391409
+- pypi: https://files.pythonhosted.org/packages/5e/ed/139ce29a650d9d4d35ce78b3fc4741da3d2a6d0f4db7b88d5f4ffcff8c77/griddataformats-1.1.0-py3-none-any.whl
+  name: griddataformats
+  version: 1.1.0
+  sha256: d3dfc4d9f16d5e7bb4d387195434f24ef0339aa246ebfbf357fdfb4b26828385
+  requires_dist:
+  - numpy>=1.21
+  - scipy
+  - mrcfile
+  - pytest ; extra == 'test'
+  - numpy ; extra == 'test'
+  requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/gtk3-3.24.52-ha5ea40c_0.conda
   sha256: c6bb4f06331bcb0a566d84e0f0fad7af4b9035a03b13e2d5ecfaf13be57e6e10
   md5: bcaea22d85999a4f17918acfab877e61
@@ -3705,6 +3725,54 @@ packages:
   - pkg:pypi/matplotlib?source=hash-mapping
   size: 8442149
   timestamp: 1763055517581
+- pypi: https://files.pythonhosted.org/packages/4f/4b/5fe3a00833a9f9775b3c237624a6212798167278ffe10fe0de04f58612d0/mda_xdrlib-0.2.0-py3-none-any.whl
+  name: mda-xdrlib
+  version: 0.2.0
+  sha256: 0d1757b339f5db2d017a89ddaae06a82cd7a2cce26b8063df9f52b64e933fb47
+  requires_dist:
+  - pytest ; extra == 'testing'
+  requires_python: '>=3.7'
+- pypi: https://files.pythonhosted.org/packages/4c/16/ad7fc0f8948075b9ab7f6957519492e861b2f16469f1ab0a916f7c3c4243/mdanalysis-2.10.0-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
+  name: mdanalysis
+  version: 2.10.0
+  sha256: c1403b319f5b9054d3135984948ecd485702d3960a867c491283f836451dc2bd
+  requires_dist:
+  - numpy>=1.26.0
+  - griddataformats>=0.4.0
+  - mmtf-python>=1.0.0
+  - joblib>=0.12
+  - scipy>=1.5.0
+  - matplotlib>=1.5.1
+  - tqdm>=4.43.0
+  - threadpoolctl
+  - packaging
+  - filelock
+  - mda-xdrlib
+  - netcdf4>=1.0 ; extra == 'extra-formats'
+  - h5py>=2.10 ; extra == 'extra-formats'
+  - chemfiles>=0.10 ; extra == 'extra-formats'
+  - parmed ; extra == 'extra-formats'
+  - pyedr>=0.7.0 ; extra == 'extra-formats'
+  - pytng>=0.2.3 ; extra == 'extra-formats'
+  - gsd>3.0.0 ; extra == 'extra-formats'
+  - rdkit>=2022.9.1 ; extra == 'extra-formats'
+  - imdclient>=0.2.2 ; extra == 'extra-formats'
+  - biopython>=1.80 ; extra == 'analysis'
+  - seaborn ; extra == 'analysis'
+  - scikit-learn ; extra == 'analysis'
+  - tidynamics>=1.0.0 ; extra == 'analysis'
+  - networkx>=2.0 ; extra == 'analysis'
+  - waterdynamics ; extra == 'analysis'
+  - pathsimanalysis ; extra == 'analysis'
+  - mdahole2 ; extra == 'analysis'
+  - sphinx ; extra == 'doc'
+  - sphinx-sitemap ; extra == 'doc'
+  - mdanalysis-sphinx-theme>=1.3.0 ; extra == 'doc'
+  - sphinxcontrib-bibtex ; extra == 'doc'
+  - pybtex ; extra == 'doc'
+  - pybtex-docutils ; extra == 'doc'
+  - dask ; extra == 'parallel'
+  requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/noarch/mdurl-0.1.2-pyhd8ed1ab_1.conda
   sha256: 78c1bbe1723449c52b7a9df1af2ee5f005209f67e40b6e1d3c7619127c43b1c7
   md5: 592132998493b3ff25fd7479396e8351
@@ -3745,6 +3813,14 @@ packages:
   purls: []
   size: 125431807
   timestamp: 1774449026019
+- pypi: https://files.pythonhosted.org/packages/3c/f1/efea3da858043ed9c078f507ab744b6d00933c7bc8a75a24821937600178/mmtf_python-1.1.3-py2.py3-none-any.whl
+  name: mmtf-python
+  version: 1.1.3
+  sha256: 502031c509a8a6d73e042781abbd88b84c1afffe65097eb0c1b70f329ffd1e6e
+  requires_dist:
+  - msgpack>=1.0.0
+  - check-manifest ; extra == 'dev'
+  - coverage ; extra == 'test'
 - conda: https://conda.anaconda.org/conda-forge/noarch/mordredcommunity-2.0.7-pyhd8ed1ab_0.conda
   sha256: f12c872932dda390327c9c0d316d9f2b073a827d870db2f693a3f8ef14afb562
   md5: 7cf2b58f63cdf92df087894ab423a688
@@ -3798,6 +3874,17 @@ packages:
   - pkg:pypi/mpmath?source=hash-mapping
   size: 439705
   timestamp: 1733302781386
+- pypi: https://files.pythonhosted.org/packages/6f/cb/3f4ee8233f30c7926f1ed4885ff32b79ec7ce3210370f43e1cb2b385bed6/mrcfile-1.5.4-py2.py3-none-any.whl
+  name: mrcfile
+  version: 1.5.4
+  sha256: 195370a13db5ce19600499f9bdf90fd9888979bf39de19a17c19024436c6f4c2
+  requires_dist:
+  - numpy>=1.16.0
+- pypi: https://files.pythonhosted.org/packages/65/92/a5100f7185a800a5d29f8d14041f61475b9de465ffcc0f3b9fba606e4505/msgpack-1.1.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+  name: msgpack
+  version: 1.1.2
+  sha256: 372839311ccf6bdaf39b00b61288e0557916c3729529b301c52c2d88842add42
+  requires_python: '>=3.9'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/msgspec-0.20.0-py312h4c3975b_2.conda
   sha256: b22c4f075fe43795706f58269a95df499637cc8860ee5854213bf3a1fe1531c2
   md5: c0ab252674ef08853fa927b61718e3c0
@@ -4040,6 +4127,14 @@ packages:
   purls: []
   size: 785570
   timestamp: 1771970256722
+- pypi: https://files.pythonhosted.org/packages/fe/ff/c64e11fca12c8c51062bcdc9eedfe35a08d3350edc91ddbe3536556afa67/openmm-8.3.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+  name: openmm
+  version: 8.3.1
+  sha256: 9cb51959ed5c12a775b412a18e15e7513bb48119d97fc6af2c92d2d47b9476d1
+  requires_dist:
+  - numpy
+  - openmm-cuda-12 ; extra == 'cuda12'
+  - openmm-hip-6 ; extra == 'hip6'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/openpyxl-3.1.5-py312h7f6eeab_3.conda
   sha256: 04839d313708a6b8c185bc9fcc56ccef985ed91520420c665b5e67b55fd8b5fb
   md5: 04ab345ef65b88bcbb8ac3d083427bfc
@@ -4271,6 +4366,14 @@ packages:
   purls: []
   size: 1222481
   timestamp: 1763655398280
+- pypi: https://files.pythonhosted.org/packages/da/bd/394c3185e4b9fbacf803651a374e99e597d3411d316784f8ea6d8fc17af5/pdbfixer-1.12.0.tar.gz
+  name: pdbfixer
+  version: 1.12.0
+  sha256: 82e54074b33eb00270e9a439c8633fcf82cd3ab7a36561b01425a260c0fc4143
+  requires_dist:
+  - numpy
+  - openmm>=8.2
+  - legacy-cgi ; python_full_version >= '3.13'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/pillow-12.2.0-py312h50c33e8_0.conda
   sha256: fa291f8915114733dc1df9f1627b8c63c517217c1eee1a6ede2ceb5e368cf27a
   md5: 9e5609720e31213d4f39afe377f6217e
@@ -4375,10 +4478,10 @@ packages:
   purls: []
   size: 5815898
   timestamp: 1772136358208
-- pypi: https://files.pythonhosted.org/packages/12/cc/ddec4c8bfa52d966c4f8447422758c1a4f03c3a6e7f0ddccca0dadc107b8/posthog-7.11.1-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/eb/4b/40894963647d5044f591099cfe10fe16b688e8e6fb6ed980ccc2c784a3f5/posthog-7.12.0-py3-none-any.whl
   name: posthog
-  version: 7.11.1
-  sha256: aa92568b3ebfc2c97733452cf1cb5ef6acfeeb48efcf5e934f1b595d12034bcc
+  version: 7.12.0
+  sha256: df1444aa485b45318207f7b5100d955cde4d585e2e7f5b736ade45dcc6d2a60d
   requires_dist:
   - requests>=2.7,<3.0
   - six>=1.5
@@ -4387,6 +4490,8 @@ packages:
   - distro>=1.5.0
   - typing-extensions>=4.2.0
   - langchain>=0.2.0 ; extra == 'langchain'
+  - opentelemetry-sdk>=1.20.0 ; extra == 'otel'
+  - opentelemetry-exporter-otlp-proto-http>=1.20.0 ; extra == 'otel'
   - django-stubs ; extra == 'dev'
   - lxml ; extra == 'dev'
   - mypy ; extra == 'dev'
@@ -4425,6 +4530,31 @@ packages:
   - pydantic>=2.12.0 ; extra == 'test'
   - parameterized>=0.8.1 ; extra == 'test'
   - claude-agent-sdk ; extra == 'test'
+  - opentelemetry-sdk>=1.20.0 ; extra == 'test'
+  - opentelemetry-exporter-otlp-proto-http>=1.20.0 ; extra == 'test'
+  requires_python: '>=3.10'
+- pypi: https://files.pythonhosted.org/packages/fa/0c/dc4091cee1e37cb919849cad7e79227bc47fa922bb1fd220bf6c29bbc161/prolif-2.1.0-py3-none-any.whl
+  name: prolif
+  version: 2.1.0
+  sha256: f9b6e9844489ac9b664b7080a5ab239f282053b32bde324b18c6de5312f3abad
+  requires_dist:
+  - pandas>=1.1.0
+  - numpy>=1.13.3
+  - scipy>=1.3.0
+  - mdanalysis>=2.2.0,<3 ; python_full_version < '3.13'
+  - mdanalysis>=2.7.0,<3 ; python_full_version >= '3.13'
+  - networkx>=2.5.0
+  - tqdm
+  - multiprocess
+  - dill
+  - psutil
+  - py3dmol ; extra == 'plots'
+  - matplotlib>=3.5 ; extra == 'plots'
+  - rdkit ; extra == 'tutorials'
+  - matplotlib>=3.7 ; extra == 'tutorials'
+  - seaborn<1.0 ; extra == 'tutorials'
+  - pyvis ; extra == 'tutorials'
+  - prolif[plots] ; extra == 'tutorials'
   requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/prometheus-cpp-1.3.0-ha5d0236_0.conda
   sha256: 013669433eb447548f21c3c6b16b2ed64356f726b5f77c1b39d5ba17a8a4b8bc
@@ -4589,22 +4719,22 @@ packages:
   - pkg:pypi/pycairo?source=hash-mapping
   size: 119839
   timestamp: 1770726341594
-- pypi: https://files.pythonhosted.org/packages/01/d7/c3a52c61f5b7be648e919005820fbac33028c6149994cd64453f49951c17/pydantic-2.13.0-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/77/ca/b45c378e6e8d0b90577288b533e04e95b7afd61bb1d51b6c263176435489/pydantic-2.13.2-py3-none-any.whl
   name: pydantic
-  version: 2.13.0
-  sha256: ab0078b90da5f3e2fd2e71e3d9b457ddcb35d0350854fbda93b451e28d56baaf
+  version: 2.13.2
+  sha256: a525087f4c03d7e7456a3de89b64cd693d2229933bb1068b9af6befd5563694e
   requires_dist:
   - annotated-types>=0.6.0
-  - pydantic-core==2.46.0
+  - pydantic-core==2.46.2
   - typing-extensions>=4.14.1
   - typing-inspection>=0.4.2
   - email-validator>=2.0.0 ; extra == 'email'
   - tzdata ; python_full_version >= '3.9' and sys_platform == 'win32' and extra == 'timezone'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/8b/86/c63b12fafa2d86a515bfd1840b39c23a49302f02b653161bf9c3a0566c50/pydantic_core-2.46.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+- pypi: https://files.pythonhosted.org/packages/e4/51/5d6155eb737db55b0ad354ca5f333ef009f75feb67df2d79a84bace45af6/pydantic_core-2.46.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
   name: pydantic-core
-  version: 2.46.0
-  sha256: 3a5a06d8ed01dad5575056b5187e5959b336793c6047920a3441ee5b03533836
+  version: 2.46.2
+  sha256: 48649cf2d8c358d79586e9fb2f8235902fcaa2d969ec1c5301f2d1873b2f8321
   requires_dist:
   - typing-extensions>=4.14.1
   requires_python: '>=3.9'
@@ -5047,10 +5177,10 @@ packages:
   - pkg:pypi/rlpycairo?source=hash-mapping
   size: 15558
   timestamp: 1756864268077
-- pypi: https://files.pythonhosted.org/packages/bc/bb/7ddb00a83760ff4a83c4e2fc231fd63937cc7317c10c82f583302e0f6586/ruff-0.15.10-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+- pypi: https://files.pythonhosted.org/packages/30/c3/bb5168fc4d233cc06e95f482770d0f3c87945a0cd9f614b90ea8dc2f2833/ruff-0.15.11-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
   name: ruff
-  version: 0.15.10
-  sha256: 51cb8cc943e891ba99989dd92d61e29b1d231e14811db9be6440ecf25d5c1609
+  version: 0.15.11
+  sha256: 1bef2cb556d509259f1fe440bb9cd33c756222cf0a7afe90d15edf0866702431
   requires_python: '>=3.7'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/s2n-1.7.1-h1cbb8d7_1.conda
   sha256: dbbe4ab36b90427f12d69fc14a8b601b6bca4185c6c4dd67b8046a8da9daec03

@@ -37,6 +37,10 @@ structures/boltz2/postprocess*.csv
 structures/boltz2/posebusters*.csv
 logs/
 
+# Raw LiteParse output for external papers (regenerable; md
+# summaries are checked in separately under docs/papers/)
+docs/papers/*_raw/
+
 # Lightning checkpoints/logs
 checkpoints/
 lightning_logs/
