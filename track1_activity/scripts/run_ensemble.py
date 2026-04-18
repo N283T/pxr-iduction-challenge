@@ -119,6 +119,10 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # --- Foundation tabular model (UMAP) ---
     "tabpfn_mordred_jazzy_umap",  # 0.5453 (2026-04-18) TabPFN v7, GPU, 10-trial Optuna
     "tabpfn_chemeleon_umap",  # 0.5625 (2026-04-18) TabPFN on CheMeleon MPNN fp
+    # --- Mixed analog+diversity split (PR #TBD, 2026-04-18) ---
+    "lgbm_mordred_jazzy_mixed",  # 0.5562 (2026-04-18) mixed-split tuned
+    "lgbm_rdkit_desc_full_mixed",  # 0.5698 (2026-04-18) mixed-split tuned
+    "lgbm_morgan_r2_2048_mixed",  # 0.6210 (2026-04-18) mixed-split tuned
 )
 
 
