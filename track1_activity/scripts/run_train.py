@@ -117,7 +117,7 @@ DEFAULT_PARAMS = {
     },
     "tabpfn": {
         "n_estimators": 8,
-        "device": "cpu",
+        "device": "cuda",
         "softmax_temperature": 0.9,
         "random_state": 42,
     },
@@ -393,14 +393,17 @@ def optuna_search_space(model_type: str, trial):
             "border_count": trial.suggest_int("border_count", 32, 255),
         }
     if model_type == "tabpfn":
-        return {
+        params = {
             "n_estimators": trial.suggest_int("n_estimators", 2, 32),
-            "device": "cpu",
+            "device": "cuda",
             "softmax_temperature": trial.suggest_float(
                 "softmax_temperature", 0.1, 2.0, log=True
             ),
             "random_state": 42,
         }
+        if "model_path" in DEFAULT_PARAMS["tabpfn"]:
+            params["model_path"] = DEFAULT_PARAMS["tabpfn"]["model_path"]
+        return params
     raise ValueError(f"Unknown model: {model_type}")
 
 
@@ -538,6 +541,16 @@ def run(args):
 
     optuna.logging.set_verbosity(optuna.logging.WARNING)
 
+    if args.model == "tabpfn" and args.tabpfn_version != "v2_6":
+        from tabpfn import TabPFNRegressor
+        from tabpfn.constants import ModelVersion
+
+        version_enum = {"v2_5": ModelVersion.V2_5, "v2": ModelVersion.V2}[
+            args.tabpfn_version
+        ]
+        ref = TabPFNRegressor.create_default_for_version(version_enum)
+        DEFAULT_PARAMS["tabpfn"]["model_path"] = ref.model_path
+
     print(
         f"Model: {args.model}, Feature: {args.feature}, Split: {args.split}, Trials: {args.trials}"
     )
@@ -553,8 +566,8 @@ def run(args):
 
     if args.model == "tabpfn" and X_train.shape[1] > 500:
         print(
-            f"  WARNING: TabPFN with {X_train.shape[1]} features may be slow on CPU. "
-            f"Consider rdkit_desc_full (217d) or chemeleon (300d)."
+            f"  NOTE: TabPFN with {X_train.shape[1]} features — GPU strongly "
+            f"recommended. Consider rdkit_desc_full (217d) or chemeleon (300d)."
         )
 
     # Optional pseudo-labels
@@ -671,6 +684,8 @@ def run(args):
         exp_name += f"_pseudo{args.pseudo_weight}"
         if args.pseudo_min_confidence > 0:
             exp_name += f"_minc{args.pseudo_min_confidence}"
+    if args.model == "tabpfn" and args.tabpfn_version != "v2_6":
+        exp_name += f"_{args.tabpfn_version}"
     print(f"  Experiment: {exp_name}")
 
     # Training loop
@@ -903,6 +918,13 @@ def main():
         type=float,
         default=0.0,
         help="Drop pseudo samples with confidence below this threshold (0 = keep all)",
+    )
+    parser.add_argument(
+        "--tabpfn-version",
+        choices=["v2_6", "v2_5", "v2"],
+        default="v2_6",
+        help="TabPFN pretrained checkpoint (v2_6=synthetic latest, "
+        "v2_5=real-tuned, v2=legacy). Only used when --model tabpfn.",
     )
     args = parser.parse_args()
 
