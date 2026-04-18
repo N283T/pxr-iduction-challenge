@@ -49,6 +49,7 @@ from pseudo_labels import (
 )
 from splits import (
     analog_aware_split_indices,
+    mixed_analog_diversity_split_indices,
     scaffold_split_indices,
     umap_split_indices,
 )
@@ -663,6 +664,22 @@ def run(args):
             seed=42,
             verbose=True,
         )
+    elif args.split == "mixed":
+        counter_df = load_train_smiles_with_counter()
+        assert len(counter_df) == len(train_df), (
+            f"Row count mismatch: train_df={len(train_df)}, "
+            f"counter_df={len(counter_df)}; both must ORDER BY t.id"
+        )
+        selectivity = (counter_df["pec50"] - counter_df["counter_pec50"]).to_numpy()
+        outer_splits = mixed_analog_diversity_split_indices(
+            smiles_list=smiles_list,
+            pec50=y_train,
+            selectivity=selectivity,
+            n_splits=5,
+            analog_tanimoto_threshold=args.analog_threshold,
+            seed=42,
+            verbose=True,
+        )
     else:
         raise ValueError(f"Unknown split: {args.split}")
 
@@ -861,7 +878,7 @@ def main():
     )
     parser.add_argument("--feature", choices=all_features, required=True)
     parser.add_argument(
-        "--split", choices=["scaffold", "umap", "analog"], default="scaffold"
+        "--split", choices=["scaffold", "umap", "analog", "mixed"], default="scaffold"
     )
     parser.add_argument(
         "--analog-threshold",

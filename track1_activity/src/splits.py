@@ -305,3 +305,134 @@ def analog_aware_split_indices(
         splits.append((train_idx, val_idx))
 
     return splits
+
+
+def mixed_analog_diversity_split_indices(
+    smiles_list: list[str],
+    pec50: np.ndarray,
+    selectivity: np.ndarray,
+    n_splits: int = 5,
+    potent_pec50_threshold: float = 6.0,
+    potent_sel_threshold: float = 1.5,
+    analog_tanimoto_threshold: float = 0.25,
+    seed: int = 42,
+    verbose: bool = False,
+) -> list[tuple[np.ndarray, np.ndarray]]:
+    """Mixed analog + diversity k-fold split (full coverage variant of
+    analog-aware CV; PR #70 "Still-open CV ideas" follow-up).
+
+    Motivation
+    ----------
+    PR #69's `analog_aware_split_indices` captured the LB
+    analog-expansion narrative but failed on LB A/B (PR #70) with
+    three compounding issues:
+      * partial coverage (~20%) - incompatible with ensemble OOF;
+      * val size 170 - HPO overfit to a small val set;
+      * diversity tail (~42% of test has NN < 0.3 to potent-46) never
+        appears in val, so the split is blind to half of LB.
+
+    This split fixes all three:
+      1. Stratifies by category (potent / analog / diversity),
+         shuffles each stratum independently, distributes each across
+         `n_splits` buckets.
+      2. fold k val = potent_bucket_k ∪ analog_bucket_k ∪
+         diversity_bucket_k - full 100% coverage.
+      3. Val composition per fold is approximately proportional to
+         LB's mix (seed ratio ~1.1%, analog ratio ~48.9%, diversity
+         ratio ~50%).
+
+    This is deliberately NOT "analog_aware with potent in val for
+    coverage" - it is a different design that accepts putting potent
+    seeds in val (~9 per fold) as the cost of full coverage. The
+    philosophical "potent always in train" purity from PR #69 is
+    dropped; it was never strongly calibrated to LB (PR #70 showed
+    UMAP-tuned models beat analog-tuned on LB despite analog-tuned
+    having lower OOF).
+
+    Parameters match `analog_aware_split_indices`.
+    """
+    n = len(smiles_list)
+    if len(pec50) != n or len(selectivity) != n:
+        raise ValueError(
+            f"Length mismatch: smiles={n}, pec50={len(pec50)}, "
+            f"selectivity={len(selectivity)}"
+        )
+
+    pec50_arr = np.asarray(pec50, dtype=np.float64)
+    sel_arr = np.asarray(selectivity, dtype=np.float64)
+
+    potent_mask = (pec50_arr >= potent_pec50_threshold) & (
+        np.nan_to_num(sel_arr, nan=-np.inf) >= potent_sel_threshold
+    )
+    potent_idx = np.where(potent_mask)[0]
+
+    if len(potent_idx) == 0:
+        raise ValueError(
+            f"No compounds meet potent criteria "
+            f"(pEC50>={potent_pec50_threshold} AND sel>={potent_sel_threshold})"
+        )
+
+    gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+    mols = [Chem.MolFromSmiles(s) for s in smiles_list]
+    invalid = [i for i, m in enumerate(mols) if m is None]
+    if invalid:
+        raise ValueError(f"Invalid SMILES at indices: {invalid[:10]}")
+
+    all_fps = [gen.GetFingerprint(m) for m in mols]
+    potent_fps = [all_fps[i] for i in potent_idx]
+
+    nn_to_potent = np.zeros(n, dtype=np.float64)
+    for i in range(n):
+        if potent_mask[i]:
+            nn_to_potent[i] = np.nan
+            continue
+        sims = DataStructs.BulkTanimotoSimilarity(all_fps[i], potent_fps)
+        nn_to_potent[i] = max(sims) if sims else 0.0
+
+    analog_mask = nn_to_potent >= analog_tanimoto_threshold
+    analog_idx = np.where(analog_mask)[0]
+    diversity_mask = (~potent_mask) & (~analog_mask)
+    diversity_idx = np.where(diversity_mask)[0]
+
+    rng = np.random.RandomState(seed)
+
+    def _shuffle_split(idx: np.ndarray, k: int) -> list[np.ndarray]:
+        shuffled = idx.copy()
+        rng.shuffle(shuffled)
+        return [b.astype(np.int64) for b in np.array_split(shuffled, k)]
+
+    potent_buckets = _shuffle_split(potent_idx, n_splits)
+    analog_buckets = _shuffle_split(analog_idx, n_splits)
+    diversity_buckets = _shuffle_split(diversity_idx, n_splits)
+
+    if verbose:
+        print(
+            f"mixed_analog_diversity_split: n={n}, potent={len(potent_idx)}, "
+            f"analog={len(analog_idx)} (threshold={analog_tanimoto_threshold}), "
+            f"diversity={len(diversity_idx)}"
+        )
+
+    splits = []
+    for k in range(n_splits):
+        val_idx = np.concatenate(
+            [potent_buckets[k], analog_buckets[k], diversity_buckets[k]]
+        )
+        train_idx = np.concatenate(
+            [
+                np.concatenate([potent_buckets[j] for j in range(n_splits) if j != k]),
+                np.concatenate([analog_buckets[j] for j in range(n_splits) if j != k]),
+                np.concatenate(
+                    [diversity_buckets[j] for j in range(n_splits) if j != k]
+                ),
+            ]
+        )
+        if verbose:
+            print(
+                f"  fold {k}: train={len(train_idx)}, val={len(val_idx)} "
+                f"(potent={len(potent_buckets[k])} + "
+                f"analog={len(analog_buckets[k])} + "
+                f"diversity={len(diversity_buckets[k])})"
+            )
+        splits.append((train_idx, val_idx))
+
+    return splits
