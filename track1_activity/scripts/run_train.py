@@ -321,6 +321,41 @@ def load_features(feature_name: str, train_df, test_df):
 
         return X_train, X_test
 
+    if feature_name == "2d_full":
+        # Mordred (1531) + Jazzy (6) + RDKit_desc_full (217) = 1754 features.
+        # Sized to fit comfortably inside TabPFN's ~2000-feature soft limit
+        # while exposing every 2D descriptor family we have computed.
+        # NaNs in Mordred/RDKit are zeroed; LightGBM's native NaN handling
+        # is not relevant here since TabPFN does not accept NaN.
+        mordred_train, _ = load_train_mordred()
+        mordred_test = load_mordred(test_ids)
+        common_m = mordred_train.columns.intersection(mordred_test.columns)
+        Xm_tr = mordred_train.loc[train_ids, common_m].values.astype(np.float32)
+        Xm_te = mordred_test.loc[test_ids, common_m].values.astype(np.float32)
+        Xm_tr = np.nan_to_num(Xm_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xm_te = np.nan_to_num(Xm_te, nan=0.0, posinf=0.0, neginf=0.0)
+
+        jazzy_train = load_jazzy(train_ids).reindex(index=train_ids)
+        jazzy_test = load_jazzy(test_ids).reindex(index=test_ids)
+        Xj_tr = jazzy_train[list(JAZZY_FEATURE_COLS)].to_numpy(dtype=np.float32)
+        Xj_te = jazzy_test[list(JAZZY_FEATURE_COLS)].to_numpy(dtype=np.float32)
+
+        rdkit_train = load_rdkit_full(train_ids)
+        rdkit_test = load_rdkit_full(test_ids)
+        common_r = rdkit_train.columns.intersection(rdkit_test.columns)
+        Xr_tr = rdkit_train.loc[train_ids, common_r].to_numpy(dtype=np.float32)
+        Xr_te = rdkit_test.loc[test_ids, common_r].to_numpy(dtype=np.float32)
+        Xr_tr = np.nan_to_num(Xr_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xr_te = np.nan_to_num(Xr_te, nan=0.0, posinf=0.0, neginf=0.0)
+
+        X_train = np.concatenate([Xm_tr, Xj_tr, Xr_tr], axis=1)
+        X_test = np.concatenate([Xm_te, Xj_te, Xr_te], axis=1)
+        print(
+            f"  2d_full: mordred {Xm_tr.shape[1]} + jazzy {Xj_tr.shape[1]} "
+            f"+ rdkit {Xr_tr.shape[1]} = {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
     if feature_name in EMBEDDING_TABLES:
         table = EMBEDDING_TABLES[feature_name]
         return load_embeddings(table, train_ids), load_embeddings(table, test_ids)
@@ -898,6 +933,7 @@ def main():
             "mordred",
             "mordred_singleconc",
             "mordred_jazzy",
+            "2d_full",
             "jazzy",
         ]
         + list(FP_REGISTRY.keys())
