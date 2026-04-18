@@ -140,7 +140,9 @@ override via `--analog-threshold`.
 
 3. **Direct LB correlation verification**. We infer the analog CV is
    a better LB proxy from the MAE/RAE pattern, but confirmation
-   requires tuning a model to analog CV and submitting. That's the
+   requires tuning a model to analog CV and submitting. (Completed
+   2026-04-18 -- see "Update" sections below; hypothesis falsified.)
+   Original note preserved: That's the
    next concrete experiment.
 
 ## Reproducers
@@ -166,3 +168,207 @@ override via `--analog-threshold`.
    models as ensemble members.
 3. **Mixed analog + diversity fold design** to bring the 42% NN<0.3
    test regime under measurement.
+
+## Update (2026-04-18): direct LB verification -- analog hypothesis falsified
+
+A/B submission comparing the same LightGBM tuned separately on UMAP
+split vs analog split (same feature set `mordred_jazzy`, 20 Optuna
+trials each, MAE objective):
+
+| Model | OOF RAE | OOF MAE | **LB RAE** | **LB MAE** | LB rank |
+|---|---:|---:|---:|---:|---:|
+| `ens_l2_a0.1` (20-model ensemble, prior best) | 0.533 | 0.485 | **0.6263** | **0.4989** | 17 |
+| `lgbm_mordred_jazzy_analog` (single, analog tune) | 0.649 | 0.464 | 0.7289 | 0.5800 | 56 |
+| `lgbm_mordred_jazzy_umap` (single, UMAP tune)     | 0.586 | 0.528 | **0.7209** | **0.5737** | 51 |
+
+- **Analog-tuned single is slightly WORSE on LB than UMAP-tuned**
+  (MAE +0.006, RAE +0.008).
+- OOF->LB gap comparison:
+  - UMAP: OOF MAE 0.528 -> LB 0.574 (gap **+0.046**)
+  - Analog: OOF MAE 0.464 -> LB 0.580 (gap **+0.116**)
+- Analog's earlier "OOF MAE =~ LB MAE" signal was a **false positive
+  from narrow val y-distribution**; the tuned model overfit the
+  170-compound analog val (`num_leaves=44`, aggressive regularisation
+  knobs) rather than learning an LB-transferable representation.
+- Ensemble's +0.08 MAE advantage over either single model is the
+  bigger untapped lever; "single vs ensemble" gap dominates
+  "analog vs UMAP tune" gap.
+
+Note on the submission-tracking bug that briefly made the analog run
+look like a win: `api.py`'s backfill was FIFO-matching pending
+submissions to N283T LB rows without checking that the LB row's
+`submitted_utc` was >= the pending's `submitted_at`. When the LB still
+held our stale ensemble submission at fetch time, it was bound to the
+new analog pending row. Fixed by requiring LB submission time to be
+>= pending submission time (minus 5-minute clock-skew allowance).
+
+**Status of earlier conclusions (TL;DR at top of this doc)**:
+- "Analog MAE is the most reliable OOF signal for LB transfer" --
+  **falsified** on 1 LB point for mordred_jazzy.
+- The MAE/RAE decomposition in `docs/track1_cv_prep.md` (PR #68) is
+  still correct arithmetic; the inference "therefore analog CV is a
+  better proxy" is not supported.
+
+## Update (2026-04-18): multi-seed + embedding-space
+
+Two follow-ups promised in the plan but deferred at PR #69 time.
+Goal: check whether "UMAP split" numbers have hidden seed noise, and
+whether clustering in a different representation gives a meaningfully
+different OOF signal.
+
+### Multi-seed UMAP (Morgan FP, `mordred_jazzy` default params)
+
+| Seed | OOF RAE | OOF MAE |
+|---:|---:|---:|
+| 0  | 0.5970 | 0.5337 |
+| 1  | 0.6010 | 0.5272 |
+| 2  | 0.5996 | 0.5254 |
+| 3  | 0.5884 | 0.5261 |
+| 42 | 0.5856 | 0.5280 |
+| **mean** | **0.5943** | **0.5281** |
+| **std**  | **0.0063** | **0.0030** |
+
+Seed variance is small relative to feature / tune effects (usually
+0.01-0.05 RAE). The 0.578-0.586 range previously quoted for "UMAP
+split" OOF is real, not a cherry-pick.
+
+### Embedding-space UMAP (seed 42 fixed)
+
+Cluster train in an alternative similarity space, not Morgan FP + Jaccard.
+Other UMAP settings identical (`n_components=10`, `n_neighbors=30`,
+`n_clusters=50`, cosine metric for dense embeddings).
+
+| Space | dim | OOF RAE | OOF MAE |
+|---|---:|---:|---:|
+| Morgan FP (baseline)    | 2048 | 0.5856 | 0.5280 |
+| ChemBERTa-5m MTR        |  384 | 0.5929 | 0.5245 |
+| MoLFormer-XL            |  768 | 0.5868 | 0.5298 |
+| **Mordred descriptors** | 1460 | **0.5740** | **0.5151** |
+
+- Mordred-space UMAP gives the lowest OOF on both metrics (-0.012 RAE,
+  -0.013 MAE vs Morgan). Outside seed noise (~0.006), so not
+  indistinguishable.
+- ChemBERTa / MoLFormer are within seed noise of Morgan.
+
+### Interpretation (do not over-read lower OOF)
+
+Lower OOF does not automatically mean "better CV". The analog result
+showed a lower OOF MAE alongside a *larger* OOF->LB gap. Without an LB
+data point for Mordred-space UMAP, we cannot claim it transfers
+better.
+
+Still actionable:
+
+1. **UMAP(Morgan) is stable** across seeds; the observed OOF->LB gap
+   (~0.045 MAE for single-model UMAP tune) is structural, not a
+   seed-dependent artefact.
+2. **Embedding space matters modestly**. Mordred-space is the one
+   follow-up candidate worth a single submission slot.
+
+### What we still have not tried
+
+- Mixed analog + diversity fold (still open).
+- Stratified pEC50 x chemotype fold.
+- DL-side (ChemProp / AttentiveFP) variance under the alternative
+  splits. The analog lesson (tiny val = overfit-prone) is especially
+  relevant for DL and suggests Mordred-space is the safer DL
+  candidate if we revisit analog-style CV.
+
+## Update (2026-04-18): why Mordred-space OOF was lower, and FP+Mordred
+
+The Mordred-space OOF-lower result looked counterintuitive ("splitting
+in the same space as model features should be *harder*, not easier"),
+so we ran an extra diagnostic (`track1_activity/scripts/eda_cv_prep/
+04_split_space_compare.py`) measuring per-fold val->train NN Tanimoto
+(on Morgan r=2 FPs) plus val y statistics.
+
+| Split | val y mean | val y std | val y abs-dev-median | **val->train NN mean** | **OOF RAE** | **OOF MAE** |
+|---|---:|---:|---:|---:|---:|---:|
+| Morgan only         | 4.32 | 1.11 | 0.861 | **0.340** | 0.586 | 0.528 |
+| Mordred only        | 4.32 | 1.12 | 0.862 | **0.384** | **0.574** | **0.515** |
+| Morgan + Mordred    | 4.32 | 1.11 | 0.860 | **0.375** | 0.594 | 0.529 |
+
+Mechanism: val y distributions are essentially identical across the
+three splits, so the RAE denominator is NOT the confound. What changes
+is how structurally similar val is to train. Under Mordred clustering,
+val has a 0.044 higher Morgan NN to train than under Morgan
+clustering. That is because KMeans on Mordred groups compounds with
+similar physicochemical profiles but leaves substructure-similar
+compounds in other clusters (which stay in train). The LightGBM model,
+which uses Mordred features, can interpolate from those
+substructurally-similar training compounds, and val gets easier.
+
+So Mordred-space's lower OOF reflects an *easier val*, not a *better
+CV*. By the same logic that falsified analog-CV on 2026-04-17, we do
+not treat this as a submittable improvement.
+
+### Morgan + Mordred combined
+
+z-score Mordred (so each column is ~unit variance), concatenate with
+raw Morgan FPs, UMAP with cosine metric.
+
+- Combined val->train NN (0.375) lands close to Mordred alone (0.384),
+  NOT halfway between Morgan (0.340) and Mordred. That is because
+  after z-score, Mordred contributes ~sqrt(1460)=38 to the row L2 norm
+  vs Morgan's ~sqrt(30)=5.5 -- the cosine distance is ~7x dominated
+  by the Mordred block.
+- Despite the Mordred-like NN, combined OOF RAE (0.594) is slightly
+  *worse* than Mordred alone (0.574). The extra Morgan contribution
+  nudges the cluster boundaries off the "easiest" Mordred cuts
+  without fully reaching Morgan's strictness.
+- A principled fix would be to L2-normalise each block separately
+  before concat, but the combined split showed no sign of being the
+  "best of both", so we did not pursue the normalised variant.
+
+## Update (2026-04-18): UMAP cluster-count sweep
+
+Fixed features=Morgan, seed=42, mordred_jazzy default params. Varying
+``n_clusters``:
+
+| k (clusters) | OOF RAE | fold RAE std | OOF MAE |
+|---:|---:|---:|---:|
+|  25 | 0.6180 | **0.093** | 0.5276 |
+|  50 (canonical) | 0.5856 | 0.044 | 0.5280 |
+|  75 | 0.5885 | 0.049 | 0.5270 |
+| **100** | **0.5814** | **0.029** | 0.5271 |
+| 150 | 0.5907 | 0.068 | 0.5244 |
+
+Observations:
+
+- k=25 is too coarse (5 clusters per fold -> fold-to-fold RAE std
+  0.093, dominating the mean).
+- k=50 (canonical) through k=100 form a stable plateau at OOF RAE
+  ~0.58, MAE ~0.527.
+- k=100 has the lowest fold variance (std 0.029) and marginally the
+  lowest OOF RAE (0.581). Worth using as a slightly more robust
+  default if we retune, but the improvement over k=50 is within
+  measurement noise (seed std 0.006 is smaller, but cluster-count
+  std isn't quite at seed level).
+- k=150 fold variance creeps back up (0.068) -- too many small
+  clusters, some folds get unlucky assignments.
+
+### Decision
+
+Keep ``n_clusters=50`` as the canonical project default. No evidence
+that switching delivers an LB-meaningful improvement, and ``k=50`` is
+what every previously recorded experiment used.
+
+## Final takeaway on CV
+
+After two rounds of investigation (PR #69 + this PR) covering
+scaffold / UMAP / analog splits, 5 seeds on Morgan UMAP, 4 alternative
+embedding spaces, and a 5-point cluster-count sweep, the decision is:
+
+- **Canonical split stays: UMAP + Morgan FP + Jaccard, 50 clusters,
+  seed 42.** No tested variant improves on it in an LB-transferable
+  way.
+- The OOF->LB gap we observe (~0.045 MAE for single-model UMAP tune,
+  ~0.013 MAE for the ensemble) is structural, not a CV knob.
+- Future leverage is on the *model* side (competitor-style chemprop +
+  TabPFN ensembles, better feature mixes, stacking) or on the
+  *ensemble overfit* problem (single-model LB has been within 0.08
+  MAE of our 20-model ensemble, so the ensemble's contribution is
+  thinner than the weight distribution implied).
+- CV side: unless a qualitatively different idea emerges (mixed
+  analog+diversity fold, stratified pEC50 x chemotype, DL-side
+  variance under these splits), no further CV experiments planned.
