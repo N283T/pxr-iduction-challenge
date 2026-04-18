@@ -116,6 +116,9 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     "lgbm_feat_morgan_r2_2048_umap",  # 0.6774 (2026-04-09)
     # --- Physicochemical (UMAP) ---
     "lgbm_rdkit_desc_full_umap",  # 0.5887 (2026-04-17) full 217-desc (replaces rdkit_desc 41)
+    # --- Foundation tabular model (UMAP) ---
+    "tabpfn_mordred_jazzy_umap",  # 0.5453 (2026-04-18) TabPFN v7, GPU, 10-trial Optuna
+    "tabpfn_chemeleon_umap",  # 0.5625 (2026-04-18) TabPFN on CheMeleon MPNN fp
 )
 
 
