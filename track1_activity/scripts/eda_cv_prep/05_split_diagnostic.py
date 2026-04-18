@@ -41,9 +41,11 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT.joinpath("track1_activity", "src")))
 from data import DB_PARAMS  # noqa: E402
 from splits import (  # noqa: E402
+    adversarial_split_indices,
     analog_aware_split_indices,
     mixed_analog_diversity_split_indices,
     scaffold_split_indices,
+    test_nn_split_indices,
     umap_split_indices,
 )
 
@@ -56,6 +58,23 @@ NARROW_VAL_THRESHOLD = 0.70
 EASY_VAL_THRESHOLD = 0.40
 SMALL_VAL_THRESHOLD = 300
 LARGE_VAL_THRESHOLD = 1500
+
+
+def load_test_smiles_list() -> list[str]:
+    conn = psycopg2.connect(**DB_PARAMS)
+    try:
+        df = pd.read_sql(
+            """
+            SELECT c.std_smiles AS smiles
+            FROM test_activity t
+            JOIN compounds c ON c.id = t.compound_id
+            ORDER BY t.id
+            """,
+            conn,
+        )
+    finally:
+        conn.close()
+    return df["smiles"].tolist()
 
 
 def load_train() -> pd.DataFrame:
@@ -169,6 +188,10 @@ def main() -> None:
     print("Building Morgan FPs for diagnostic NN distances...")
     all_fps = build_morgan_fps(smiles)
 
+    print("Loading test SMILES...")
+    test_smiles = load_test_smiles_list()
+    print(f"  n_test = {len(test_smiles)}")
+
     schemes: dict[str, Callable] = {
         "umap_canonical": lambda: umap_split_indices(
             smiles, n_splits=5, n_clusters=50, seed=42
@@ -190,6 +213,20 @@ def main() -> None:
             analog_tanimoto_threshold=0.25,
             seed=42,
         ),
+        "test_nn_t025": lambda: test_nn_split_indices(
+            smiles,
+            test_smiles,
+            n_splits=5,
+            test_nn_threshold=0.25,
+            seed=42,
+        ),
+        "adversarial_top849": lambda: adversarial_split_indices(
+            smiles,
+            test_smiles,
+            n_splits=5,
+            n_top=849,
+            seed=42,
+        )[0],
     }
 
     per_fold_frames = []

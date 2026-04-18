@@ -48,9 +48,11 @@ from pseudo_labels import (
     load_pseudo_labels,
 )
 from splits import (
+    adversarial_split_indices,
     analog_aware_split_indices,
     mixed_analog_diversity_split_indices,
     scaffold_split_indices,
+    test_nn_split_indices,
     umap_split_indices,
 )
 
@@ -677,7 +679,27 @@ def run(args):
             selectivity=selectivity,
             n_splits=5,
             analog_tanimoto_threshold=args.analog_threshold,
-            seed=42,
+            seed=args.mixed_seed,
+            verbose=True,
+        )
+    elif args.split == "test_nn":
+        test_smiles = load_test_smiles()["smiles"].tolist()
+        outer_splits = test_nn_split_indices(
+            smiles_list=smiles_list,
+            test_smiles=test_smiles,
+            n_splits=5,
+            test_nn_threshold=args.test_nn_threshold,
+            seed=args.test_nn_seed,
+            verbose=True,
+        )
+    elif args.split == "adv":
+        test_smiles = load_test_smiles()["smiles"].tolist()
+        outer_splits, _ = adversarial_split_indices(
+            smiles_list=smiles_list,
+            test_smiles=test_smiles,
+            n_splits=5,
+            n_top=args.adv_n_top,
+            seed=args.adv_seed,
             verbose=True,
         )
     else:
@@ -693,6 +715,16 @@ def run(args):
         exp_name += f"_s{args.umap_seed}"
     if args.split == "umap" and args.umap_clusters != 50:
         exp_name += f"_k{args.umap_clusters}"
+    if args.split == "mixed" and args.mixed_seed != 42:
+        exp_name += f"_s{args.mixed_seed}"
+    if args.split == "test_nn" and args.test_nn_seed != 42:
+        exp_name += f"_s{args.test_nn_seed}"
+    if args.split == "test_nn" and args.test_nn_threshold != 0.25:
+        exp_name += f"_t{args.test_nn_threshold}"
+    if args.split == "adv" and args.adv_seed != 42:
+        exp_name += f"_s{args.adv_seed}"
+    if args.split == "adv" and args.adv_n_top != 849:
+        exp_name += f"_n{args.adv_n_top}"
     if args.trials == 0:
         exp_name += "_default"
     if args.gap_lambda > 0:
@@ -878,13 +910,47 @@ def main():
     )
     parser.add_argument("--feature", choices=all_features, required=True)
     parser.add_argument(
-        "--split", choices=["scaffold", "umap", "analog", "mixed"], default="scaffold"
+        "--split",
+        choices=["scaffold", "umap", "analog", "mixed", "test_nn", "adv"],
+        default="scaffold",
     )
     parser.add_argument(
         "--analog-threshold",
         type=float,
         default=0.25,
         help="Tanimoto NN threshold for analog-aware split (default 0.25)",
+    )
+    parser.add_argument(
+        "--mixed-seed",
+        type=int,
+        default=42,
+        help="Seed for mixed analog+diversity split bucket assignment "
+        "(default 42). Use to estimate split-variance across seeds.",
+    )
+    parser.add_argument(
+        "--test-nn-threshold",
+        type=float,
+        default=0.25,
+        help="Tanimoto threshold for test_nn split (default 0.25)",
+    )
+    parser.add_argument(
+        "--test-nn-seed",
+        type=int,
+        default=42,
+        help="Seed for test_nn bucket assignment (default 42)",
+    )
+    parser.add_argument(
+        "--adv-n-top",
+        type=int,
+        default=849,
+        help="Top-N train compounds by classifier P(test) go to val pool "
+        "(default 849, matches mixed_t025 analog stratum size).",
+    )
+    parser.add_argument(
+        "--adv-seed",
+        type=int,
+        default=42,
+        help="Seed for adversarial split classifier folding + bucketing",
     )
     parser.add_argument(
         "--umap-seed",
