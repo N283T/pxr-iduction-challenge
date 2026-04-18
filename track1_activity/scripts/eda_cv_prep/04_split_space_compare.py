@@ -48,10 +48,10 @@ def load_train_with_ids() -> pd.DataFrame:
     return df
 
 
-def compute_nn_tanimoto(query_fps: list, ref_fps: list, ref_bulk_cache) -> np.ndarray:
+def compute_nn_tanimoto(query_fps: list, ref_fps: list) -> np.ndarray:
     out = np.empty(len(query_fps), dtype=np.float64)
     for i, qf in enumerate(query_fps):
-        sims = DataStructs.BulkTanimotoSimilarity(qf, ref_bulk_cache)
+        sims = DataStructs.BulkTanimotoSimilarity(qf, ref_fps)
         out[i] = max(sims) if sims else np.nan
     return out
 
@@ -66,7 +66,7 @@ def per_fold_stats(
     for k, (tr, va) in enumerate(splits):
         ref_fps = [all_fps[i] for i in tr]
         q_fps = [all_fps[i] for i in va]
-        nn = compute_nn_tanimoto(q_fps, ref_fps, ref_fps)
+        nn = compute_nn_tanimoto(q_fps, ref_fps)
         va_y = y[va]
         median_y = float(np.median(va_y))
         rows.append(
