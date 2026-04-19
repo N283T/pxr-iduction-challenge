@@ -35,6 +35,10 @@ structures/boltz2/ligands/
 structures/boltz2/manifest*.csv
 structures/boltz2/postprocess*.csv
 structures/boltz2/posebusters*.csv
+
+# GatorAffinity Phase A/B pipeline (re-creatable from compound_boltz2)
+structures/gator/
+
 logs/
 
 # Raw LiteParse output for external papers (regenerable; md
