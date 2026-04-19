@@ -98,6 +98,13 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # --- Foundation tabular (2) ---
     "tabpfn_2d_full_boltz_umap",  # 2D (Mordred+RDKit+pose-Jazzy) + Boltz Tier-0/1 -- workhorse
     "tabpfn_chemeleon_umap",  # TabPFN on CheMeleon MPNN fp
+    # --- Boltz trunk embedding LGBM (1) ---
+    # Added 2026-04-19 (issue #74 Phase B). 1024-dim pooled trunk
+    # embeddings (s_prot_mean 384 + s_lig_mean 384 + z_interface_mean/max
+    # 128+128), tuned 50-trial Optuna. OOF MAE 0.5116 alone; lifts 9-model
+    # ensemble from 0.4722 to 0.4688 despite 0.91 correlation with
+    # tabpfn_2d_full_boltz (weight 0.163 in the blend, 2nd highest).
+    "lgbm_pooled_boltz_umap",
 )
 
 
