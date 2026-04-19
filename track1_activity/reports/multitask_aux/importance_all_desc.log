@@ -1,0 +1,76 @@
+Feature matrix: (4140, 3019)
+Fold MAEs: [0.5396898453605655, 0.51528764386972, 0.49597911628198604, 0.481158393916844, 0.5306619288117574]
+OOF MAE=0.5127 RAE=0.5634
+
+Family summary:
+                 n_features      gain_sum      gain_max  nonzero  gain_share_pct  gain_per_feat
+family                                                                                         
+mordred                1515  41157.161939   7754.193999     1130           44.96           27.2
+boltz_tier0              19  17914.440639  10869.658974       17           19.57          942.9
+d3_getaway              273   5930.682739    141.794958      271            6.48           21.7
+d3_morse                224   4909.062876    920.956450      223            5.36           21.9
+rdkit                   217   4520.545990   2153.157457      119            4.94           20.8
+d3_usrcat                60   3760.975095    564.151900       60            4.11           62.7
+d3_rdf                  210   3109.588029    186.853579      190            3.40           14.8
+d3_mordred3d            213   2304.785520    370.846665       54            2.52           10.8
+d3_whim                 114   2176.556570    176.503487       94            2.38           19.1
+boltz_tier1              44   2113.585822    727.600765       44            2.31           48.0
+d3_autocorr3d            80   1616.440861     60.660523       80            1.77           20.2
+d3_usr                   12    606.204895    154.937414       12            0.66           50.5
+d3_electroshape          15    598.610610    153.412910       15            0.65           39.9
+d3_scalar                11    405.997841    155.040518       11            0.44           36.9
+jazzy_pose                6    238.119725    113.113917        6            0.26           39.7
+jazzy_self                6    187.800910     93.505610        6            0.21           31.3
+
+Top 50 features:
+ rank                                   feature    gain_mean  nonzero_folds
+    1           boltz_tier0.affinity_pred_value 10869.658974              5
+    2                             mordred.SLogP  7754.193999              5
+    3 boltz_tier0.affinity_probability_binary_2  2815.956606              5
+    4                             rdkit.MolLogP  2153.157457              5
+    5         boltz_tier0.affinity_pred_value_2  2102.841254              5
+    6                             mordred.ABCGG  1516.919440              5
+    7                             mordred.MINdO  1235.033997              5
+    8   boltz_tier0.affinity_probability_binary  1159.740504              5
+    9                              mordred.Vabc  1020.643465              5
+   10                            mordred.ATSC0d   990.349708              5
+   11                               d3_morse.64   920.956450              4
+   12         boltz_tier1.pde_pocket_ligand_min   727.600765              5
+   13                              d3_usrcat.39   564.151900              5
+   14                           mordred.VE1_DzZ   523.518282              3
+   15                              d3_usrcat.36   511.957396              5
+   16                           mordred.Xpc-6dv   480.573118              5
+   17                           mordred.VR3_DzZ   431.127205              2
+   18                              d3_usrcat.46   407.819127              5
+   19                             mordred.MID_C   397.053650              5
+   20                           mordred.MAXdsCH   391.728463              5
+   21                        d3_mordred3d.WNSA1   370.846665              5
+   22                        d3_mordred3d.FPSA3   364.368369              5
+   23                  boltz_tier0.complex_ipde   352.301430              5
+   24                          mordred.VE1_Dzse   343.417529              4
+   25                           mordred.Xpc-5dv   297.452893              5
+   26                      mordred.FilterItLogS   280.143584              5
+   27                             mordred.ATS4Z   278.768538              5
+   28                          mordred.SMR_VSA5   257.642259              5
+   29                             mordred.ATS7Z   256.148742              5
+   30                         mordred.VE2_Dzare   241.412396              4
+   31                           mordred.VE1_Dzm   235.348206              1
+   32                           mordred.VR3_Dzv   235.001901              2
+   33                                 rdkit.qed   232.484108              5
+   34                            mordred.Xc-3dv   227.063840              5
+   35                           mordred.MAXdCH2   220.935149              5
+   36                           mordred.ETA_eta   206.072112              5
+   37                             mordred.ATS6m   198.655818              5
+   38                       mordred.VSA_EState1   194.583603              5
+   39                              d3_usrcat.43   192.740682              5
+   40                              d3_usrcat.48   190.178311              5
+   41                        d3_mordred3d.PNSA1   188.479717              5
+   42 boltz_tier0.affinity_probability_binary_1   188.087079              5
+   43                                d3_rdf.181   186.853579              5
+   44                        d3_mordred3d.FPSA4   177.432025              5
+   45                                d3_whim.27   176.503487              1
+   46                           mordred.MAXaaaC   174.172643              5
+   47                            mordred.Xc-5dv   172.699610              5
+   48                             mordred.Xc-6d   170.859247              5
+   49                          mordred.BCUTd-1h   170.598659              5
+   50                             mordred.ATS7m   168.482856              5
