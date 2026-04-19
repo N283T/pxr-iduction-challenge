@@ -1,0 +1,41 @@
+/home/nagaet/pxr-iduction-challenge/track1_activity/scripts/run_train.py:594: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  pose_jazzy_df = pd.read_sql(
+/home/nagaet/pxr-iduction-challenge/track1_activity/scripts/run_train.py:638: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  boltz_df = pd.read_sql(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/umap/umap_.py:1887: UserWarning: gradient function is not yet implemented for jaccard distance metric; inverse_transform will be unavailable
+  warn(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/umap/umap_.py:1952: UserWarning: n_jobs value 1 overridden to 1 by setting random_state. Use no seed for parallelism.
+  warn(
+Model: tabpfn, Feature: 2d_full_boltz_log2fc_pred, Split: umap, Trials: 0
+Loading data...
+  2d_full_boltz: mordred 1515 + pose-jazzy 6 + rdkit 217 + tier0 19 + tier1 44 = 1801 features
+  2d_full_boltz_log2fc_pred: 1801 base + 2 LF preds = 1803 features
+  X_train: (4140, 1803), X_test: (513, 1803)
+  NOTE: TabPFN with 1803 features — GPU strongly recommended. Consider rdkit_desc_full (217d) or chemeleon (300d).
+  Experiment: tabpfn_2d_full_boltz_log2fc_pred_umap_default
+  [Fold 0] Using default params...
+  [Fold 0] RAE=0.5354  MAE=0.4854  R2=0.6362  Spearman=0.7658  Kendall=0.5750
+  [Fold 1] Using default params...
+  [Fold 1] RAE=0.4242  MAE=0.4214  R2=0.7724  Spearman=0.8441  Kendall=0.6502
+  [Fold 2] Using default params...
+  [Fold 2] RAE=0.4985  MAE=0.4234  R2=0.6813  Spearman=0.8258  Kendall=0.6350
+  [Fold 3] Using default params...
+  [Fold 3] RAE=0.5227  MAE=0.4075  R2=0.6581  Spearman=0.7626  Kendall=0.5794
+  [Fold 4] Using default params...
+  [Fold 4] RAE=0.4740  MAE=0.4760  R2=0.7006  Spearman=0.8070  Kendall=0.6082
+
+  Overall OOF (covered subset):
+  RAE=0.4867  MAE=0.4429  R2=0.6949  Spearman=0.8036  Kendall=0.6111
+
+  Mean ± Std across folds:
+    RAE: 0.4910 ± 0.0395
+    MAE: 0.4427 ± 0.0316
+    R2: 0.6897 ± 0.0467
+    Spearman_R: 0.8010 ± 0.0323
+    Kendall_Tau: 0.6096 ± 0.0297
+
+  Final model: n_estimators=8, params from fold 1 (RAE=0.4242)
+  Test preds: mean=4.769, std=0.635
+  Recorded experiment 'tabpfn_2d_full_boltz_log2fc_pred_umap_default' (id=569)
+
+  Done: tabpfn_2d_full_boltz_log2fc_pred_umap_default -> RAE=0.4867

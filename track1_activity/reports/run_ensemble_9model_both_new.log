@@ -1,0 +1,170 @@
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/umap/umap_.py:1887: UserWarning: gradient function is not yet implemented for jaccard distance metric; inverse_transform will be unavailable
+  warn(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/umap/umap_.py:1952: UserWarning: n_jobs value 1 overridden to 1 by setting random_state. Use no seed for parallelism.
+  warn(
+Loading data...
+Train rows: 4140, test rows: 513
+Allow list: 9 models
+
+Loaded 9 models with aligned OOF + test.
+  chemprop_optuna_umap                             OOF RAE = 0.5724
+  chemprop_chemeleon_umap                          OOF RAE = 0.6038
+  attentivefp_optuna_umap                          OOF RAE = 0.5803
+  gatedgcn_pretrain_finetune_frozen_umap           OOF RAE = 0.5580
+  tabpfn_2d_full_boltz_log2fc_pred_umap_default    OOF RAE = 0.4867
+  tabpfn_chemprop_pretrain_embed_umap_default      OOF RAE = 0.4805
+  lgbm_pooled_boltz_umap                           OOF RAE = 0.5622
+  tabpfn_pooled_boltz_umap_default                 OOF RAE = 0.5342
+  tabpfn_pooled_boltz_allpairs_umap_default        OOF RAE = 0.5341
+
+Building UMAP folds for fold-based weight optimization...
+
+======================================================================
+  STRATEGY COMPARISON
+======================================================================
+
+  ens_simple_avg:
+    OOF RAE=0.4954  MAE=0.4507  R2=0.6768  Spearman=0.7968
+    Weights (9 significant):
+      chemprop_optuna_umap                          0.1111
+      chemprop_chemeleon_umap                       0.1111
+      attentivefp_optuna_umap                       0.1111
+      gatedgcn_pretrain_finetune_frozen_umap        0.1111
+      tabpfn_2d_full_boltz_log2fc_pred_umap_default 0.1111
+      tabpfn_chemprop_pretrain_embed_umap_default   0.1111
+      lgbm_pooled_boltz_umap                        0.1111
+      tabpfn_pooled_boltz_umap_default              0.1111
+      tabpfn_pooled_boltz_allpairs_umap_default     0.1111
+  Recorded experiment 'ens_simple_avg' (id=570)
+
+  ens_vanilla:
+    OOF RAE=0.4725  MAE=0.4299  R2=0.7103  Spearman=0.8169
+    Weights (3 significant):
+      tabpfn_2d_full_boltz_log2fc_pred_umap_default 0.4651
+      tabpfn_chemprop_pretrain_embed_umap_default   0.4059
+      tabpfn_pooled_boltz_umap_default              0.0951
+  Recorded experiment 'ens_vanilla' (id=571)
+
+  ens_l2_a0.05:
+    OOF RAE=0.4750  MAE=0.4323  R2=0.7048  Spearman=0.8145
+    Weights (7 significant):
+      tabpfn_chemprop_pretrain_embed_umap_default   0.3629
+      tabpfn_2d_full_boltz_log2fc_pred_umap_default 0.2632
+      tabpfn_pooled_boltz_allpairs_umap_default     0.0902
+      tabpfn_pooled_boltz_umap_default              0.0819
+      gatedgcn_pretrain_finetune_frozen_umap        0.0749
+      chemprop_chemeleon_umap                       0.0591
+      chemprop_optuna_umap                          0.0492
+  Recorded experiment 'ens_l2_a0.05' (id=572)
+
+  ens_l2_a0.1:
+    OOF RAE=0.4787  MAE=0.4356  R2=0.6996  Spearman=0.8114
+    Weights (8 significant):
+      tabpfn_chemprop_pretrain_embed_umap_default   0.2953
+      tabpfn_2d_full_boltz_log2fc_pred_umap_default 0.2216
+      tabpfn_pooled_boltz_allpairs_umap_default     0.0948
+      tabpfn_pooled_boltz_umap_default              0.0940
+      gatedgcn_pretrain_finetune_frozen_umap        0.0888
+      chemprop_chemeleon_umap                       0.0737
+      chemprop_optuna_umap                          0.0711
+      lgbm_pooled_boltz_umap                        0.0532
+  Recorded experiment 'ens_l2_a0.1' (id=573)
+
+  ens_l2_a0.3:
+    OOF RAE=0.4870  MAE=0.4431  R2=0.6882  Spearman=0.8045
+    Weights (9 significant):
+      tabpfn_chemprop_pretrain_embed_umap_default   0.1937
+      tabpfn_2d_full_boltz_log2fc_pred_umap_default 0.1592
+      tabpfn_pooled_boltz_umap_default              0.1040
+      tabpfn_pooled_boltz_allpairs_umap_default     0.1039
+      gatedgcn_pretrain_finetune_frozen_umap        0.1026
+      chemprop_optuna_umap                          0.0930
+      chemprop_chemeleon_umap                       0.0923
+      lgbm_pooled_boltz_umap                        0.0851
+      attentivefp_optuna_umap                       0.0662
+  Recorded experiment 'ens_l2_a0.3' (id=574)
+
+  ens_l2_a0.5:
+    OOF RAE=0.4898  MAE=0.4457  R2=0.6843  Spearman=0.8019
+    Weights (9 significant):
+      tabpfn_chemprop_pretrain_embed_umap_default   0.1644
+      tabpfn_2d_full_boltz_log2fc_pred_umap_default 0.1414
+      tabpfn_pooled_boltz_allpairs_umap_default     0.1065
+      gatedgcn_pretrain_finetune_frozen_umap        0.1063
+      tabpfn_pooled_boltz_umap_default              0.1061
+      chemprop_optuna_umap                          0.0999
+      chemprop_chemeleon_umap                       0.0982
+      lgbm_pooled_boltz_umap                        0.0939
+      attentivefp_optuna_umap                       0.0834
+  Recorded experiment 'ens_l2_a0.5' (id=575)
+
+  ens_fold:
+    OOF RAE=0.4722  MAE=0.4297  R2=0.7100  Spearman=0.8172
+    Weights (6 significant):
+      tabpfn_chemprop_pretrain_embed_umap_default   0.4760
+      tabpfn_2d_full_boltz_log2fc_pred_umap_default 0.3285
+      tabpfn_pooled_boltz_umap_default              0.0504
+      tabpfn_pooled_boltz_allpairs_umap_default     0.0442
+      chemprop_optuna_umap                          0.0370
+      gatedgcn_pretrain_finetune_frozen_umap        0.0356
+  Recorded experiment 'ens_fold' (id=576)
+
+  ens_fold_l2_a0.1:
+    OOF RAE=0.4791  MAE=0.4360  R2=0.6991  Spearman=0.8111
+    Weights (8 significant):
+      tabpfn_chemprop_pretrain_embed_umap_default   0.2900
+      tabpfn_2d_full_boltz_log2fc_pred_umap_default 0.2218
+      tabpfn_pooled_boltz_allpairs_umap_default     0.0983
+      tabpfn_pooled_boltz_umap_default              0.0947
+      gatedgcn_pretrain_finetune_frozen_umap        0.0802
+      chemprop_chemeleon_umap                       0.0756
+      chemprop_optuna_umap                          0.0681
+      lgbm_pooled_boltz_umap                        0.0528
+  Recorded experiment 'ens_fold_l2_a0.1' (id=577)
+
+  ens_fold_l2_a0.3:
+    OOF RAE=0.4870  MAE=0.4432  R2=0.6882  Spearman=0.8044
+    Weights (9 significant):
+      tabpfn_chemprop_pretrain_embed_umap_default   0.1927
+      tabpfn_2d_full_boltz_log2fc_pred_umap_default 0.1598
+      tabpfn_pooled_boltz_umap_default              0.1049
+      tabpfn_pooled_boltz_allpairs_umap_default     0.1037
+      gatedgcn_pretrain_finetune_frozen_umap        0.1035
+      chemprop_chemeleon_umap                       0.0931
+      chemprop_optuna_umap                          0.0895
+      lgbm_pooled_boltz_umap                        0.0854
+      attentivefp_optuna_umap                       0.0673
+  Recorded experiment 'ens_fold_l2_a0.3' (id=578)
+
+  ens_caruana_bag20:
+    OOF RAE=0.4737  MAE=0.4310  R2=0.7072  Spearman=0.8159
+    Weights (7 significant):
+      tabpfn_chemprop_pretrain_embed_umap_default   0.4175
+      tabpfn_2d_full_boltz_log2fc_pred_umap_default 0.2811
+      tabpfn_pooled_boltz_umap_default              0.1029
+      tabpfn_pooled_boltz_allpairs_umap_default     0.0631
+      gatedgcn_pretrain_finetune_frozen_umap        0.0369
+      chemprop_chemeleon_umap                       0.0354
+      chemprop_optuna_umap                          0.0345
+  Recorded experiment 'ens_caruana_bag20' (id=579)
+
+======================================================================
+  SUMMARY
+======================================================================
+  Strategy                    OOF RAE   OOF MAE    OOF R2   Spearman
+  ------------------------------------------------------------------
+  fold                         0.4722    0.4297    0.7100     0.8172
+  vanilla                      0.4725    0.4299    0.7103     0.8169
+  caruana_bag20                0.4737    0.4310    0.7072     0.8159
+  l2_a0.05                     0.4750    0.4323    0.7048     0.8145
+  l2_a0.1                      0.4787    0.4356    0.6996     0.8114
+  fold_l2_a0.1                 0.4791    0.4360    0.6991     0.8111
+  l2_a0.3                      0.4870    0.4431    0.6882     0.8045
+  fold_l2_a0.3                 0.4870    0.4432    0.6882     0.8044
+  l2_a0.5                      0.4898    0.4457    0.6843     0.8019
+  simple_avg                   0.4954    0.4507    0.6768     0.7968
+
+  Best (by OOF RAE): fold = 0.4722
+  LB RAE reference: 0.62 (ens_v7, 2026-04-07 snapshot — update after next submission)
+
+  Remember: lower OOF RAE may not translate to better LB if the optimizer overfits weights.
