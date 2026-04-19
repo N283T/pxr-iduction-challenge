@@ -1,0 +1,11 @@
+{
+  "best_params": {
+    "base_aux_weight": 0.04694583198804201,
+    "n_aux": 30,
+    "include_boltz": false
+  },
+  "best_value": 0.46968206763267517,
+  "fold": 0,
+  "n_trials": 25,
+  "study_name": "multitask_desc_tune"
+}

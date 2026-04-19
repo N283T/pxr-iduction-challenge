@@ -42,6 +42,13 @@ structures/gator/
 # Boltz-2 affinity-head retarget (issue #74) pooled embeddings parquet
 data/boltz_affhead/
 
+# multitask_aux tune artifacts (sqlite + raw full stdout; rebuildable
+# from 01_importance_lgbm.py + 04_optuna_tune.py). CSVs and 1-line
+# trial summaries are kept.
+track1_activity/reports/multitask_aux/*.db
+track1_activity/reports/multitask_aux/optuna_multitask_desc_5fold_run.log
+track1_activity/reports/multitask_aux/run_desc*.log
+
 logs/
 
 # Raw LiteParse output for external papers (regenerable; md
