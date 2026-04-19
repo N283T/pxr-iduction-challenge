@@ -322,6 +322,77 @@ def load_features(feature_name: str, train_df, test_df):
 
         return X_train, X_test
 
+    if feature_name == "pooled_boltz_allpairs":
+        # Same shape as `pooled_boltz` (1024 features) but the z pool
+        # spans ALL protein x ligand pairs (434 PXR residues x L ligand
+        # atoms) rather than just 13 core pocket residues. Matches the
+        # cross_pair_mask used by Boltz-2's affinity head (affinity.py).
+        ap_path = REPO_ROOT.joinpath("data", "boltz_affhead", "pooled_allpairs.parquet")
+        if not ap_path.exists():
+            raise SystemExit(
+                f"Missing {ap_path}. Run "
+                f"track1_activity/scripts/boltz_affhead/01b_pool_allpairs.py"
+            )
+        ap_df = pd.read_parquet(ap_path).set_index("compound_id")
+
+        def _allpairs_matrix(ids):
+            X = ap_df.reindex(index=ids).to_numpy(dtype=np.float32).copy()
+            col_mean = np.nanmean(X, axis=0)
+            if np.isnan(col_mean).any():
+                col_mean_global = ap_df.to_numpy(dtype=np.float32).mean(axis=0)
+                col_mean = np.where(np.isnan(col_mean), col_mean_global, col_mean)
+            inds = np.where(np.isnan(X))
+            X[inds] = np.take(col_mean, inds[1])
+            return X
+
+        X_train = _allpairs_matrix(train_ids)
+        X_test = _allpairs_matrix(test_ids)
+        print(
+            f"  pooled_boltz_allpairs: s_prot 384 + s_lig 384 + z_xp_mean 128 "
+            f"+ z_xp_max 128 = {X_train.shape[1]} features "
+            f"(z pool over all 434 PXR residues x ligand atoms)"
+        )
+        return X_train, X_test
+
+    if feature_name == "pooled_boltz":
+        # Pooled Boltz-2 trunk embeddings (1024 features):
+        #   s_prot_mean (384) -- global mean of s over 434 PXR residue tokens
+        #   s_lig_mean  (384) -- global mean of s over ligand atom tokens
+        #   z_if_mean   (128) -- mean of z over (core_pocket x ligand_atoms)
+        #   z_if_max    (128) -- max  of z over (core_pocket x ligand_atoms)
+        #
+        # Source: data/boltz_affhead/pooled.parquet, produced by
+        # track1_activity/scripts/boltz_affhead/01_pool_embeddings.py.
+        # Auranofin (cid 1657) has no embedding; NaN rows are filled with
+        # column means so LightGBM has a well-defined row.
+        pooled_path = REPO_ROOT.joinpath("data", "boltz_affhead", "pooled.parquet")
+        if not pooled_path.exists():
+            raise SystemExit(
+                f"Missing {pooled_path}. Run "
+                f"track1_activity/scripts/boltz_affhead/01_pool_embeddings.py"
+            )
+        pool_df = pd.read_parquet(pooled_path).set_index("compound_id")
+
+        def _pooled_matrix(ids):
+            X = pool_df.reindex(index=ids).to_numpy(dtype=np.float32).copy()
+            col_mean = np.nanmean(X, axis=0)
+            # Safety: if any column is all-NaN on the requested subset,
+            # fall back to global mean from the full parquet.
+            if np.isnan(col_mean).any():
+                col_mean_global = pool_df.to_numpy(dtype=np.float32).mean(axis=0)
+                col_mean = np.where(np.isnan(col_mean), col_mean_global, col_mean)
+            inds = np.where(np.isnan(X))
+            X[inds] = np.take(col_mean, inds[1])
+            return X
+
+        X_train = _pooled_matrix(train_ids)
+        X_test = _pooled_matrix(test_ids)
+        print(
+            f"  pooled_boltz: s_prot 384 + s_lig 384 + z_if_mean 128 + "
+            f"z_if_max 128 = {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
     if feature_name == "3d_ligand":
         # 3D ligand-only bundle (1212 features):
         #   scalar3d       11  (compound_boltz2_desc3d)
@@ -1159,6 +1230,8 @@ def main():
             "mordred_jazzy",
             "2d_full",
             "2d_full_boltz",
+            "pooled_boltz",
+            "pooled_boltz_allpairs",
             "3d_ligand",
             "jazzy",
         ]
