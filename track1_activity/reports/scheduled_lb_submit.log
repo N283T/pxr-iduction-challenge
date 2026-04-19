@@ -1,0 +1,23 @@
+[2026-04-20 00:33:41] Scheduled submit starting.
+  target CSV: track1_activity/submissions/ens_caruana_bag20.csv
+  target submit time: 2026-04-20 01:36:51 JST
+  current: 2026-04-20 00:33:41 JST
+  wait: 3790s
+
+[2026-04-20 01:36:51] Cooldown check before submit:
+  submitted_at (JST): 2026-04-19 21:35:51
+  submitted_at (UTC): 2026-04-19 12:35:51
+  lb_submitted_utc:   2026-04-19 12:35 UTC
+
+Cooldown window: 4.0 h
+Elapsed:   04:01:01
+Remaining: 00:00:00  [READY]
+Unlocked at: 2026-04-20 01:35:51 JST (was 1.0 min ago)
+
+[2026-04-20 01:36:52] Submitting...
+Submitting: track1_activity/submissions/ens_caruana_bag20.csv
+Loaded as API: https://openadmet-pxr-challenge.hf.space/
+{'visible': True, 'value': "Submission received from 'N283T' for the Activity Prediction track. Your predictions are being processed and will appear on the leaderboard within 2 hours.", '__type__': 'update'}
+Recorded lb_submissions row id=13 (name=ens_caruana_bag20, notes='9-model pool post-prune (drop chemprop_multitask5 / residual_physprop+mordred / tabpfn_chemeleon — all r>=0.94 with stronger sibling). caruana_bag20 strategy, max weight 0.21 (safe, per OOF-weight-zero-sum rule). OOF RAE 0.4922 / MAE 0.4479 / Spearman 0.7998. First LB test of the pretrain+frozen-lowlr chemprop variant (pool single-best, OOF MAE 0.4563).')
+
+[2026-04-20 01:37:00] Done.
