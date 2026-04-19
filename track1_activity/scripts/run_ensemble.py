@@ -117,12 +117,13 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # --- Pretrain+frozen chemprop (1) ---
     # Added 2026-04-19. Phase 1 pretrain on 13k compounds + single_conc
     # log2_fc (r=0.72 with pEC50), Phase 2 frozen encoder + fresh pEC50
-    # FFN. Single OOF MAE 0.4714 -- new pool leader (-0.011 over prior
-    # best tabpfn_2d_full_boltz 0.4825). Correlation with
-    # tabpfn_2d_full_boltz is 0.900 (borderline); caruana_bag20 handles
-    # the pair safely by spreading weight. Full fine-tune and scratch
-    # ablations confirmed pretrain helps only when encoder is frozen.
-    "chemprop_pretrain_finetune_frozen_umap",
+    # FFN. Pretrain-side hparam tune (5 variants, see task #49) found
+    # LR 3e-5 + cosine ratio 10 + warmup 0 + patience 40 as the sweet
+    # spot (vs scratch-tuned default 1.36e-4). Delta from baseline
+    # frozen: RAE 0.5180 -> 0.5014 (-0.017), MAE 0.4714 -> 0.4563 (-0.015),
+    # Spearman 0.7887 -> 0.7972 (+0.009). Now pool single-best on every
+    # metric.
+    "chemprop_pretrain_finetune_frozen_lowlr_umap",
 )
 
 
