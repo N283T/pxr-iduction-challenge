@@ -106,8 +106,15 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # gatedgcn_optuna_umap replaced 2026-04-19 by its pretrain+frozen variant
     # (OOF MAE 0.5464 -> 0.5077, r=0.924 = strict supersede).
     "gatedgcn_pretrain_finetune_frozen_umap",  # pretrain+frozen upgrade
-    # --- Foundation tabular (1) ---
+    # --- Foundation tabular (2) ---
     "tabpfn_2d_full_boltz_umap",  # 2D (Mordred+RDKit+pose-Jazzy) + Boltz Tier-0/1 -- workhorse
+    # TabPFN on chemprop pretrain encoder fingerprint (256d).
+    # Buterez 2024 strategy-3 (LF embedding as side feature).
+    # Added 2026-04-20. OOF MAE 0.4373 / Spearman 0.8102 -- strictly
+    # better than chemprop_pretrain_finetune_frozen_lowlr_umap (MAE
+    # 0.4563) on all metrics, and r=0.977 with it (same encoder, just
+    # TabPFN vs FFN head). Supersedes the frozen variant 1-for-1.
+    "tabpfn_chemprop_pretrain_embed_umap_default",
     # --- Boltz trunk embedding pool (3) ---
     # 1024-dim pooled trunk embeddings (s_prot_mean 384 + s_lig_mean 384 +
     # z_interface_mean/max 128+128). Three variants: LGBM Optuna tuned (core
@@ -118,12 +125,6 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     "lgbm_pooled_boltz_umap",
     "tabpfn_pooled_boltz_umap_default",
     "tabpfn_pooled_boltz_allpairs_umap_default",
-    # --- Pretrain+frozen chemprop (1) ---
-    # Phase 1 pretrain on 13k compounds + single_conc log2_fc (r=0.72 with
-    # pEC50), Phase 2 frozen encoder + fresh pEC50 FFN. LR tune found
-    # 3e-5 + cosine ratio 10 + warmup 0 + patience 40 as the sweet spot.
-    # Now pool single-best on every metric (OOF RAE 0.5014 / MAE 0.4563).
-    "chemprop_pretrain_finetune_frozen_lowlr_umap",
 )
 
 

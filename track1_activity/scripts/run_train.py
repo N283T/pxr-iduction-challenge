@@ -354,6 +354,33 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    if feature_name == "chemprop_pretrain_embed":
+        # 256d per-compound fingerprints from MPNN.fingerprint() of the
+        # chemprop pretrain checkpoint (track1_activity/checkpoints/
+        # chemprop_pretrain/pretrain.pt). See
+        # track1_activity/scripts/run_chemprop_embed_extract.py.
+        # Buterez 2024 strategy-3: use the LF model's molecule-level
+        # embedding as a side feature for a HF tabular regressor
+        # (TabPFN / LGBM).
+        embed_path = REPO_ROOT.joinpath("data", "chemprop_pretrain_embed.parquet")
+        if not embed_path.exists():
+            raise SystemExit(
+                f"Missing {embed_path}. Run "
+                f"track1_activity/scripts/run_chemprop_embed_extract.py"
+            )
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        # All 4653 compounds are covered, so no NaN expected -- but be
+        # defensive in case of future partial coverage.
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(
+            f"  chemprop_pretrain_embed: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
     if feature_name == "pooled_boltz":
         # Pooled Boltz-2 trunk embeddings (1024 features):
         #   s_prot_mean (384) -- global mean of s over 434 PXR residue tokens
@@ -1232,6 +1259,7 @@ def main():
             "2d_full_boltz",
             "pooled_boltz",
             "pooled_boltz_allpairs",
+            "chemprop_pretrain_embed",
             "3d_ligand",
             "jazzy",
         ]
