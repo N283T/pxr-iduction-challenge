@@ -116,7 +116,16 @@ track1_activity/
     run_attentivefp_optuna.py     # AttentiveFP (PyG) Optuna tuning
     run_molformer_finetune.py     # MoLFormer-XL fine-tuning with Optuna
     run_residual_learning.py      # Two-stage residual learning (physprop + Mordred)
-    run_ensemble.py               # Weighted ensemble optimization
+    run_ensemble.py               # Ensemble strategies: simple_avg, vanilla,
+                                  # l2_a{0.05..0.5}, fold, fold_l2_a{0.1,0.3},
+                                  # caruana_bag20 (discrete count-based,
+                                  # bagged 20x per Caruana 2004 -- structural
+                                  # regularization against OOF weight zero-sum)
+    boltz_affhead/                # Boltz-2 trunk embedding retarget (issue #74)
+                                  # 01{,b}_pool_embeddings.py: core_pocket / allpairs pools
+                                  # 02_lgbm_baseline, 03_combine_and_correlate,
+                                  # 04_mlp_head (weak), 05_ensemble_dryrun,
+                                  # 06_pool_rework, 07_caruana_select
     run_all_models.sh             # Sequential DL model training pipeline
     api.py                        # OpenADMET API client: fetch leaderboard + submit (gitignored, contains PII)
     archive/                      # Early exploration scripts
@@ -203,6 +212,12 @@ structures/
 - Gap regularization: `--gap-lambda 1.0` penalizes train-val gap for better generalization
 - All load functions use `ORDER BY t.id` for deterministic row ordering
 - Use `load_train_mordred()` / `load_test_mordred()` from data.py (not recomputing)
+- Ensemble strategy: prefer **`caruana_bag20`** (discrete count-based, bagged 20x per
+  Caruana 2004) when adding correlated-strong members. Continuous weight optimizers
+  (vanilla, L2) concentrate weight on the single best member and reallocate it
+  destructively when a correlated challenger is added -- see issue #82 for the LB
+  regression incident that motivated this. Vanilla is still reported side-by-side
+  for OOF A/B diagnostics.
 
 ## Known Issues
 
