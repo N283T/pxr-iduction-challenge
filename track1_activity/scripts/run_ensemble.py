@@ -98,13 +98,18 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # --- Foundation tabular (2) ---
     "tabpfn_2d_full_boltz_umap",  # 2D (Mordred+RDKit+pose-Jazzy) + Boltz Tier-0/1 -- workhorse
     "tabpfn_chemeleon_umap",  # TabPFN on CheMeleon MPNN fp
-    # --- Boltz trunk embedding LGBM (1) ---
-    # Added 2026-04-19 (issue #74 Phase B). 1024-dim pooled trunk
+    # --- Boltz trunk embedding pool (3) ---
+    # Added 2026-04-19 (issue #74 Phase B/D). 1024-dim pooled trunk
     # embeddings (s_prot_mean 384 + s_lig_mean 384 + z_interface_mean/max
-    # 128+128), tuned 50-trial Optuna. OOF MAE 0.5116 alone; lifts 9-model
-    # ensemble from 0.4722 to 0.4688 despite 0.91 correlation with
-    # tabpfn_2d_full_boltz (weight 0.163 in the blend, 2nd highest).
+    # 128+128). Three variants: LGBM Optuna tuned (core pocket), TabPFN
+    # default on core pocket, TabPFN default on all protein x ligand pairs.
+    # Single OOF MAEs: 0.5116 / 0.4861 / 0.4860. Inter-correlation 0.96-0.99,
+    # so they only add diversity via Caruana-style weight spreading; the
+    # Nelder-Mead / L2 strategies will concentrate weight on the best of
+    # the three and crowd out tabpfn_2d_full_boltz. Strategy choice matters.
     "lgbm_pooled_boltz_umap",
+    "tabpfn_pooled_boltz_umap_default",
+    "tabpfn_pooled_boltz_allpairs_umap_default",
 )
 
 
@@ -270,6 +275,67 @@ def optimize_l2(oof: np.ndarray, y: np.ndarray, alpha: float) -> np.ndarray:
     )
     _check(result, f"l2(alpha={alpha})")
     return normalize_weights(result.x)
+
+
+def optimize_caruana(
+    oof: np.ndarray,
+    y: np.ndarray,
+    *,
+    n_iter: int = 100,
+    init_top_n: int = 3,
+    bag_frac: float = 0.5,
+    n_bags: int = 20,
+    seed: int = 42,
+) -> np.ndarray:
+    """Caruana 2004 forward stepwise selection with replacement,
+    sorted initialization, and bagged selection.
+
+    Motivation: continuous weight optimization (vanilla / L2) concentrates
+    weight onto whichever member has the best OOF, regardless of how
+    correlated it is with other strong members. When that member's OOF
+    advantage does not fully reflect LB behaviour, the optimiser
+    overpays and the blend regresses. Caruana selection uses discrete
+    counts and bagging over library subsets, which naturally spreads
+    weight across correlated-but-strong members.
+
+    Returns a simplex-normalized weight vector over all input columns.
+    Models not chosen in any bag receive weight 0.
+    """
+    rng = np.random.RandomState(seed)
+    N, M = oof.shape
+    counts = np.zeros(M, dtype=np.int64)
+
+    bag_size = max(init_top_n + 1, int(M * bag_frac))
+    for _ in range(n_bags):
+        members = rng.choice(M, size=bag_size, replace=False)
+        bag_arr = oof[:, members]  # (N, bag_size)
+        bag_maes = np.mean(np.abs(bag_arr - y[:, None]), axis=0)
+        sort_idx = np.argsort(bag_maes)
+        top = sort_idx[:init_top_n]
+
+        bag_counts = np.zeros(bag_size, dtype=np.int64)
+        if init_top_n > 0:
+            bag_counts[top] = 1
+            current_sum = bag_arr[:, top].sum(axis=1)
+        else:
+            current_sum = np.zeros(N)
+        current_count = int(bag_counts.sum())
+
+        for _ in range(n_iter):
+            cand_pred = (current_sum[:, None] + bag_arr) / (current_count + 1)
+            cand_maes = np.mean(np.abs(cand_pred - y[:, None]), axis=0)
+            best = int(np.argmin(cand_maes))
+            bag_counts[best] += 1
+            current_sum = current_sum + bag_arr[:, best]
+            current_count += 1
+
+        for idx_in_bag, global_idx in enumerate(members):
+            counts[global_idx] += int(bag_counts[idx_in_bag])
+
+    total = int(counts.sum())
+    if total == 0:
+        raise RuntimeError("Caruana selection produced zero total count")
+    return counts.astype(np.float64) / total
 
 
 def optimize_fold(
@@ -478,6 +544,30 @@ def main() -> None:
             test_df,
             model_names,
         )
+
+    # 6. Caruana 2004 forward stepwise selection with bagging
+    # Structural regularization: discrete count-based weights + bagged
+    # library subsets prevent any single model from capturing > ~0.3
+    # weight, which mitigates the OOF-LB gap from correlated members.
+    # See docs/papers/shotgun_raw/shotgun.txt for the paper.
+    w_caru = optimize_caruana(
+        oof_matrix,
+        y_train,
+        n_iter=100,
+        init_top_n=3,
+        bag_frac=0.5,
+        n_bags=20,
+        seed=42,
+    )
+    results["caruana_bag20"] = evaluate_and_record(
+        "ens_caruana_bag20",
+        w_caru,
+        oof_matrix,
+        y_train,
+        test_matrix,
+        test_df,
+        model_names,
+    )
 
     # Summary table
     print("\n" + "=" * 70)
