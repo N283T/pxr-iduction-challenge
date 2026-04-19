@@ -110,6 +110,15 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     "lgbm_pooled_boltz_umap",
     "tabpfn_pooled_boltz_umap_default",
     "tabpfn_pooled_boltz_allpairs_umap_default",
+    # --- Pretrain+frozen chemprop (1) ---
+    # Added 2026-04-19. Phase 1 pretrain on 13k compounds + single_conc
+    # log2_fc (r=0.72 with pEC50), Phase 2 frozen encoder + fresh pEC50
+    # FFN. Single OOF MAE 0.4714 -- new pool leader (-0.011 over prior
+    # best tabpfn_2d_full_boltz 0.4825). Correlation with
+    # tabpfn_2d_full_boltz is 0.900 (borderline); caruana_bag20 handles
+    # the pair safely by spreading weight. Full fine-tune and scratch
+    # ablations confirmed pretrain helps only when encoder is frozen.
+    "chemprop_pretrain_finetune_frozen_umap",
 )
 
 

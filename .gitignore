@@ -48,6 +48,12 @@ data/boltz_affhead/
 track1_activity/reports/multitask_aux/*.db
 track1_activity/reports/multitask_aux/optuna_multitask_desc_5fold_run.log
 track1_activity/reports/multitask_aux/run_desc*.log
+track1_activity/reports/multitask_aux/run_tabpfn_top2000.log
+
+# ChemProp pretrain checkpoints (regenerable via run_chemprop_pretrain.py
+# in ~15 min; meta.json is kept for audit).
+track1_activity/checkpoints/chemprop_pretrain/*.pt
+track1_activity/checkpoints/chemprop_pretrain/*.ckpt
 
 logs/
 

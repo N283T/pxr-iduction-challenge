@@ -1,0 +1,23 @@
+/home/nagaet/pxr-iduction-challenge/track1_activity/scripts/run_chemprop_pretrain.py:114: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  df = pd.read_sql(sql, conn)
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Loading `train_dataloader` to estimate number of stepping batches.
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/trainer/connectors/data_connector.py:434: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=31` in the `DataLoader` to improve performance.
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/trainer/connectors/data_connector.py:434: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=31` in the `DataLoader` to improve performance.
+ChemProp pretrain (13k compounds + single_conc 2-head)
+  params: {'message_hidden_dim': 256, 'depth': 4, 'mp_dropout': 0.2, 'activation': 'relu', 'aggregation': 'norm', 'ffn_hidden_dim': 256, 'ffn_num_layers': 1, 'ffn_dropout': 0.1, 'warmup_epochs': 3, 'learning_rate': 0.0001364559692954765, 'lr_ratio': 10.0, 'batch_size': 128, 'max_epochs': 150, 'patience': 15}
+  data: 13136 compounds, log2fc_8p25 valid=10752, log2fc_33 valid=9527
+  target[0] (concentration 8.25uM): mean=+0.337, std=0.409
+  target[1] (concentration 33uM): mean=+0.640, std=0.570
+  split: train=11823, val=1313
+  task_weights: 8.25uM=1.000  33uM=0.500
+  saved state_dict: /home/nagaet/pxr-iduction-challenge/track1_activity/checkpoints/chemprop_pretrain/pretrain.pt
+  saved meta: /home/nagaet/pxr-iduction-challenge/track1_activity/checkpoints/chemprop_pretrain/pretrain_meta.json
+
+=== Pretrain done ===
+  final val_loss: 0.36472949385643005
+  best ckpt (Lightning): /home/nagaet/pxr-iduction-challenge/track1_activity/checkpoints/chemprop_pretrain/pretrain_best.ckpt

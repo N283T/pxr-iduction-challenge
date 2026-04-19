@@ -1,0 +1,60 @@
+      chemprop_multitask5_umap_aux0.0_tuned         0.0676
+      lgbm_pooled_boltz_umap                        0.0649
+      chemprop_chemeleon_umap                       0.0573
+      residual_physprop+mordred_umap                0.0465
+      attentivefp_optuna_umap                       0.0265
+      gatedgcn_optuna_umap                          0.0245
+  Recorded experiment 'ens_fold_l2_a0.1' (id=508)
+
+  ens_fold_l2_a0.3:
+    OOF RAE=0.4968  MAE=0.4521  R2=0.6741  Spearman=0.7942
+    Weights (12 significant):
+      chemprop_pretrain_finetune_frozen_umap        0.1760
+      tabpfn_pooled_boltz_allpairs_umap_default     0.0970
+      tabpfn_pooled_boltz_umap_default              0.0964
+      tabpfn_2d_full_boltz_umap                     0.0873
+      lgbm_pooled_boltz_umap                        0.0775
+      chemprop_multitask5_umap_aux0.0_tuned         0.0763
+      chemprop_chemeleon_umap                       0.0742
+      chemprop_optuna_umap                          0.0734
+      tabpfn_chemeleon_umap                         0.0721
+      residual_physprop+mordred_umap                0.0680
+      attentivefp_optuna_umap                       0.0557
+      gatedgcn_optuna_umap                          0.0459
+  Recorded experiment 'ens_fold_l2_a0.3' (id=509)
+
+  ens_caruana_bag20:
+    OOF RAE=0.4951  MAE=0.4505  R2=0.6767  Spearman=0.7948
+    Weights (10 significant):
+      tabpfn_pooled_boltz_allpairs_umap_default     0.1854
+      tabpfn_pooled_boltz_umap_default              0.1777
+      chemprop_pretrain_finetune_frozen_umap        0.1675
+      tabpfn_2d_full_boltz_umap                     0.1267
+      chemprop_chemeleon_umap                       0.0718
+      chemprop_multitask5_umap_aux0.0_tuned         0.0689
+      chemprop_optuna_umap                          0.0675
+      residual_physprop+mordred_umap                0.0544
+      tabpfn_chemeleon_umap                         0.0471
+      attentivefp_optuna_umap                       0.0233
+  Recorded experiment 'ens_caruana_bag20' (id=510)
+
+======================================================================
+  SUMMARY
+======================================================================
+  Strategy                    OOF RAE   OOF MAE    OOF R2   Spearman
+  ------------------------------------------------------------------
+  vanilla                      0.4871    0.4432    0.6903     0.8036
+  fold                         0.4874    0.4435    0.6900     0.8038
+  l2_a0.05                     0.4884    0.4444    0.6875     0.8022
+  l2_a0.1                      0.4911    0.4469    0.6830     0.7997
+  fold_l2_a0.1                 0.4918    0.4475    0.6820     0.7991
+  caruana_bag20                0.4951    0.4505    0.6767     0.7948
+  fold_l2_a0.3                 0.4968    0.4521    0.6741     0.7942
+  l2_a0.3                      0.4970    0.4522    0.6739     0.7941
+  l2_a0.5                      0.4993    0.4543    0.6704     0.7917
+  simple_avg                   0.5050    0.4595    0.6622     0.7859
+
+  Best (by OOF RAE): vanilla = 0.4871
+  LB RAE reference: 0.62 (ens_v7, 2026-04-07 snapshot — update after next submission)
+
+  Remember: lower OOF RAE may not translate to better LB if the optimizer overfits weights.
