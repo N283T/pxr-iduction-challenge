@@ -87,42 +87,42 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # Tier-0/1 + pose-Jazzy, OOF RAE 0.5303 vs 0.5511 tuned). See
     # track1_activity/scripts/eda_cv_prep/14_prune_dryrun.py for the
     # 5-pool bake-off + 3-variant LGBM check that informed this list.
-    # --- DL molecular graph (5) ---
+    #
+    # 2026-04-19 PM prune (this edit): dropped 3 redundant members before
+    # LB submission:
+    #   chemprop_multitask5_umap_aux0.0_tuned (r=0.94 with chemprop_optuna,
+    #     aux=0 makes it essentially a second chemprop_optuna seed)
+    #   residual_physprop+mordred_umap (r=0.94 with tabpfn_2d_full_boltz,
+    #     old (Apr 7) training, subsequent upgrades made its inputs a
+    #     subset of the tabpfn workhorse)
+    #   tabpfn_chemeleon_umap (r=0.94 with tabpfn_2d_full_boltz; CheMeleon
+    #     signal insufficient to compensate for redundancy)
+    # All three had caruana weights 0.03-0.06 (combined ~0.13 share).
+    # Pool size 12 -> 9.
+    # --- DL molecular graph (4) ---
     "chemprop_optuna_umap",  # D-MPNN, pool-top by weight
     "chemprop_chemeleon_umap",  # CheMeleon foundation finetune
-    "chemprop_multitask5_umap_aux0.0_tuned",  # 5-task MTL
     "attentivefp_optuna_umap",
     # gatedgcn_optuna_umap replaced 2026-04-19 by its pretrain+frozen variant
-    # (OOF MAE 0.5464 -> 0.5077, r=0.924 = strict supersede). Attentivefp
-    # frozen was also tried but its single-model gain was only -0.006 RAE
-    # so the baseline attentivefp_optuna stays for now.
+    # (OOF MAE 0.5464 -> 0.5077, r=0.924 = strict supersede).
     "gatedgcn_pretrain_finetune_frozen_umap",  # pretrain+frozen upgrade
-    # --- Residual LGBM (1) ---
-    "residual_physprop+mordred_umap",  # two-stage residual, structurally distinct
-    # --- Foundation tabular (2) ---
+    # --- Foundation tabular (1) ---
     "tabpfn_2d_full_boltz_umap",  # 2D (Mordred+RDKit+pose-Jazzy) + Boltz Tier-0/1 -- workhorse
-    "tabpfn_chemeleon_umap",  # TabPFN on CheMeleon MPNN fp
     # --- Boltz trunk embedding pool (3) ---
-    # Added 2026-04-19 (issue #74 Phase B/D). 1024-dim pooled trunk
-    # embeddings (s_prot_mean 384 + s_lig_mean 384 + z_interface_mean/max
-    # 128+128). Three variants: LGBM Optuna tuned (core pocket), TabPFN
-    # default on core pocket, TabPFN default on all protein x ligand pairs.
-    # Single OOF MAEs: 0.5116 / 0.4861 / 0.4860. Inter-correlation 0.96-0.99,
-    # so they only add diversity via Caruana-style weight spreading; the
-    # Nelder-Mead / L2 strategies will concentrate weight on the best of
-    # the three and crowd out tabpfn_2d_full_boltz. Strategy choice matters.
+    # 1024-dim pooled trunk embeddings (s_prot_mean 384 + s_lig_mean 384 +
+    # z_interface_mean/max 128+128). Three variants: LGBM Optuna tuned (core
+    # pocket), TabPFN default on core pocket, TabPFN default on all protein
+    # x ligand pairs. Single OOF MAEs: 0.5116 / 0.4861 / 0.4860.
+    # Inter-correlation 0.96-0.99, so they only add diversity via
+    # Caruana-style weight spreading.
     "lgbm_pooled_boltz_umap",
     "tabpfn_pooled_boltz_umap_default",
     "tabpfn_pooled_boltz_allpairs_umap_default",
     # --- Pretrain+frozen chemprop (1) ---
-    # Added 2026-04-19. Phase 1 pretrain on 13k compounds + single_conc
-    # log2_fc (r=0.72 with pEC50), Phase 2 frozen encoder + fresh pEC50
-    # FFN. Pretrain-side hparam tune (5 variants, see task #49) found
-    # LR 3e-5 + cosine ratio 10 + warmup 0 + patience 40 as the sweet
-    # spot (vs scratch-tuned default 1.36e-4). Delta from baseline
-    # frozen: RAE 0.5180 -> 0.5014 (-0.017), MAE 0.4714 -> 0.4563 (-0.015),
-    # Spearman 0.7887 -> 0.7972 (+0.009). Now pool single-best on every
-    # metric.
+    # Phase 1 pretrain on 13k compounds + single_conc log2_fc (r=0.72 with
+    # pEC50), Phase 2 frozen encoder + fresh pEC50 FFN. LR tune found
+    # 3e-5 + cosine ratio 10 + warmup 0 + patience 40 as the sweet spot.
+    # Now pool single-best on every metric (OOF RAE 0.5014 / MAE 0.4563).
     "chemprop_pretrain_finetune_frozen_lowlr_umap",
 )
 
