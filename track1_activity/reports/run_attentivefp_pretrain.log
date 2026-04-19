@@ -1,0 +1,27 @@
+/home/nagaet/pxr-iduction-challenge/track1_activity/scripts/run_attentivefp_pretrain_finetune.py:161: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  df = pd.read_sql(sql, conn)
+/home/nagaet/pxr-iduction-challenge/track1_activity/scripts/run_attentivefp_pretrain_finetune.py:246: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /home/conda/feedstock_root/build_artifacts/libtorch_1772252368025/work/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  tr_losses.append(float(loss))
+AttentiveFP pretrain (13k + single_conc 2-head)
+  params: {'hidden_channels': 512, 'num_layers': 4, 'num_timesteps': 3, 'dropout': 0.1, 'learning_rate': 0.00033232775773741117, 'batch_size': 128, 'max_epochs': 100, 'patience': 12}
+  data: 13136 compounds, 8.25uM valid=10752, 33uM valid=9527
+  split: train=11823, val=1313
+  building PyG graphs...
+  epoch   0  tr_loss=1.7244  val_loss=1.3907  best=1.3907
+  epoch   5  tr_loss=1.1364  val_loss=0.9741  best=0.9741
+  epoch  10  tr_loss=1.0122  val_loss=0.9220  best=0.8973
+  epoch  15  tr_loss=0.9420  val_loss=0.8431  best=0.8431
+  epoch  20  tr_loss=0.8831  val_loss=0.7633  best=0.7633
+  epoch  25  tr_loss=0.8359  val_loss=0.7712  best=0.7469
+  epoch  30  tr_loss=0.8029  val_loss=0.7442  best=0.7442
+  epoch  35  tr_loss=0.7516  val_loss=0.7320  best=0.7320
+  epoch  40  tr_loss=0.7253  val_loss=0.7012  best=0.7012
+  epoch  45  tr_loss=0.6780  val_loss=0.7272  best=0.7012
+  epoch  50  tr_loss=0.6456  val_loss=0.7095  best=0.7012
+  epoch  52  tr_loss=0.6240  val_loss=0.7351  best=0.7012
+  early stop at epoch 52
+
+  saved: /home/nagaet/pxr-iduction-challenge/track1_activity/checkpoints/attentivefp_pretrain/pretrain.pt
+  meta:  /home/nagaet/pxr-iduction-challenge/track1_activity/checkpoints/attentivefp_pretrain/pretrain_meta.json
+  best val_loss = 0.7012
