@@ -354,6 +354,34 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    if feature_name == "2d_full_boltz_log2fc_pred":
+        # 2d_full_boltz (1817d) + 2 predicted log2_fc scalars from the
+        # chemprop pretrain model (LF head forward, un-z-scored).
+        # Buterez 2024 strategy-2: predicted LF labels as side feature.
+        # See track1_activity/scripts/run_chemprop_predict_log2fc.py.
+        X_train_base, X_test_base = load_features("2d_full_boltz", train_df, test_df)
+        lf_path = REPO_ROOT.joinpath(
+            "data", "chemprop_pretrain_log2fc_predictions.parquet"
+        )
+        if not lf_path.exists():
+            raise SystemExit(
+                f"Missing {lf_path}. Run "
+                f"track1_activity/scripts/run_chemprop_predict_log2fc.py"
+            )
+        lf_df = pd.read_parquet(lf_path)
+        cols = ["log2fc_8p25_pred", "log2fc_33_pred"]
+        Xl_tr = lf_df.reindex(index=train_ids)[cols].to_numpy(dtype=np.float32).copy()
+        Xl_te = lf_df.reindex(index=test_ids)[cols].to_numpy(dtype=np.float32).copy()
+        Xl_tr = np.nan_to_num(Xl_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xl_te = np.nan_to_num(Xl_te, nan=0.0, posinf=0.0, neginf=0.0)
+        X_train = np.concatenate([X_train_base, Xl_tr], axis=1)
+        X_test = np.concatenate([X_test_base, Xl_te], axis=1)
+        print(
+            f"  2d_full_boltz_log2fc_pred: {X_train_base.shape[1]} base + "
+            f"{Xl_tr.shape[1]} LF preds = {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
     if feature_name == "chemprop_pretrain_embed":
         # 256d per-compound fingerprints from MPNN.fingerprint() of the
         # chemprop pretrain checkpoint (track1_activity/checkpoints/
@@ -1260,6 +1288,7 @@ def main():
             "pooled_boltz",
             "pooled_boltz_allpairs",
             "chemprop_pretrain_embed",
+            "2d_full_boltz_log2fc_pred",
             "3d_ligand",
             "jazzy",
         ]

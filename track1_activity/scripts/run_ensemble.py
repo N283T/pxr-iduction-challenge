@@ -107,13 +107,17 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # (OOF MAE 0.5464 -> 0.5077, r=0.924 = strict supersede).
     "gatedgcn_pretrain_finetune_frozen_umap",  # pretrain+frozen upgrade
     # --- Foundation tabular (2) ---
-    "tabpfn_2d_full_boltz_umap",  # 2D (Mordred+RDKit+pose-Jazzy) + Boltz Tier-0/1 -- workhorse
+    # tabpfn_2d_full_boltz_umap replaced 2026-04-20 by its
+    # log2fc_pred-augmented variant (same 1801 base features + 2
+    # predicted log2_fc scalars from the chemprop pretrain model).
+    # OOF MAE 0.4825 -> 0.4429 (-0.04); r=0.975 = strict supersession.
+    # Buterez 2024 strategy-2 (predicted LF labels as side features).
+    "tabpfn_2d_full_boltz_log2fc_pred_umap_default",
     # TabPFN on chemprop pretrain encoder fingerprint (256d).
     # Buterez 2024 strategy-3 (LF embedding as side feature).
-    # Added 2026-04-20. OOF MAE 0.4373 / Spearman 0.8102 -- strictly
-    # better than chemprop_pretrain_finetune_frozen_lowlr_umap (MAE
-    # 0.4563) on all metrics, and r=0.977 with it (same encoder, just
-    # TabPFN vs FFN head). Supersedes the frozen variant 1-for-1.
+    # OOF MAE 0.4373 / Spearman 0.8102 -- pool single-best.
+    # Correlated r=0.962 with the log2fc_pred variant above (both
+    # carry pretrain signal), caruana spreads weight between them.
     "tabpfn_chemprop_pretrain_embed_umap_default",
     # --- Boltz trunk embedding pool (3) ---
     # 1024-dim pooled trunk embeddings (s_prot_mean 384 + s_lig_mean 384 +
