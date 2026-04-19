@@ -1,0 +1,96 @@
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/umap/umap_.py:1887: UserWarning: gradient function is not yet implemented for jaccard distance metric; inverse_transform will be unavailable
+  warn(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/umap/umap_.py:1952: UserWarning: n_jobs value 1 overridden to 1 by setting random_state. Use no seed for parallelism.
+  warn(
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+💡 Tip: For seamless cloud uploads and versioning, try installing [litmodels](https://pypi.org/project/litmodels/) to enable LitModelCheckpoint, which syncs automatically with the Lightning model registry.
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/callbacks/model_checkpoint.py:881: Checkpoint directory /home/nagaet/pxr-iduction-challenge/checkpoints exists and is not empty.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Loading `train_dataloader` to estimate number of stepping batches.
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/trainer/connectors/data_connector.py:434: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=31` in the `DataLoader` to improve performance.
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/trainer/connectors/data_connector.py:434: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=31` in the `DataLoader` to improve performance.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/trainer/connectors/data_connector.py:434: The 'predict_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=31` in the `DataLoader` to improve performance.
+Dropping last batch of size 1 to avoid issues with batch normalization     (dataset size = 513, batch_size = 64)
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/trainer/connectors/data_connector.py:434: The 'predict_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=31` in the `DataLoader` to improve performance.
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+💡 Tip: For seamless cloud uploads and versioning, try installing [litmodels](https://pypi.org/project/litmodels/) to enable LitModelCheckpoint, which syncs automatically with the Lightning model registry.
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/callbacks/model_checkpoint.py:881: Checkpoint directory /home/nagaet/pxr-iduction-challenge/checkpoints exists and is not empty.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Loading `train_dataloader` to estimate number of stepping batches.
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/trainer/connectors/data_connector.py:434: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=31` in the `DataLoader` to improve performance.
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/trainer/connectors/data_connector.py:434: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=31` in the `DataLoader` to improve performance.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Dropping last batch of size 1 to avoid issues with batch normalization     (dataset size = 513, batch_size = 64)
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+💡 Tip: For seamless cloud uploads and versioning, try installing [litmodels](https://pypi.org/project/litmodels/) to enable LitModelCheckpoint, which syncs automatically with the Lightning model registry.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Loading `train_dataloader` to estimate number of stepping batches.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Dropping last batch of size 1 to avoid issues with batch normalization     (dataset size = 513, batch_size = 64)
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+💡 Tip: For seamless cloud uploads and versioning, try installing [litmodels](https://pypi.org/project/litmodels/) to enable LitModelCheckpoint, which syncs automatically with the Lightning model registry.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Loading `train_dataloader` to estimate number of stepping batches.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Dropping last batch of size 1 to avoid issues with batch normalization     (dataset size = 513, batch_size = 64)
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+💡 Tip: For seamless cloud uploads and versioning, try installing [litmodels](https://pypi.org/project/litmodels/) to enable LitModelCheckpoint, which syncs automatically with the Lightning model registry.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Loading `train_dataloader` to estimate number of stepping batches.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Dropping last batch of size 1 to avoid issues with batch normalization     (dataset size = 513, batch_size = 64)
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+ChemProp fine-tune | split=umap | no_pretrain=False | freeze=True | max_epochs=200
+  params: {'message_hidden_dim': 256, 'depth': 4, 'mp_dropout': 0.2, 'activation': 'relu', 'aggregation': 'norm', 'ffn_hidden_dim': 256, 'ffn_num_layers': 1, 'ffn_dropout': 0.1, 'warmup_epochs': 0, 'learning_rate': 0.0005, 'lr_ratio': 10.0, 'batch_size': 64, 'max_epochs': 200, 'patience': 30}
+  train: 4140, test: 513
+  Experiment: chemprop_pretrain_finetune_frozen_hilr_nowup_umap
+
+[Fold 0] train=3309, val=831
+  Loaded encoder weights: {'loaded': 9, 'skipped_predictor': 7, 'missing_in_model': ['predictor.ffn.0.0.weight', 'predictor.ffn.0.0.bias', 'predictor.ffn.1.2.weight', 'predictor.ffn.1.2.bias', 'predictor.criterion.task_weights', 'metrics.0.task_weights', 'metrics.1.task_weights'], 'unexpected_in_ckpt': [], 'pretrain_val_loss': 0.36472949385643005}
+  Frozen 4 encoder parameters
+  [Fold 0] RAE=0.5825  MAE=0.5280  R2=0.5892  Spearman=0.7499  Kendall=0.5616
+
+[Fold 1] train=3310, val=830
+  [Fold 1] RAE=0.5130  MAE=0.5096  R2=0.6752  Spearman=0.7988  Kendall=0.5976
+
+[Fold 2] train=3311, val=829
+  [Fold 2] RAE=0.5519  MAE=0.4687  R2=0.6080  Spearman=0.7878  Kendall=0.5974
+
+[Fold 3] train=3322, val=818
+  [Fold 3] RAE=0.5706  MAE=0.4448  R2=0.5994  Spearman=0.7420  Kendall=0.5617
+
+[Fold 4] train=3308, val=832
+  [Fold 4] RAE=0.5000  MAE=0.5022  R2=0.6799  Spearman=0.7946  Kendall=0.5949
+
+  Overall OOF:
+  RAE=0.5394  MAE=0.4908  R2=0.6368  Spearman=0.7705  Kendall=0.5767
+
+  Mean ± Std across folds:
+    RAE: 0.5436 ± 0.0321
+    MAE: 0.4907 ± 0.0299
+    R2: 0.6303 ± 0.0391
+    Spearman_R: 0.7746 ± 0.0238
+    Kendall_Tau: 0.5827 ± 0.0172
+
+  Test preds: mean=4.758, std=0.724
+  Recorded experiment 'chemprop_pretrain_finetune_frozen_hilr_nowup_umap' (id=523)
+  Saved submission: /home/nagaet/pxr-iduction-challenge/track1_activity/submissions/chemprop_pretrain_finetune_frozen_hilr_nowup_umap.csv
+
+  Done: chemprop_pretrain_finetune_frozen_hilr_nowup_umap -> RAE=0.5394

@@ -189,6 +189,30 @@ def main() -> None:
         default="",
         help="Extra suffix on experiment name (e.g. 'frozen', 'ablation').",
     )
+    parser.add_argument(
+        "--finetune-lr",
+        type=float,
+        default=None,
+        help="Override finetune learning rate (default = pretrain-saved LR).",
+    )
+    parser.add_argument(
+        "--finetune-lr-ratio",
+        type=float,
+        default=None,
+        help="Override finetune lr_ratio (max_lr/init_lr). Default = 10.0.",
+    )
+    parser.add_argument(
+        "--warmup-epochs",
+        type=int,
+        default=None,
+        help="Override warmup_epochs (default from pretrain params).",
+    )
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=None,
+        help="Override patience (default 20).",
+    )
     args = parser.parse_args()
 
     if not PRETRAIN_PATH.exists() and not args.no_pretrain:
@@ -225,6 +249,16 @@ def main() -> None:
         params["batch_size"] = 64
         params["max_epochs"] = 200
         params["patience"] = 20
+
+    # Finetune-side hparam overrides (for pretrain tune experiments)
+    if args.finetune_lr is not None:
+        params["learning_rate"] = args.finetune_lr
+    if args.finetune_lr_ratio is not None:
+        params["lr_ratio"] = args.finetune_lr_ratio
+    if args.warmup_epochs is not None:
+        params["warmup_epochs"] = args.warmup_epochs
+    if args.patience is not None:
+        params["patience"] = args.patience
 
     if args.max_epochs is not None:
         params["max_epochs"] = args.max_epochs
