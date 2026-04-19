@@ -78,51 +78,26 @@ SUBMISSION_DIR.mkdir(parents=True, exist_ok=True)
 # OOF RAE values below are snapshots from 2026-04-09 and may drift after
 # any re-tuning. They are annotations for quick review, not live values.
 ENSEMBLE_MODELS: tuple[str, ...] = (
-    # --- New additions (PR #45 and earlier this cycle) ---
-    "lgbm_mordred_jazzy_umap",  # 0.5784 (2026-04-09)  Mordred + Jazzy (tuned)
-    "chemprop_multitask5_umap_aux0.0_tuned",  # 0.5817 (2026-04-09)  Best 5-task MTL
-    # --- DL models (UMAP) ---
-    "chemprop_optuna_umap",  # 0.5785 (2026-04-09)
-    "attentivefp_optuna_umap",  # 0.5871 (2026-04-09)
-    "residual_physprop+mordred_umap",  # 0.5861 (2026-04-09) residual 2-stage
-    # --- Phase 1 / Phase 2 additions (PR #48 + feature/pyg-graph-architectures) ---
-    "chemprop_chemeleon_umap",  # 0.6038 (2026-04-09) CheMeleon foundation finetune
-    "gatedgcn_optuna_umap",  # 0.6005 (2026-04-09) ResGatedGraphConv stack (PyG)
-    "gin_optuna_umap",  # 0.6280 (2026-04-09) GINEConv stack (PyG)
-    "graphgps_optuna_umap",  # 0.6281 (2026-04-09) GPSConv MPNN+Transformer (PyG)
-    # --- Mordred family (UMAP) ---
-    # NOTE: plain lgbm_mordred_umap and the gap0.5/gap1.0 variants were removed
-    # because they correlate > 0.95 with lgbm_mordred_jazzy_umap (Pearson 0.983
-    # for plain, 0.963 for gap0.5, 0.958 for gap1.0; values computed on the
-    # 4140-row OOF vector on 2026-04-09). mordred_jazzy is a strict superset
-    # in feature space with slightly better OOF RAE, so the mordred family is
-    # collapsed to a single model. residual_physprop+mordred_umap is kept
-    # because it uses a fundamentally different two-stage residual
-    # architecture, not just a weighted mordred fit.
-    # --- Foundation-model embeddings (UMAP) ---
-    "lgbm_chemeleon_umap",  # 0.6137 (2026-04-09)
-    "lgbm_chemberta_5m_mtr_umap",  # 0.6218 (2026-04-09)
-    "lgbm_chemeleon_umap_gap1.0",  # 0.6511 (2026-04-09)
-    "lgbm_chemberta_5m_mtr_umap_gap1.0",  # 0.6521 (2026-04-09)
-    "lgbm_molformer_xl_umap",  # 0.6522 (2026-04-09)
-    # --- Fingerprint family (UMAP) ---
-    "lgbm_count_morgan_r2_2048_umap",  # 0.6225 (2026-04-09)
-    "lgbm_count_atompair_2048_umap",  # 0.6280 (2026-04-09)
-    "lgbm_count_morgan_r3_2048_umap",  # 0.6310 (2026-04-09)
-    "lgbm_count_morgan_r2_2048_umap_gap1.0",  # 0.6413 (2026-04-09)
-    "lgbm_avalon_2048_umap",  # 0.6536 (2026-04-09)
-    "lgbm_morgan_r2_2048_umap",  # 0.6579 (2026-04-09)
-    "lgbm_atompair_2048_umap",  # 0.6623 (2026-04-09)
-    "lgbm_feat_morgan_r2_2048_umap",  # 0.6774 (2026-04-09)
-    # --- Physicochemical (UMAP) ---
-    "lgbm_rdkit_desc_full_umap",  # 0.5887 (2026-04-17) full 217-desc (replaces rdkit_desc 41)
-    # --- Foundation tabular model (UMAP) ---
-    "tabpfn_mordred_jazzy_umap",  # 0.5453 (2026-04-18) TabPFN v7, GPU, 10-trial Optuna
-    "tabpfn_chemeleon_umap",  # 0.5625 (2026-04-18) TabPFN on CheMeleon MPNN fp
-    # --- Mixed analog+diversity split (PR #TBD, 2026-04-18) ---
-    "lgbm_mordred_jazzy_mixed",  # 0.5562 (2026-04-18) mixed-split tuned
-    "lgbm_rdkit_desc_full_mixed",  # 0.5698 (2026-04-18) mixed-split tuned
-    "lgbm_morgan_r2_2048_mixed",  # 0.6210 (2026-04-18) mixed-split tuned
+    # 2026-04-18 PM prune: dropped all 13 zero-w_mae LGBMs (fingerprints +
+    # embedding LGBMs + rdkit_desc_full + gap1.0 variants), dropped the 3
+    # mixed-split LGBMs (LB flat on the morning submission, optimiser
+    # re-weights on a redundant family), dropped gin/graphgps (near-zero
+    # weight, OOF-weakest graph nets), replaced tabpfn_mordred_jazzy_umap
+    # with tabpfn_2d_full_boltz_umap (workhorse upgrade: 2D full + Boltz
+    # Tier-0/1 + pose-Jazzy, OOF RAE 0.5303 vs 0.5511 tuned). See
+    # track1_activity/scripts/eda_cv_prep/14_prune_dryrun.py for the
+    # 5-pool bake-off + 3-variant LGBM check that informed this list.
+    # --- DL molecular graph (5) ---
+    "chemprop_optuna_umap",  # D-MPNN, pool-top by weight
+    "chemprop_chemeleon_umap",  # CheMeleon foundation finetune
+    "chemprop_multitask5_umap_aux0.0_tuned",  # 5-task MTL
+    "attentivefp_optuna_umap",
+    "gatedgcn_optuna_umap",  # ResGatedGraphConv
+    # --- Residual LGBM (1) ---
+    "residual_physprop+mordred_umap",  # two-stage residual, structurally distinct
+    # --- Foundation tabular (2) ---
+    "tabpfn_2d_full_boltz_umap",  # 2D (Mordred+RDKit+pose-Jazzy) + Boltz Tier-0/1 -- workhorse
+    "tabpfn_chemeleon_umap",  # TabPFN on CheMeleon MPNN fp
 )
 
 

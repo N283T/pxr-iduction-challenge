@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.joinpath("src")))
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 import numpy as np
 import pandas as pd
@@ -319,6 +320,264 @@ def load_features(feature_name: str, train_df, test_df):
                 f"{n_sc_train_with_data}/{len(train_ids)} train compounds have data"
             )
 
+        return X_train, X_test
+
+    if feature_name == "3d_ligand":
+        # 3D ligand-only bundle (1212 features):
+        #   scalar3d       11  (compound_boltz2_desc3d)
+        #   autocorr3d     80  (compound_boltz2_desc3d_vector.autocorr3d)
+        #   getaway       273  (compound_boltz2_desc3d_vector.getaway)
+        #   morse         224  (compound_boltz2_desc3d_vector.morse)
+        #   rdf           210  (compound_boltz2_desc3d_vector.rdf)
+        #   whim          114  (compound_boltz2_desc3d_vector.whim)
+        #   usr            12  (compound_boltz2_desc3d_vector.usr)
+        #   usrcat         60  (compound_boltz2_desc3d_vector.usrcat)
+        #   electroshape   15  (compound_boltz2_skfp3d.electroshape)
+        #   mordred3d     213  (compound_boltz2_mordred3d)
+        #
+        # Excluded:
+        #   pose_jazzy (6) -- in 2d_full_boltz; skipped here for orthogonality
+        #   e3fp (1024)   -- 4% gain / dim is very inefficient per today's EDA
+        #   pharmacophore3d (2048) -- 8% gain / dim likewise inefficient
+        #
+        # Compound 1657 (Auranofin) is missing from all three tables
+        # (Boltz-2 preprocessing refused the Au complex). NaN cells filled
+        # with zeros -- same treatment as 2d_full_boltz.
+        scalar_cols = [
+            "asphericity",
+            "eccentricity",
+            "inertial_shape_factor",
+            "npr1",
+            "npr2",
+            "pmi1",
+            "pmi2",
+            "pmi3",
+            "radius_of_gyration",
+            "spherocity_index",
+            "pbf",
+        ]
+        with psycopg2.connect(**DB_PARAMS) as conn:
+            scalar_df = pd.read_sql(
+                f"SELECT compound_id, {', '.join(scalar_cols)} "
+                f"FROM compound_boltz2_desc3d",
+                conn,
+            ).set_index("compound_id")
+            vec_df = pd.read_sql(
+                "SELECT compound_id, autocorr3d, getaway, morse, rdf, "
+                "whim, usr, usrcat FROM compound_boltz2_desc3d_vector",
+                conn,
+            ).set_index("compound_id")
+            skfp_df = pd.read_sql(
+                "SELECT compound_id, electroshape FROM compound_boltz2_skfp3d",
+                conn,
+            ).set_index("compound_id")
+            mord_df = pd.read_sql(
+                "SELECT compound_id, descriptors FROM compound_boltz2_mordred3d",
+                conn,
+            ).set_index("compound_id")
+
+        def _fill_vec(series, dim):
+            out = []
+            for v in series:
+                if v is None or (isinstance(v, float) and np.isnan(v)):
+                    out.append(np.zeros(dim, dtype=np.float32))
+                else:
+                    a = np.asarray(v, dtype=np.float64)
+                    a = np.where(np.isnan(a) | np.isinf(a), 0.0, a)
+                    out.append(a.astype(np.float32))
+            return np.stack(out, axis=0)
+
+        def _mord_matrix(series, train_idx):
+            # Build stable column ordering from first non-null row
+            mord_cols = None
+            for v in series:
+                if v is not None:
+                    mord_cols = sorted(v.keys())
+                    break
+            if mord_cols is None:
+                raise RuntimeError("compound_boltz2_mordred3d is empty")
+            rows = []
+            for v in series:
+                if v is None or (isinstance(v, float) and np.isnan(v)):
+                    rows.append(np.zeros(len(mord_cols), dtype=np.float32))
+                else:
+                    vals = [v.get(c) for c in mord_cols]
+                    arr = np.asarray(
+                        [float(x) if x is not None else 0.0 for x in vals],
+                        dtype=np.float64,
+                    )
+                    arr = np.where(np.isnan(arr) | np.isinf(arr), 0.0, arr)
+                    rows.append(arr.astype(np.float32))
+            return np.stack(rows, axis=0), mord_cols
+
+        def _build(ids):
+            s = scalar_df.reindex(ids)[scalar_cols].to_numpy(dtype=np.float32)
+            s = np.nan_to_num(s, nan=0.0, posinf=0.0, neginf=0.0)
+            v = vec_df.reindex(ids)
+            autocorr = _fill_vec(v["autocorr3d"], 80)
+            getaway = _fill_vec(v["getaway"], 273)
+            morse = _fill_vec(v["morse"], 224)
+            rdf = _fill_vec(v["rdf"], 210)
+            whim = _fill_vec(v["whim"], 114)
+            usr = _fill_vec(v["usr"], 12)
+            usrcat = _fill_vec(v["usrcat"], 60)
+            es = _fill_vec(skfp_df.reindex(ids)["electroshape"], 15)
+            mord, _ = _mord_matrix(mord_df.reindex(ids)["descriptors"], ids)
+            return np.concatenate(
+                [s, autocorr, getaway, morse, rdf, whim, usr, usrcat, es, mord],
+                axis=1,
+            )
+
+        X_train = _build(train_ids)
+        X_test = _build(test_ids)
+        print(
+            f"  3d_ligand: scalar 11 + autocorr 80 + getaway 273 + morse 224 "
+            f"+ rdf 210 + whim 114 + usr 12 + usrcat 60 + electroshape 15 "
+            f"+ mordred3d 213 = {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
+    if feature_name == "2d_full_boltz":
+        # Mordred (1531) + pose-Jazzy (6, from compound_boltz2_jazzy) +
+        # RDKit_desc_full (217) + Boltz-2 Tier-0 (17 cols + 2 derived = 19) +
+        # Tier-1 (44 confidence aggregates) = 1817 features.
+        #
+        # Uses pose-specific Jazzy instead of Jazzy's self-relaxed conformer
+        # (the default 2d_full does the latter). Rationale: all pose-derived
+        # Boltz features are already in the bundle, so keeping Jazzy
+        # consistent with the binding pose is more principled. Pose-Jazzy
+        # correlates 0.98-0.999 with self-Jazzy per prior A/B, so signal
+        # loss is minimal but interpretability gains.
+        #
+        # Excluded: Tier-2 (IFP 114, 0.05x Mordred gain/feature) and
+        # PoseBusters (19 bool, near-constant across PXR drug-like train,
+        # variance ~= 0). See memory:project_posebusters_low_variance and
+        # PR #72.
+
+        # Mordred 1531
+        mordred_train, _ = load_train_mordred()
+        mordred_test = load_mordred(test_ids)
+        common_m = mordred_train.columns.intersection(mordred_test.columns)
+        Xm_tr = mordred_train.loc[train_ids, common_m].values.astype(np.float32)
+        Xm_te = mordred_test.loc[test_ids, common_m].values.astype(np.float32)
+        Xm_tr = np.nan_to_num(Xm_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xm_te = np.nan_to_num(Xm_te, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # Pose-Jazzy 6 (from compound_boltz2_jazzy)
+        with psycopg2.connect(**DB_PARAMS) as conn:
+            pose_jazzy_df = pd.read_sql(
+                """
+                SELECT compound_id, sdc, sdx, sa, dga, dgp, dgtot
+                FROM compound_boltz2_jazzy
+                """,
+                conn,
+            ).set_index("compound_id")
+        jz_cols = list(JAZZY_FEATURE_COLS)
+        Xj_tr = pose_jazzy_df.reindex(train_ids)[jz_cols].to_numpy(dtype=np.float32)
+        Xj_te = pose_jazzy_df.reindex(test_ids)[jz_cols].to_numpy(dtype=np.float32)
+        Xj_tr = np.nan_to_num(Xj_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xj_te = np.nan_to_num(Xj_te, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # RDKit 217
+        rdkit_train = load_rdkit_full(train_ids)
+        rdkit_test = load_rdkit_full(test_ids)
+        common_r = rdkit_train.columns.intersection(rdkit_test.columns)
+        Xr_tr = rdkit_train.loc[train_ids, common_r].to_numpy(dtype=np.float32)
+        Xr_te = rdkit_test.loc[test_ids, common_r].to_numpy(dtype=np.float32)
+        Xr_tr = np.nan_to_num(Xr_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xr_te = np.nan_to_num(Xr_te, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # Tier-0: scalar + derived from compound_boltz2
+        boltz2_cols = [
+            "affinity_pred_value",
+            "affinity_pred_value_1",
+            "affinity_pred_value_2",
+            "affinity_probability_binary",
+            "affinity_probability_binary_1",
+            "affinity_probability_binary_2",
+            "confidence_score",
+            "ptm",
+            "iptm",
+            "ligand_iptm",
+            "protein_iptm",
+            "complex_plddt",
+            "complex_iplddt",
+            "complex_pde",
+            "complex_ipde",
+            "ligand_atom_count",
+            "ligand_to_pocket_distance_a",
+        ]
+        col_sql = ", ".join(f"b.{c}" for c in boltz2_cols)
+        with psycopg2.connect(**DB_PARAMS) as conn:
+            boltz_df = pd.read_sql(
+                f"""
+                SELECT c.id AS compound_id, {col_sql},
+                       (b.affinity_pred_value_1 - b.affinity_pred_value_2)
+                           AS ensemble_diff_affinity,
+                       (b.affinity_probability_binary_1
+                          - b.affinity_probability_binary_2) AS ensemble_diff_prob
+                FROM compounds c
+                LEFT JOIN compound_boltz2 b ON b.compound_id = c.id
+                """,
+                conn,
+            ).set_index("compound_id")
+        tier0_cols = boltz2_cols + ["ensemble_diff_affinity", "ensemble_diff_prob"]
+        Xt0_tr = boltz_df.reindex(train_ids)[tier0_cols].to_numpy(dtype=np.float32)
+        Xt0_te = boltz_df.reindex(test_ids)[tier0_cols].to_numpy(dtype=np.float32)
+        Xt0_tr = np.nan_to_num(Xt0_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xt0_te = np.nan_to_num(Xt0_te, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # Tier-1: confidence aggregates from parquet
+        tier1_path = REPO_ROOT.joinpath("data", "boltz2_confidence_features.parquet")
+        tier1_df = pd.read_parquet(tier1_path)
+        Xt1_tr = tier1_df.reindex(train_ids).to_numpy(dtype=np.float32)
+        Xt1_te = tier1_df.reindex(test_ids).to_numpy(dtype=np.float32)
+        Xt1_tr = np.nan_to_num(Xt1_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xt1_te = np.nan_to_num(Xt1_te, nan=0.0, posinf=0.0, neginf=0.0)
+
+        X_train = np.concatenate([Xm_tr, Xj_tr, Xr_tr, Xt0_tr, Xt1_tr], axis=1)
+        X_test = np.concatenate([Xm_te, Xj_te, Xr_te, Xt0_te, Xt1_te], axis=1)
+        print(
+            f"  2d_full_boltz: mordred {Xm_tr.shape[1]} + "
+            f"pose-jazzy {Xj_tr.shape[1]} + rdkit {Xr_tr.shape[1]} + "
+            f"tier0 {Xt0_tr.shape[1]} + tier1 {Xt1_tr.shape[1]} "
+            f"= {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
+    if feature_name == "2d_full":
+        # Mordred (1531) + Jazzy (6) + RDKit_desc_full (217) = 1754 features.
+        # Sized to fit comfortably inside TabPFN's ~2000-feature soft limit
+        # while exposing every 2D descriptor family we have computed.
+        # NaNs in Mordred/RDKit are zeroed; LightGBM's native NaN handling
+        # is not relevant here since TabPFN does not accept NaN.
+        mordred_train, _ = load_train_mordred()
+        mordred_test = load_mordred(test_ids)
+        common_m = mordred_train.columns.intersection(mordred_test.columns)
+        Xm_tr = mordred_train.loc[train_ids, common_m].values.astype(np.float32)
+        Xm_te = mordred_test.loc[test_ids, common_m].values.astype(np.float32)
+        Xm_tr = np.nan_to_num(Xm_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xm_te = np.nan_to_num(Xm_te, nan=0.0, posinf=0.0, neginf=0.0)
+
+        jazzy_train = load_jazzy(train_ids).reindex(index=train_ids)
+        jazzy_test = load_jazzy(test_ids).reindex(index=test_ids)
+        Xj_tr = jazzy_train[list(JAZZY_FEATURE_COLS)].to_numpy(dtype=np.float32)
+        Xj_te = jazzy_test[list(JAZZY_FEATURE_COLS)].to_numpy(dtype=np.float32)
+
+        rdkit_train = load_rdkit_full(train_ids)
+        rdkit_test = load_rdkit_full(test_ids)
+        common_r = rdkit_train.columns.intersection(rdkit_test.columns)
+        Xr_tr = rdkit_train.loc[train_ids, common_r].to_numpy(dtype=np.float32)
+        Xr_te = rdkit_test.loc[test_ids, common_r].to_numpy(dtype=np.float32)
+        Xr_tr = np.nan_to_num(Xr_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xr_te = np.nan_to_num(Xr_te, nan=0.0, posinf=0.0, neginf=0.0)
+
+        X_train = np.concatenate([Xm_tr, Xj_tr, Xr_tr], axis=1)
+        X_test = np.concatenate([Xm_te, Xj_te, Xr_te], axis=1)
+        print(
+            f"  2d_full: mordred {Xm_tr.shape[1]} + jazzy {Xj_tr.shape[1]} "
+            f"+ rdkit {Xr_tr.shape[1]} = {X_train.shape[1]} features"
+        )
         return X_train, X_test
 
     if feature_name in EMBEDDING_TABLES:
@@ -898,6 +1157,9 @@ def main():
             "mordred",
             "mordred_singleconc",
             "mordred_jazzy",
+            "2d_full",
+            "2d_full_boltz",
+            "3d_ligand",
             "jazzy",
         ]
         + list(FP_REGISTRY.keys())
