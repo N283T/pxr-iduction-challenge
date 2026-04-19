@@ -1,0 +1,26 @@
+/home/nagaet/pxr-iduction-challenge/track1_activity/scripts/run_gatedgcn_pretrain_finetune.py:196: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  df = pd.read_sql(sql, conn)
+/home/nagaet/pxr-iduction-challenge/track1_activity/scripts/run_gatedgcn_pretrain_finetune.py:274: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /home/conda/feedstock_root/build_artifacts/libtorch_1772252368025/work/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  tr_losses.append(float(loss))
+GatedGCN pretrain (13k + single_conc 2-head)
+  params: {'hidden_dim': 128, 'num_layers': 4, 'dropout': 0.05, 'learning_rate': 0.0006655177988301952, 'batch_size': 128, 'max_epochs': 120, 'patience': 12}
+  data: 13136 compounds, 8.25uM valid=10752, 33uM valid=9527
+  split: train=11823, val=1313
+  building PyG graphs...
+  epoch   0  tr_loss=1.3813  val_loss=1.3110  best=1.3110
+  epoch   5  tr_loss=1.0520  val_loss=1.5003  best=0.9884
+  epoch  10  tr_loss=0.9416  val_loss=0.9723  best=0.9723
+  epoch  15  tr_loss=0.9137  val_loss=0.8494  best=0.8494
+  epoch  20  tr_loss=0.8909  val_loss=0.9757  best=0.8376
+  epoch  25  tr_loss=0.8531  val_loss=0.8573  best=0.7957
+  epoch  30  tr_loss=0.8168  val_loss=0.7776  best=0.7776
+  epoch  35  tr_loss=0.8032  val_loss=0.8532  best=0.7776
+  epoch  40  tr_loss=0.7901  val_loss=0.7988  best=0.7672
+  epoch  45  tr_loss=0.7562  val_loss=0.7594  best=0.7394
+  epoch  50  tr_loss=0.7378  val_loss=0.7898  best=0.7394
+  epoch  54  tr_loss=0.7152  val_loss=0.8095  best=0.7394
+  early stop at epoch 54
+
+  saved: /home/nagaet/pxr-iduction-challenge/track1_activity/checkpoints/gatedgcn_pretrain/pretrain.pt
+  best val_loss = 0.7394

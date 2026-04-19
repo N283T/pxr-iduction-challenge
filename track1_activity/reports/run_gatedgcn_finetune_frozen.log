@@ -1,0 +1,39 @@
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/umap/umap_.py:1887: UserWarning: gradient function is not yet implemented for jaccard distance metric; inverse_transform will be unavailable
+  warn(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/umap/umap_.py:1952: UserWarning: n_jobs value 1 overridden to 1 by setting random_state. Use no seed for parallelism.
+  warn(
+GatedGCN fine-tune | no_pretrain=False | freeze=True | max_epochs=150
+  train: 4140, test: 513
+  building PyG graphs...
+  Experiment: gatedgcn_pretrain_finetune_frozen_umap
+
+[Fold 0] train=3309, val=831
+  Loaded encoder: {'loaded': 56, 'skipped': ['ffn.0.weight', 'ffn.0.bias', 'ffn.3.weight', 'ffn.3.bias'], 'missing': ['ffn.0.weight', 'ffn.0.bias', 'ffn.3.weight', 'ffn.3.bias'], 'unexpected': [], 'pretrain_best_val_loss': 0.739441378550096}
+  Frozen 44 param tensors (encoder, all except ffn)
+  [Fold 0] RAE=0.6157  MAE=0.5581  R2=0.5338  Spearman=0.7108  Kendall=0.5228
+
+[Fold 1] train=3310, val=830
+  [Fold 1] RAE=0.5049  MAE=0.5015  R2=0.6771  Spearman=0.7873  Kendall=0.5875
+
+[Fold 2] train=3311, val=829
+  [Fold 2] RAE=0.5902  MAE=0.5013  R2=0.5531  Spearman=0.7306  Kendall=0.5431
+
+[Fold 3] train=3322, val=818
+  [Fold 3] RAE=0.5902  MAE=0.4602  R2=0.5657  Spearman=0.7162  Kendall=0.5367
+
+[Fold 4] train=3308, val=832
+  [Fold 4] RAE=0.5145  MAE=0.5167  R2=0.6447  Spearman=0.7669  Kendall=0.5703
+
+  Overall OOF:
+  RAE=0.5580  MAE=0.5077  R2=0.6027  Spearman=0.7428  Kendall=0.5523
+
+  Mean ± Std across folds:
+    RAE: 0.5631 ± 0.0447
+    MAE: 0.5076 ± 0.0315
+    R2: 0.5949 ± 0.0558
+    Spearman_R: 0.7424 ± 0.0298
+    Kendall_Tau: 0.5521 ± 0.0235
+  Recorded experiment 'gatedgcn_pretrain_finetune_frozen_umap' (id=512)
+  Saved submission: /home/nagaet/pxr-iduction-challenge/track1_activity/submissions/gatedgcn_pretrain_finetune_frozen_umap.csv
+
+  Done: gatedgcn_pretrain_finetune_frozen_umap -> RAE=0.5580

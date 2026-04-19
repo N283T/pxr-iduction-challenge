@@ -92,7 +92,11 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     "chemprop_chemeleon_umap",  # CheMeleon foundation finetune
     "chemprop_multitask5_umap_aux0.0_tuned",  # 5-task MTL
     "attentivefp_optuna_umap",
-    "gatedgcn_optuna_umap",  # ResGatedGraphConv
+    # gatedgcn_optuna_umap replaced 2026-04-19 by its pretrain+frozen variant
+    # (OOF MAE 0.5464 -> 0.5077, r=0.924 = strict supersede). Attentivefp
+    # frozen was also tried but its single-model gain was only -0.006 RAE
+    # so the baseline attentivefp_optuna stays for now.
+    "gatedgcn_pretrain_finetune_frozen_umap",  # pretrain+frozen upgrade
     # --- Residual LGBM (1) ---
     "residual_physprop+mordred_umap",  # two-stage residual, structurally distinct
     # --- Foundation tabular (2) ---
