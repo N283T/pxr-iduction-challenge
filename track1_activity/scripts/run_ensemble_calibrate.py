@@ -262,7 +262,9 @@ def main() -> None:
     print("  NESTED CV EVALUATION (5-fold UMAP)")
     print("=" * 60)
 
-    for method in ("linear", "isotonic"):
+    method_results: dict[str, dict] = {}
+
+    for method in ("linear", "linear_pos", "spline_k5", "isotonic"):
         print(f"\n--- {method} ---")
         fold_metrics, calibrated_oof = nested_cv_evaluate(
             y_pred_oof, y_true, splits, method
@@ -293,7 +295,32 @@ def main() -> None:
                 f"  Linear fit: slope={fitted['slope']:.4f}, "
                 f"intercept={fitted['intercept']:.4f}"
             )
-        else:
+        elif method == "linear_pos":
+            fitted = {
+                "slope": full_model["slope"],
+                "intercept": full_model["intercept"],
+                "constraint_active": full_model["slope"] < 1e-12,
+            }
+            print(
+                f"  Linear(pos) fit: slope={fitted['slope']:.4f}, "
+                f"intercept={fitted['intercept']:.4f}, "
+                f"constraint_active={fitted['constraint_active']}"
+            )
+        elif method == "spline_k5":
+            fitted = {
+                "n_knots": int(len(full_model["xs"])),
+                "x_knots": full_model["xs"].tolist(),
+                "y_knots": full_model["ys"].tolist(),
+                "x_min": full_model["x_min"],
+                "x_max": full_model["x_max"],
+            }
+            print(
+                f"  Spline(k5) fit: n_knots={fitted['n_knots']}, "
+                f"x_range=[{fitted['x_min']:.3f}, {fitted['x_max']:.3f}], "
+                f"y_range=[{float(full_model['ys'].min()):.3f}, "
+                f"{float(full_model['ys'].max()):.3f}]"
+            )
+        else:  # isotonic
             fitted = {
                 "n_knots": int(len(full_model.X_thresholds_)),
                 "x_min": float(full_model.X_min_),
@@ -348,6 +375,93 @@ def main() -> None:
         )
         save_oof_predictions(exp_id, calibrated_oof)
         print(f"  Recorded experiment id={exp_id}")
+
+        method_results[method] = {
+            "nested_cv_metrics": nested_cv_metrics,
+            "fold_metrics": fold_metrics,
+            "calibrated_oof": calibrated_oof,
+            "full_model": full_model,
+            "fitted": fitted,
+            "test_pred_cal": test_pred_cal,
+        }
+
+    # ---- Selection step: pick best by MAE with Spearman guardrail ---------
+    print("\n" + "=" * 60)
+    print("  SELECTION (MAE min, |ΔSpearman| < 0.005 guardrail)")
+    print("=" * 60)
+    raw_spearman = raw_oof_metrics["Spearman_R"]
+    raw_mae = raw_oof_metrics["MAE"]
+
+    summary_rows = []
+    for name, res in method_results.items():
+        m = res["nested_cv_metrics"]
+        d_spear = abs(m["Spearman_R"] - raw_spearman)
+        d_mae = m["MAE"] - raw_mae
+        passes = (d_spear < 0.005) and (m["MAE"] < raw_mae)
+        summary_rows.append((name, m["MAE"], d_mae, m["Spearman_R"], d_spear, passes))
+        print(
+            f"  {name:<12} MAE={m['MAE']:.4f} (Δ{d_mae:+.4f})  "
+            f"Spearman={m['Spearman_R']:.4f} (Δ{d_spear:+.4f})  "
+            f"passes_guardrail={passes}"
+        )
+
+    candidates = [r for r in summary_rows if r[5]]
+    if not candidates:
+        print(
+            "\n  WARNING: No calibrator improves MAE with Spearman preserved. "
+            "Skipping best submission CSV."
+        )
+        print("\nDone.")
+        return
+
+    best_name = min(candidates, key=lambda r: r[1])[0]
+    best_res = method_results[best_name]
+    print(f"\n  BEST: {best_name}")
+
+    # Write single 'best' submission CSV
+    best_sub_name = "ens_caruana_bag20_calibrated_best"
+    best_sub_path = SUBMISSION_DIR.joinpath(f"{best_sub_name}.csv")
+    best_sub_df = pd.DataFrame(
+        {
+            "SMILES": raw_test["SMILES"],
+            "Molecule Name": raw_test["Molecule Name"],
+            "pEC50": best_res["test_pred_cal"],
+        }
+    )
+    best_sub_df.to_csv(best_sub_path, index=False)
+    print(f"  Wrote best submission: {best_sub_path}")
+
+    # Record meta experiment row pointing to the winning method
+    best_exp_id = record_experiment(
+        name=best_sub_name,
+        description=(
+            f"Best post-hoc calibration of ens_caruana_bag20 "
+            f"(selected: {best_name}, 5-fold UMAP nested CV, MAE min + "
+            f"|ΔSpearman| < 0.005 guardrail)"
+        ),
+        model_type="ensemble_calibrated",
+        feature_set="caruana_bag20_output",
+        hyperparameters={
+            "selected_method": best_name,
+            "fitted_params": best_res["fitted"],
+            "candidates_considered": [r[0] for r in summary_rows],
+            "selection_rule": "min MAE s.t. |Spearman - raw| < 0.005",
+            "source_ensemble": "ens_caruana_bag20",
+            "source_members": member_names,
+            "source_weights": weights,
+        },
+        fold_metrics=best_res["fold_metrics"],
+        submission_path=f"track1_activity/submissions/{best_sub_name}.csv",
+        notes=(
+            f"Raw OOF MAE={raw_mae:.4f}, "
+            f"calibrated nested-CV MAE={best_res['nested_cv_metrics']['MAE']:.4f} "
+            f"(method={best_name}), ΔMAE="
+            f"{best_res['nested_cv_metrics']['MAE'] - raw_mae:+.4f}"
+        ),
+        on_conflict_replace=True,
+    )
+    save_oof_predictions(best_exp_id, best_res["calibrated_oof"])
+    print(f"  Recorded best meta-experiment id={best_exp_id}")
 
     print("\nDone.")
 
