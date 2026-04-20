@@ -129,12 +129,10 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     "lgbm_pooled_boltz_umap",
     "tabpfn_pooled_boltz_umap_default",
     "tabpfn_pooled_boltz_allpairs_umap_default",
-    # --- PEFT transformer encoder (1) ---
-    # First SMILES-transformer encoder in the pool (chemprop / TabPFN / Boltz
-    # only before this). MoLFormer-XL fine-tuned with LoRA r=32, alpha=64, qkvo
-    # targets. OOF MAE 0.5291 -- weaker than the pool baseline but aims to earn
-    # caruana weight via encoder-family orthogonality. PR #95.
-    "peft_molformer_xl_lora_r32a64_umap_default",
+    # 2026-04-20 PM drop: peft_molformer_xl_lora_r32a64_umap_default (added
+    # in PR #95) regressed LB rank 9 -> 10 (RAE 0.5545 -> 0.5565, MAE 0.4414
+    # -> 0.4430) despite OOF -0.0087. Classic OOF/LB disconnect. Framework
+    # + experiment id=581 stay in DB; just dropped from the allow-list.
 )
 
 
