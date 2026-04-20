@@ -31,27 +31,32 @@ Apply the "continued-pretrain on log2_fc → frozen → embed → TabPFN" recipe
 
 ### Environment isolation
 
-KERMT's dependency stack (DGL, cuik-molmaker build deps, older PyTorch Lightning) conflicts with our pixi env (numpy 2.x, current torch). Strategy:
+KERMT's dependency stack (DGL, cuik-molmaker build deps, older PyTorch Lightning) conflicts with our main pixi env (numpy 2.x, current torch). Strategy — **separate pixi project** in the KERMT clone:
 
 - Clone to `~/ghq/github.com/NVIDIA-Digital-Bio/KERMT`
-- Create separate conda env `kermt` from `environment.yml`
-- KERMT runs outside pixi; only its **outputs** (embedding npz) cross the boundary
-- pixi side imports the npz, writes to `db/compound_kermt_pretrain_embed`, then TabPFN/ensemble proceeds normally
+- `pixi init` inside the clone → creates its own `pixi.toml` + `.pixi/` env, **completely isolated** from the main PXR pixi env
+- Translate KERMT's `environment.yml` into the local `pixi.toml`:
+  - conda-forge channel: python=3.10 (KERMT target), pytorch with CUDA, dgl, rdkit, pytorch-lightning, etc.
+  - pypi extras if needed: chemprop-derived deps
+  - Skip: `cuik-molmaker` (optional acceleration; forces a complex build)
+- KERMT commands run via `pixi run -p ~/ghq/github.com/NVIDIA-Digital-Bio/KERMT ...` or `cd ~/ghq/... && pixi run python main.py ...`
+- Only **outputs** cross the boundary (embedding npz). pixi main env imports the npz, writes to `db/compound_kermt_pretrain_embed`, downstream proceeds.
+- Rationale: pixi supports conda-forge + pypi in a single file, so the environment.yml → pixi.toml port is mechanical. Keeps the user's pixi-first workflow; no conda install needed.
 
 ### Weight acquisition
 
 - Google Drive mirrors (Tencent original, KERMT-compatible):
   - GROVER_base: `1hiGwOzoRfbJQPWj0V_mtOffsqIIAMgjl`
   - GROVER_large: `1bMg_ntUKEoOmHM0KoUi1XYJvzPBnHeWw`
-- Tool: `gdown` (installed in the `kermt` conda env)
+- Tool: `gdown` (add to KERMT-local pixi pypi deps)
 - Checksum verification: record SHA256 on first download, re-check on subsequent machines
 
 ### New files
 
 | File | Purpose |
 |---|---|
-| `track1_activity/scripts/run_kermt_pretrain.sh` | Shell wrapper: activates `kermt` conda env, runs `main.py finetune` on log2_fc CSV with `grover_base.pt` as `--checkpoint_path`. Writes finetuned checkpoint to `models/kermt/pretrain/`. |
-| `track1_activity/scripts/run_kermt_embed_extract.sh` | Shell wrapper: activates `kermt` env, runs `main.py fingerprint` (or the KERMT-equivalent embedding extraction) on all 13,136 compounds. Writes npz with `{"compound_id": [...], "embedding": [...]}`. |
+| `track1_activity/scripts/run_kermt_pretrain.sh` | Shell wrapper: `cd` into KERMT clone, runs `pixi run python main.py finetune` on log2_fc CSV with `grover_base.pt` as `--checkpoint_path`. Writes finetuned checkpoint to `models/kermt/pretrain/`. |
+| `track1_activity/scripts/run_kermt_embed_extract.sh` | Shell wrapper: `cd` into KERMT clone, runs `pixi run python main.py fingerprint` (or the KERMT-equivalent embedding extraction) on all 13,136 compounds. Writes npz with `{"compound_id": [...], "embedding": [...]}`. |
 | `track1_activity/scripts/prepare_kermt_pretrain_csv.py` | pixi-side: export `compounds.std_smiles` + `log2fc_8p25` + `log2fc_33` (2-head, same SQL as chemprop_pretrain) to `data/kermt/pretrain.csv`. Train/val 90/10 split written as separate CSVs. |
 | `db/compute_kermt_embeddings.py` | pixi-side: load npz from `run_kermt_embed_extract.sh` output, upsert into `compound_kermt_pretrain_embed` table. |
 | `db/compound_kermt_pretrain_embed_schema.sql` | Schema mirroring `compound_molformer_c3_pretrain_embed`. |
@@ -87,15 +92,14 @@ Export to three CSVs (KERMT `main.py finetune` requires explicit file paths):
 
 ### Pretrain configuration
 
-Invocation (shell wrapper):
+Invocation (shell wrapper, pixi-based):
 
 ```bash
-conda activate kermt
 cd ~/ghq/github.com/NVIDIA-Digital-Bio/KERMT/code
 export PYTHONPATH=$PWD
 export CUBLAS_WORKSPACE_CONFIG=:4096:8
 
-python main.py finetune \
+pixi run python main.py finetune \
     --data_path ~/pxr-iduction-challenge/data/kermt/pretrain_train.csv \
     --separate_val_path ~/pxr-iduction-challenge/data/kermt/pretrain_val.csv \
     --save_dir ~/pxr-iduction-challenge/models/kermt/pretrain \
@@ -133,7 +137,8 @@ KERMT follows GROVER convention: after finetuning, the trained checkpoint retain
 Extraction script (KERMT/GROVER supports `main.py fingerprint` for this; if absent we patch a short hook):
 
 ```bash
-python main.py fingerprint \
+cd ~/ghq/github.com/NVIDIA-Digital-Bio/KERMT/code
+pixi run python main.py fingerprint \
     --data_path ~/pxr-iduction-challenge/data/kermt/pretrain_all.csv \
     --checkpoint_dir ~/pxr-iduction-challenge/models/kermt/pretrain \
     --no_features_scaling \
@@ -185,11 +190,11 @@ Post-ensemble: `run_ensemble_calibrate.py` → `linear_pos` calibrator (already 
 
 ```
 compounds.std_smiles (13,136)
-     ↓ prepare_kermt_pretrain_csv.py (pixi)
+     ↓ prepare_kermt_pretrain_csv.py (main pixi)
 [data/kermt/pretrain_{train,val,all}.csv]
-     ↓ run_kermt_pretrain.sh (kermt conda env)
+     ↓ run_kermt_pretrain.sh (KERMT-local pixi)
 [models/kermt/pretrain/fold_0/model_0/model.pt]
-     ↓ run_kermt_embed_extract.sh (kermt conda env)
+     ↓ run_kermt_embed_extract.sh (KERMT-local pixi)
 [data/kermt/embeddings.npz]
      ↓ compute_kermt_embeddings.py (pixi)
 [db.compound_kermt_pretrain_embed]
@@ -228,7 +233,7 @@ compounds.std_smiles (13,136)
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| `environment.yml` install fails on WSL2 (DGL/CUDA version mismatch) | Medium | Fall back to KERMT Dockerfile. Extract weights into a bind mount; run finetune in container; copy embeddings npz out. |
+| KERMT-local `pixi install` fails (DGL/CUDA/torch version mismatch on WSL2) | Medium | Pin conda-forge versions to environment.yml spec. Last resort: KERMT Dockerfile + bind mount; run finetune in container; copy embeddings npz out. |
 | GROVER `main.py fingerprint` missing in KERMT (possibly renamed) | Medium | Inspect KERMT main.py on clone; if renamed, patch a 20-line extraction script that loads checkpoint + extracts graph readout pre-FFN. |
 | `gdown` virus-scan prompt for large file (>100MB) | Low | `gdown --fuzzy` or manual cookie workaround; GROVER_base should be ~250MB, triggers warning but gdown handles. |
 | Continued pretrain val loss does not decrease (log2_fc already well-encoded by GROVER pretrain) | Low | This is itself informative: means chemical features are already captured, embedding extraction can proceed anyway. Document and proceed. |
@@ -239,7 +244,7 @@ compounds.std_smiles (13,136)
 
 ## ETA
 
-- Environment setup (conda env, weights download, KERMT clone): **~1 h** (first time; mostly conda solve + download)
+- Environment setup (KERMT clone, `pixi init` + port environment.yml, weights download): **~1 h** (first time; mostly pixi solve + GDrive download)
 - Phase 1 continued-pretrain (13k compounds, 30 epochs, batch 32, grover_base): **~1.5–3 h** on RTX 5080
 - Phase 2 embedding extraction: **~15 min**
 - Phase 3 TabPFN 5-fold: **~30 min**
