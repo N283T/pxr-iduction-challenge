@@ -19,6 +19,23 @@ KERMT_REPO="${KERMT_REPO:-$HOME/ghq/github.com/NVIDIA-Digital-Bio/KERMT}"
 EPOCHS="${1:-30}"
 BATCH_SIZE="${BATCH_SIZE:-32}"
 
+if [[ ! -f "$KERMT_REPO/main.py" ]]; then
+    echo "ERROR: KERMT repo not found at $KERMT_REPO (override with KERMT_REPO=...)" >&2
+    exit 1
+fi
+if [[ ! -f "$PXR_REPO/data/kermt/pretrain_train.csv" ]]; then
+    echo "ERROR: pretrain_train.csv not found. Run prepare_kermt_pretrain_csv.py first." >&2
+    exit 1
+fi
+if [[ ! -f "$PXR_REPO/data/kermt/pretrain_val.csv" ]]; then
+    echo "ERROR: pretrain_val.csv not found. Run prepare_kermt_pretrain_csv.py first." >&2
+    exit 1
+fi
+if [[ ! -f "$PXR_REPO/models/kermt/grover_base.pt" ]]; then
+    echo "ERROR: grover_base.pt not found at $PXR_REPO/models/kermt/grover_base.pt. Download via gdown (see models/kermt/README.md)." >&2
+    exit 1
+fi
+
 cd "$KERMT_REPO"
 export PYTHONPATH="$PWD"
 export CUBLAS_WORKSPACE_CONFIG=:4096:8
