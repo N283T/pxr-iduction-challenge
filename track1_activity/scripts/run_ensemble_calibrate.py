@@ -30,6 +30,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import psycopg2
+from scipy.interpolate import PchipInterpolator
+from scipy.optimize import lsq_linear
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LinearRegression
 
@@ -115,12 +117,64 @@ def load_raw_test_predictions() -> pd.DataFrame:
     return df
 
 
+def _fit_spline_k5(y_pred: np.ndarray, y_true: np.ndarray, k: int = 5) -> dict:
+    """Fit a k-knot monotone PCHIP spline on quantile bins.
+
+    Uses OOF prediction quantiles as knot x-positions and bin-mean pEC50 as
+    knot y-values. Monotonicity of y-values is enforced via cumulative max
+    before PCHIP interpolation, so the resulting spline is monotone
+    non-decreasing.
+    """
+    quantiles = np.linspace(0.0, 1.0, k + 1)
+    edges = np.quantile(y_pred, quantiles)
+    edges[0] -= 1e-9
+    edges[-1] += 1e-9
+    bin_idx = np.clip(np.digitize(y_pred, edges) - 1, 0, k - 1)
+
+    xs = np.zeros(k)
+    ys = np.zeros(k)
+    for kk in range(k):
+        mask = bin_idx == kk
+        if mask.sum() < 2:
+            xs[kk] = 0.5 * (edges[kk] + edges[kk + 1])
+            ys[kk] = ys[kk - 1] if kk > 0 else float(y_true.min())
+        else:
+            xs[kk] = float(y_pred[mask].mean())
+            ys[kk] = float(y_true[mask].mean())
+
+    # Enforce x strictly increasing (ties from tight quantile bins would
+    # break PchipInterpolator).
+    for i in range(1, k):
+        if xs[i] <= xs[i - 1]:
+            xs[i] = xs[i - 1] + 1e-6
+
+    # Enforce monotone non-decreasing y so the spline preserves order.
+    ys = np.maximum.accumulate(ys)
+
+    spline = PchipInterpolator(xs, ys, extrapolate=False)
+    return {
+        "xs": xs,
+        "ys": ys,
+        "spline": spline,
+        "x_min": float(xs[0]),
+        "x_max": float(xs[-1]),
+    }
+
+
 def fit_calibrator(method: str, y_pred: np.ndarray, y_true: np.ndarray):
     """Fit a calibrator and return an object with a .predict(x) method."""
     if method == "linear":
         model = LinearRegression()
         model.fit(y_pred.reshape(-1, 1), y_true)
         return model
+    if method == "linear_pos":
+        # Positive-constrained affine: slope >= 0 guarantees order preservation
+        # on the OOF range. Intercept is unconstrained.
+        X = np.column_stack([y_pred, np.ones_like(y_pred)])
+        res = lsq_linear(X, y_true, bounds=([0.0, -np.inf], [np.inf, np.inf]))
+        return {"slope": float(res.x[0]), "intercept": float(res.x[1])}
+    if method == "spline_k5":
+        return _fit_spline_k5(y_pred, y_true, k=5)
     if method == "isotonic":
         model = IsotonicRegression(out_of_bounds="clip")
         model.fit(y_pred, y_true)
@@ -132,6 +186,11 @@ def apply_calibrator(method: str, model, y_pred: np.ndarray) -> np.ndarray:
     """Apply a fitted calibrator to y_pred, returning the calibrated values."""
     if method == "linear":
         return model.predict(y_pred.reshape(-1, 1))
+    if method == "linear_pos":
+        return model["slope"] * y_pred + model["intercept"]
+    if method == "spline_k5":
+        y_clipped = np.clip(y_pred, model["x_min"], model["x_max"])
+        return np.asarray(model["spline"](y_clipped), dtype=np.float64)
     if method == "isotonic":
         return model.predict(y_pred)
     raise ValueError(f"Unknown method: {method}")
