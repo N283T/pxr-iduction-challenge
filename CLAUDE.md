@@ -6,11 +6,11 @@ OpenADMET PXR Blind Challenge (April 1 – July 1, 2026)
 https://huggingface.co/spaces/openadmet/pxr-challenge
 
 Two tracks:
-- **Track 1 (Activity)**: Predict pEC50 for 513 blinded compounds. Primary metric: RAE.
+- **Track 1 (Activity)**: Predict pEC50 for 513 blinded compounds. Primary metric: **MAE** (with RAE/R²/Spearman/Kendall as secondaries).
 - **Track 2 (Structure)**: Predict protein-ligand 3D structures for 78 compounds. Primary metric: LDDT-PLI.
 
-Current status: **17th place** (RAE=0.6263 on leaderboard, 2026-04-09).
-See latest snapshot in `docs/leaderboard_<date>.csv`.
+Current status: **7th place** (MAE=0.4358, RAE=0.5474 on leaderboard, 2026-04-21).
+Research log: issue #100. See latest snapshot in `docs/leaderboard_<date>.csv`.
 
 ## Environment
 
@@ -44,7 +44,9 @@ pixi run python db/standardize_compounds.py
 pixi run python db/fix_bridged_stereo.py --apply
 pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/recompute_descriptors.sql
 pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/experiments_schema.sql
+pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/lb_submissions_schema.sql
 pixi run python db/compute_mordred.py
+pixi run python db/compute_jazzy.py
 pixi run python db/compute_embeddings.py
 pixi run python db/compute_chemeleon.py
 pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/compound_descriptors_full_schema.sql
@@ -87,48 +89,83 @@ pixi run python track2_structure/scripts/boltz2_posebusters.py --workers 8 --db
 ```
 data/                        # Parquet files (gitignored, re-downloadable)
 db/
-  schema.sql                 # Core tables: compounds, train/test/counter/single_conc
-  add_std_columns.sql        # Add std_smiles/std_mol columns
-  standardize_compounds.py   # ChEMBL pipeline standardization
-  recompute_descriptors.sql  # RDKit descriptors & fingerprints from std_mol (41 cols)
+  schema.sql                         # Core tables: compounds, train/test/counter/single_conc
+  add_std_columns.sql                # Add std_smiles/std_mol columns
+  standardize_compounds.py           # ChEMBL pipeline standardization
+  fix_bridged_stereo.py              # Hamming-1 cis-bridgehead repair (Boltz-2 input fixup)
+  recompute_descriptors.sql          # RDKit descriptors & fingerprints from std_mol (41 cols)
   compound_descriptors_full_schema.sql  # Full RDKit descriptor table (JSONB)
-  compute_rdkit_descriptors_full.py     # Compute all 217 RDKit 2D descriptors
-  compute_mordred.py         # Mordred 2D descriptors -> compound_mordred (JSONB)
-  compute_embeddings.py      # ChemBERTa/BERT/MoLFormer variants -> DB tables
-  compute_chemeleon.py       # CheMeleon MPNN fingerprints -> compound_chemeleon
-  experiments_schema.sql     # Experiment tracking tables + OOF predictions
-  load_data.py               # Data loader script
-  pgdata/                    # PostgreSQL data dir (gitignored)
+  compute_rdkit_descriptors_full.py  # Compute all 217 RDKit 2D descriptors
+  compute_mordred.py                 # Mordred 2D descriptors -> compound_mordred (JSONB)
+  compute_jazzy.py                   # Jazzy H-bond descriptors -> compound_jazzy
+  compute_embeddings.py              # ChemBERTa/BERT/MoLFormer variants -> DB tables
+  compute_chemeleon.py               # CheMeleon MPNN fingerprints -> compound_chemeleon
+  experiments_schema.sql             # Experiment tracking tables + OOF predictions
+  lb_submissions_schema.sql          # Local LB submission history + results tables
+  boltz2_schema.sql                  # compound_boltz2 (pose paths, affinity, confidence)
+  boltz2_posebusters_schema.sql      # compound_boltz2_posebusters (19 pose quality checks)
+  load_data.py                       # Data loader script
+  pgdata/                            # PostgreSQL data dir (gitignored)
 docs/
-  track1_eda_report.md       # EDA findings + feature importance + distribution analysis
-  leaderboard_2026-04-07.csv # Leaderboard snapshot (latest)
-  literature_qsar_ml.md      # PXR QSAR/ML literature review
-  literature_wet_lab.md      # PXR wet-lab/biology literature review
+  track1_eda_report.md               # EDA findings + feature importance + distribution analysis
+  leaderboard_<date>.csv             # Leaderboard snapshots (latest 2026-04-21)
+  literature_qsar_ml.md              # PXR QSAR/ML literature review
+  literature_wet_lab.md              # PXR wet-lab/biology literature review
+  superpowers/specs/                 # Approved feature design docs (YYYY-MM-DD-<topic>-design.md)
+  superpowers/plans/                 # Implementation plans (YYYY-MM-DD-<topic>.md)
 track1_activity/
   src/
     data.py                  # DB loading (SQLAlchemy, ORDER BY t.id)
-    features.py              # FP_REGISTRY: 8 fingerprint types via RDKit
-    evaluate.py              # Metrics + DB recording + OOF storage
+    features.py              # FP_REGISTRY + per-feature loaders
+    evaluate.py              # Metrics + DB recording + OOF storage (record_experiment
+                             # supports on_conflict_replace=True for idempotent re-runs)
     splits.py                # Murcko scaffold split + UMAP split CV
+    losses.py                # Custom chemprop losses (relative-distance aux — FMGCL)
+    peft_backbones.py        # LoRA backbone registry (molformer_xl, molformer_c3_1_1b)
+    peft_methods.py          # LoRA / PEFT method registry
+    peft_trainer.py          # Shared PEFT regressor trainer (rotary-fix aware)
+    pyg_training.py          # PyG graph training helpers
+    pseudo_labels.py         # Weak-label prep for counter-assay
   scripts/
-    run_train.py                  # Unified LightGBM/XGBoost/CatBoost training
-    run_chemprop_optuna.py        # ChemProp D-MPNN Optuna tuning
-    run_attentivefp_optuna.py     # AttentiveFP (PyG) Optuna tuning
-    archive/run_molformer_finetune.py  # MoLFormer-XL fine-tuning with Optuna (archived)
-    run_residual_learning.py      # Two-stage residual learning (physprop + Mordred)
-    run_ensemble.py               # Ensemble strategies: simple_avg, vanilla,
-                                  # l2_a{0.05..0.5}, fold, fold_l2_a{0.1,0.3},
-                                  # caruana_bag20 (discrete count-based,
-                                  # bagged 20x per Caruana 2004 -- structural
-                                  # regularization against OOF weight zero-sum)
-    boltz_affhead/                # Boltz-2 trunk embedding retarget (issue #74)
-                                  # 01{,b}_pool_embeddings.py: core_pocket / allpairs pools
-                                  # 02_lgbm_baseline, 03_combine_and_correlate,
-                                  # 04_mlp_head (weak), 05_ensemble_dryrun,
-                                  # 06_pool_rework, 07_caruana_select
-    run_all_models.sh             # Sequential DL model training pipeline
-    api.py                        # OpenADMET API client: fetch leaderboard + submit (gitignored, contains PII)
-    archive/                      # Early exploration scripts
+    run_train.py                      # Unified LightGBM/XGBoost/CatBoost/TabPFN training
+    run_ensemble.py                   # Ensemble strategies (caruana_bag20 preferred;
+                                      # vanilla / l2_a{0.05..0.5} / fold_l2 / simple_avg
+                                      # reported side-by-side for OOF A/B).
+                                      # ENSEMBLE_MODELS allow-list controls the 10-model pool.
+    run_ensemble_calibrate.py         # Post-hoc regression calibration: linear, linear_pos
+                                      # (slope>=0 affine), spline_k5 (PCHIP monotone),
+                                      # isotonic. 4-way nested CV + MAE/Spearman guardrail
+                                      # writes ens_caruana_bag20_calibrated_best.csv.
+    run_chemprop_optuna.py            # ChemProp D-MPNN Optuna tuning
+    run_chemprop_chemeleon.py         # CheMeleon foundation finetune (chemprop head)
+    run_chemprop_pretrain.py          # Pretrain chemprop encoder on single-conc log2_fc
+    run_chemprop_embed_extract.py     # Extract frozen [encoded] chemprop features
+    run_chemprop_predict_log2fc.py    # Use pretrained encoder to predict log2_fc for test
+    run_chemprop_finetune.py          # Frozen-encoder head FT on pEC50
+    run_chemprop_multitask.py         # Multitask (pec50 + log2_fc) head
+    run_chemprop_multitask_desc.py    # Multitask with descriptor aux (negative result, #86)
+    run_chemprop_relative_aux.py      # FMGCL relative-distance aux loss (negative result, #97)
+    run_attentivefp_optuna.py         # AttentiveFP (PyG) Optuna tuning
+    run_attentivefp_pretrain_finetune.py
+    run_gatedgcn_optuna.py            # GatedGCN (PyG) Optuna tuning
+    run_gatedgcn_pretrain_finetune.py # GatedGCN pretrain+frozen+head FT (pool member)
+    run_gin_optuna.py                 # GIN Optuna tuning
+    run_graphgps_optuna.py            # GraphGPS Optuna tuning
+    run_molformer_c3_pretrain.py      # Pretrain MoLFormer-c3-1.1B + LoRA on log2_fc
+    run_molformer_c3_embed_extract.py # Extract [CLS] 768d embeddings from pretrained
+    run_peft_finetune.py              # Generic PEFT/LoRA direct FT on pEC50 (#95,
+                                      # dropped from pool after LB regression, #96)
+    run_residual_learning.py          # Two-stage residual learning (physprop + Mordred)
+    boltz_affhead/                    # Boltz-2 trunk embedding retarget (issue #74)
+                                      # 01{,b}_pool_embeddings.py: core_pocket / allpairs pools
+                                      # 02_lgbm_baseline, 03_combine_and_correlate,
+                                      # 04_mlp_head (weak), 05_ensemble_dryrun,
+                                      # 06_pool_rework, 07_caruana_select
+    run_all_models.sh                 # Sequential DL model training pipeline
+    api.py                            # OpenADMET LB client (fetch / submit / status /
+                                      # cooldown). Writes lb_submissions + back-fills
+                                      # LB results on each `fetch`.
+    archive/                          # Early exploration scripts
   notebooks/                 # marimo notebooks
   submissions/               # CSV submission files (gitignored)
 track2_structure/
@@ -174,6 +211,7 @@ structures/
   2 compounds have partial coverage (metal-containing; BCUT2D fails).
 - `compound_fingerprints` -- Morgan, FeatMorgan, MACCS, AtomPair, Avalon FPs
 - `compound_mordred` -- Mordred 2D descriptors (~1460 per compound, JSONB)
+- `compound_jazzy` -- Jazzy H-bond donor/acceptor descriptors (JSONB)
 - `compound_chemberta` -- ChemBERTa-77M-MLM (384d)
 - `compound_chemberta_mtr` / `_100m` / `_10m` / `_5m` variants
 - `compound_chemberta_zinc_v1` -- ChemBERTa-zinc-v1 (768d)
@@ -181,11 +219,21 @@ structures/
 - `compound_molformer` -- MoLFormer-XL (768d, requires rotary fix)
 - `compound_chemeleon` -- CheMeleon MPNN fingerprints (300d)
 
+### Pose-derived feature tables (from Boltz-2 outputs)
+- `compound_boltz2_jazzy` / `_desc3d` / `_desc3d_vector` / `_mordred3d` / `_skfp3d`
+  -- Per-pose 3D features computed after ligand extraction. Populated by scripts in
+  `track1_activity/scripts/` (feature bakeoff + 2d_full_boltz bundle).
+
 ### Experiment Tracking
 - `experiments` -- Model config, hyperparameters (JSONB), submission path
 - `experiment_cv_results` -- Per-fold CV metrics
 - `experiment_oof_predictions` -- OOF predictions for ensemble
 - `experiment_summary` -- View: aggregated metrics sorted by RAE
+
+### Leaderboard submission tracking
+- `lb_submissions` -- Local row per `api.py submit`: submission_name, file_path,
+  experiment_name, notes (LOCAL only), submitted_at. Populated by api.py.
+- `lb_submission_history` -- Back-filled LB rank/MAE/RAE etc. per fetch.
 
 ### Boltz-2 Prediction Outputs (Track 2 + Track 1 structure features)
 - `compound_boltz2` -- One row per compound (4653 rows). File paths (pose cif, ligand
@@ -207,25 +255,63 @@ structures/
 - OOF predictions -> `experiment_oof_predictions` (required for ensemble)
 - Submission files -> `track1_activity/submissions/` (gitignored)
 - Compare experiments: `pixi run db-psql -c "SELECT * FROM experiment_summary;"`
-- CV strategy: **UMAP split** preferred (Morgan FP + UMAP + KMeans 50 clusters, closer to LB)
-- Scaffold split available as alternative (`--split scaffold`)
-- Gap regularization: `--gap-lambda 1.0` penalizes train-val gap for better generalization
+- **CV strategy: UMAP split (seed=42, n_clusters=50, Morgan+Jaccard)** — canonical
+  after 12+ variant bake-off in PR #70. Scaffold split still available as
+  `--split scaffold` for diagnostics.
 - All load functions use `ORDER BY t.id` for deterministic row ordering
 - Use `load_train_mordred()` / `load_test_mordred()` from data.py (not recomputing)
-- Ensemble strategy: prefer **`caruana_bag20`** (discrete count-based, bagged 20x per
+- **Ensemble strategy: `caruana_bag20`** (discrete count-based, bagged 20x per
   Caruana 2004) when adding correlated-strong members. Continuous weight optimizers
   (vanilla, L2) concentrate weight on the single best member and reallocate it
-  destructively when a correlated challenger is added -- see issue #82 for the LB
+  destructively when a correlated challenger is added — see issue #82 for the LB
   regression incident that motivated this. Vanilla is still reported side-by-side
   for OOF A/B diagnostics.
+- **Post-hoc calibration is part of the final submission**. `run_ensemble_calibrate.py`
+  runs 4-way nested CV (linear / linear_pos / spline_k5 / isotonic) on the
+  ens_caruana_bag20 output and picks the best calibrator via MAE with a
+  `|ΔSpearman| < 0.005` guardrail. `linear_pos` (positive-constrained affine)
+  was the 2026-04-21 LB winner, moving us rank 10 → 7 (OOF ΔMAE −0.0009 → LB ΔMAE
+  −0.0065, ~7× amplification). See PR #101. Other variants (K=3..30 splines,
+  full isotonic, importance-weighted, per-cluster, stacked) all regressed; see
+  the PR #101 comment for the full falsification log.
+- **Pretrain + frozen + embed recipe (Buterez 2024 strategy-3)**: pretrain an
+  encoder on single-concentration log2_fc (13,136 compounds, transductive,
+  NaN-masked MSE per concentration head), freeze it, extract embeddings for all
+  compounds, run TabPFN v7 on those for pEC50. Three pool members follow this
+  pattern (`tabpfn_chemprop_pretrain_embed`, `tabpfn_molformer_c3_pretrain_embed`,
+  `tabpfn_2d_full_boltz_log2fc_pred`) and jointly account for >65% of caruana
+  weight. Direct PEFT FT on pEC50 (PR #95 MoLFormer-XL LoRA) underperforms this
+  recipe and was dropped from the pool.
+- **Submission workflow**:
+  1. `run_ensemble.py` -> caruana_bag20 -> `ens_caruana_bag20.csv`
+  2. `run_ensemble_calibrate.py` -> 4-way nested CV -> `ens_caruana_bag20_calibrated_best.csv`
+  3. `api.py cooldown` to check 4h window, `api.py submit ...` with `--notes`.
+  4. `api.py fetch` after ~30 min to ~2 h to back-fill LB rank/metrics.
+- **No CI in this repo.** There is no GitHub Actions workflow, no `.github/workflows/`,
+  no hosted test runner. Run `pixi run ruff format <file>` + `pixi run ruff check <file>`
+  locally before every commit. `ty check` is **not required** as a gate (competition
+  project, not a library). `gh pr checks <PR>` will report "no checks" — this is
+  expected, not a misconfiguration. When asking the user to merge, say "CI: N/A (no
+  workflow)" rather than reporting failure.
 
 ## Known Issues
 
-- OOF CV RAE (~0.53) is optimistic vs leaderboard RAE (0.62) -- gap ~0.09
-- UMAP split narrows this gap vs scaffold split (~0.06 vs ~0.08-0.12)
-- MoLFormer requires rotary embedding fix for transformers v5 (see issue #30, fix in compute_embeddings.py)
-- MoLFormer embedding -> LightGBM gives RAE=0.65 (weaker than ChemBERTa); fine-tuning is better
-- LogP dominates feature importance (gain 17k-24k) -- risk of "shortcut learning" on unseen chemotypes
+- OOF/LB MAE gap: raw ensemble OOF MAE ~0.43, LB MAE ~0.44 (post-calibration
+  LB 0.4358). The gap is driven by the test pEC50 distribution being ~12%
+  narrower than train (analog enrichment), which compresses the RAE denominator
+  but leaves MAE roughly faithful. Prefer MAE for ensemble selection and
+  calibrator tuning; RAE is useful for LB ranking but is noisier across runs.
+- MoLFormer requires rotary embedding fix for transformers v5 (see issue #30);
+  `peft_trainer.py` + `compute_embeddings.py` recompute `inv_freq` and rebuild
+  the cos/sin cache before PEFT wrapping.
+- MoLFormer-XL direct PEFT FT (LoRA) on pEC50 underperforms the frozen-encoder
+  embedding recipe; dropped from pool in PR #96.
+- LogP dominates feature importance in single-feature LGBMs (gain 17k-24k) --
+  risk of shortcut learning on unseen chemotypes; mitigated by ensembling with
+  graph/transformer members that do not rely on LogP directly.
+- Deprecation warnings from `rdkit.Chem.AllChem.GetMorganFingerprintAsBitVect`
+  (will be removed in a future RDKit release). Migrate to `MorganGenerator` when
+  touching the FP code path.
 
 ### Boltz-2 specific
 - Full inference run (4653 compounds, R1 settings) takes ~4 days on RTX 5080.
