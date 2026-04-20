@@ -20,6 +20,7 @@ cuda = "13.1"
 deepchem = ">=2.8, <3"
 prolif = ">=2.1.0,<3"
 pdbfixer = ">=1.11"
+peft = ">=0.12,<0.14"
 
 [tool.pixi.tasks]
 db-start = "pg_ctl -D db/pgdata -l db/pgdata/logfile -o '-k /tmp -p 5433' start"

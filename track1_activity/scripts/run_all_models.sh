@@ -18,7 +18,7 @@ pixi run python track1_activity/scripts/run_attentivefp_optuna.py --n-trials 30 
 
 echo ""
 echo "=== [$(date)] 3/4: MoLFormer Fine-tune ==="
-pixi run python track1_activity/scripts/run_molformer_finetune.py --n-trials 30 --split umap
+pixi run python track1_activity/scripts/archive/run_molformer_finetune.py --n-trials 30 --split umap
 
 echo ""
 echo "=== [$(date)] 4/4: Residual Learning ==="

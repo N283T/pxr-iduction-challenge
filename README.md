@@ -149,7 +149,7 @@ track1_activity/
     run_train.py                  # Unified LightGBM/XGBoost/CatBoost training
     run_chemprop_optuna.py        # ChemProp D-MPNN Optuna tuning
     run_attentivefp_optuna.py     # AttentiveFP (PyG) Optuna tuning
-    run_molformer_finetune.py     # MoLFormer-XL fine-tuning
+    archive/run_molformer_finetune.py  # MoLFormer-XL fine-tuning (archived)
     run_residual_learning.py      # Two-stage residual learning
     run_ensemble.py               # Weighted ensemble optimization
     run_all_models.sh             # Sequential DL training pipeline
