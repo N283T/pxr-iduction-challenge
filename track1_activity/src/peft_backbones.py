@@ -20,10 +20,14 @@ BACKBONES: dict[str, dict] = {
         "trust_remote_code": True,
         # LoRA target submodule name fragments. peft matches these as
         # substrings against module.named_modules() keys, so partial names
-        # are fine. These BERT-style names are placeholders -- verify and
-        # update during smoke test (see Task 5).
+        # are fine. Verified during smoke test (Task 5): MoLFormer-XL uses
+        # standard BERT-style naming (Case A -- query/key/value/dense).
         "lora_target_modules_qv": ["query", "value"],
         "lora_target_modules_qkvo": ["query", "key", "value", "dense"],
+        # MoLFormer-XL ships with corrupted rotary-embedding inv_freq buffers
+        # when loaded via transformers >= v5 (see issue #30). Set this flag so
+        # the trainer recomputes inv_freq + cos/sin cache after from_pretrained.
+        "fix_rotary": True,
     },
 }
 

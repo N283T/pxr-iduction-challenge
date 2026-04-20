@@ -65,6 +65,21 @@ class PeftRegressor(nn.Module):
         base = AutoModel.from_pretrained(
             meta["hf_id"], trust_remote_code=meta["trust_remote_code"]
         )
+        # Fix corrupted rotary-embedding buffers (MoLFormer-XL + transformers v5
+        # bug: inv_freq loaded from checkpoint contains garbage values).
+        # Recompute inv_freq and rebuild the cos/sin cache before PEFT wrapping.
+        # See compute_embeddings.py and issue #30 for the same fix.
+        if meta.get("fix_rotary", False):
+            for layer in base.encoder.layer:
+                rotary = layer.attention.self.rotary_embeddings
+                rotary.inv_freq = 1.0 / (
+                    rotary.base ** (torch.arange(0, rotary.dim, 2).float() / rotary.dim)
+                )
+                rotary._set_cos_sin_cache(
+                    seq_len=rotary.max_position_embeddings,
+                    device=rotary.inv_freq.device,
+                    dtype=torch.float32,
+                )
         peft_config = get_peft_builder(peft_method)(meta, peft_params)
         self.backbone = get_peft_model(base, peft_config)
 
