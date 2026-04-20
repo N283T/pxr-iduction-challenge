@@ -54,10 +54,34 @@ def record_experiment(
     submission_path: str | None = None,
     notes: str = "",
     num_boost_rounds: list[int] | None = None,
+    on_conflict_replace: bool = False,
 ):
-    """Record experiment and CV results to DB."""
+    """Record experiment and CV results to DB.
+
+    When ``on_conflict_replace=True`` and the name already exists, the old
+    experiment row and its cascaded ``experiment_cv_results`` +
+    ``experiment_oof_predictions`` are deleted before the new INSERT so the
+    caller can re-run without hitting the unique-name constraint. Default
+    False keeps the original behaviour (fail on duplicate name) to protect
+    regular experiment names from being silently overwritten.
+    """
     conn = psycopg2.connect(**DB_PARAMS)
     cur = conn.cursor()
+
+    if on_conflict_replace:
+        cur.execute("SELECT id FROM experiments WHERE name = %s", (name,))
+        row = cur.fetchone()
+        if row is not None:
+            old_id = row[0]
+            cur.execute(
+                "DELETE FROM experiment_oof_predictions WHERE experiment_id = %s",
+                (old_id,),
+            )
+            cur.execute(
+                "DELETE FROM experiment_cv_results WHERE experiment_id = %s",
+                (old_id,),
+            )
+            cur.execute("DELETE FROM experiments WHERE id = %s", (old_id,))
 
     cur.execute(
         """INSERT INTO experiments (name, description, model_type, feature_set,

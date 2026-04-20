@@ -129,6 +129,12 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     "lgbm_pooled_boltz_umap",
     "tabpfn_pooled_boltz_umap_default",
     "tabpfn_pooled_boltz_allpairs_umap_default",
+    # --- PEFT transformer encoder (1) ---
+    # First SMILES-transformer encoder in the pool (chemprop / TabPFN / Boltz
+    # only before this). MoLFormer-XL fine-tuned with LoRA r=32, alpha=64, qkvo
+    # targets. OOF MAE 0.5291 -- weaker than the pool baseline but aims to earn
+    # caruana weight via encoder-family orthogonality. PR #95.
+    "peft_molformer_xl_lora_r32a64_umap_default",
 )
 
 
@@ -438,10 +444,11 @@ def evaluate_and_record(
     sub_filename = f"{name}.csv"
     sub.to_csv(SUBMISSION_DIR.joinpath(sub_filename), index=False)
 
-    # Record to DB, but don't abort the whole ensemble pipeline if one
-    # strategy fails to record (e.g. UniqueViolation on rerun). The CSV
-    # is already on disk, so a DB failure is recoverable by manual
-    # cleanup — losing the remaining strategies would be worse.
+    # Ensemble names (``ens_*``) are stable across runs, so we pass
+    # ``on_conflict_replace=True`` to replace any prior row + its cascaded
+    # cv_results / oof_predictions. Regular experiment names still error on
+    # duplicate insert. The CSV is written regardless so a hard DB failure
+    # is recoverable from disk.
     weight_dict = {n: float(w) for n, w in zip(model_names, weights)}
     try:
         record_experiment(
@@ -458,6 +465,7 @@ def evaluate_and_record(
             fold_metrics=[metrics],
             submission_path=f"track1_activity/submissions/{sub_filename}",
             notes=f"OOF RAE={metrics['RAE']:.4f}, canonical (UMAP-only)",
+            on_conflict_replace=True,
         )
     except Exception as exc:  # noqa: BLE001 — DB errors are diverse
         print(
