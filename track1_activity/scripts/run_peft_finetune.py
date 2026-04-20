@@ -258,6 +258,7 @@ def main() -> None:
     study = optuna.create_study(
         direction="minimize",
         pruner=optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=1),
+        sampler=optuna.samplers.TPESampler(seed=42),
     )
     study.optimize(
         lambda t: objective(
