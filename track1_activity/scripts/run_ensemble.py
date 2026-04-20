@@ -133,6 +133,12 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # in PR #95) regressed LB rank 9 -> 10 (RAE 0.5545 -> 0.5565, MAE 0.4414
     # -> 0.4430) despite OOF -0.0087. Classic OOF/LB disconnect. Framework
     # + experiment id=581 stay in DB; just dropped from the allow-list.
+    # 2026-04-20 PM drop: chemprop_relative_aux_umap_default (added in PR
+    # #97) single-model OOF regressed on ALL metrics vs chemprop_optuna
+    # baseline (MAE 0.5208 -> 0.5457, Spearman 0.7252 -> 0.7118). Caruana
+    # confirmed rejection: wt=0, pool MAE unchanged. FMGCL aux on PXR is
+    # falsified; do not revisit this loss family without new evidence.
+    # Framework (losses.py + run_chemprop_relative_aux.py) stays on main.
 )
 
 
