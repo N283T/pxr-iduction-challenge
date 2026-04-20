@@ -139,6 +139,16 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # confirmed rejection: wt=0, pool MAE unchanged. FMGCL aux on PXR is
     # falsified; do not revisit this loss family without new evidence.
     # Framework (losses.py + run_chemprop_relative_aux.py) stays on main.
+    # --- MoLFormer-c3 pretrain embed + TabPFN (1) ---
+    # Transformer-encoder-family analog of tabpfn_chemprop_pretrain_embed.
+    # Same recipe (Buterez 2024 strategy-3: pretrain on log2_fc ->
+    # frozen embedding -> TabPFN) but different backbone family
+    # (MoLFormer-c3 transformer vs chemprop D-MPNN). Single-model OOF
+    # MAE 0.4753 (chemprop version 0.4373, but decorrelation hypothesis
+    # justifies pool addition). Name lacks "_default" suffix because
+    # run_train.py used its 20-trial Optuna default, not --trials 0.
+    # PR #98.
+    "tabpfn_molformer_c3_pretrain_embed_umap",
 )
 
 
