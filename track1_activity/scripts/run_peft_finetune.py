@@ -27,16 +27,16 @@ import optuna  # type: ignore[import-untyped]
 import pandas as pd  # type: ignore[import-untyped]
 import torch  # type: ignore[import-untyped]
 
-from data import load_train_smiles_target, load_test_smiles
-from evaluate import (
+from data import load_train_smiles_target, load_test_smiles  # type: ignore[unresolved-import]
+from evaluate import (  # type: ignore[unresolved-import]
     compute_metrics,
     print_fold_summary,
     print_metrics,
     record_experiment,
     save_oof_predictions,
 )
-from peft_trainer import get_tokenizer, train_one_fold
-from splits import scaffold_split_indices, umap_split_indices
+from peft_trainer import get_tokenizer, train_one_fold  # type: ignore[unresolved-import]
+from splits import scaffold_split_indices, umap_split_indices  # type: ignore[unresolved-import]
 
 SUBMISSION_DIR = Path(__file__).resolve().parent.parent.joinpath("submissions")
 SUBMISSION_DIR.mkdir(parents=True, exist_ok=True)
