@@ -287,6 +287,12 @@ structures/
   2. `run_ensemble_calibrate.py` -> 4-way nested CV -> `ens_caruana_bag20_calibrated_best.csv`
   3. `api.py cooldown` to check 4h window, `api.py submit ...` with `--notes`.
   4. `api.py fetch` after ~30 min to ~2 h to back-fill LB rank/metrics.
+- **No CI in this repo.** There is no GitHub Actions workflow, no `.github/workflows/`,
+  no hosted test runner. Run `pixi run ruff format <file>` + `pixi run ruff check <file>`
+  locally before every commit. `ty check` is **not required** as a gate (competition
+  project, not a library). `gh pr checks <PR>` will report "no checks" — this is
+  expected, not a misconfiguration. When asking the user to merge, say "CI: N/A (no
+  workflow)" rather than reporting failure.
 
 ## Known Issues
 
