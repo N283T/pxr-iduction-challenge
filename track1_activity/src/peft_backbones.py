@@ -29,6 +29,21 @@ BACKBONES: dict[str, dict] = {
         # the trainer recomputes inv_freq + cos/sin cache after from_pretrained.
         "fix_rotary": True,
     },
+    "molformer_c3_1_1b": {
+        "hf_id": "DeepChem/MoLFormer-c3-1.1B",
+        "hidden_dim": 768,
+        "max_length": 202,
+        "trust_remote_code": True,
+        # Architecture identical to ibm/MoLFormer-XL-both-10pct (verified
+        # config.json). The "1.1B" refers to pretrain token count; actual
+        # model is ~80M params. HF auto_map references ibm modeling code,
+        # so trust_remote_code=True pulls from the ibm repo.
+        "lora_target_modules_qv": ["query", "value"],
+        "lora_target_modules_qkvo": ["query", "key", "value", "dense"],
+        # Same rotary embedding bug as ibm/MoLFormer-XL (inherited
+        # architecture); PeftRegressor recomputes inv_freq + cos/sin cache.
+        "fix_rotary": True,
+    },
 }
 
 
