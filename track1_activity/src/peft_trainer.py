@@ -100,7 +100,7 @@ def _predict(
 
 
 def get_tokenizer(backbone_name: str):
-    """Load and cache the tokenizer for a backbone."""
+    """Load the tokenizer for a backbone."""
     meta = get_backbone(backbone_name)
     return AutoTokenizer.from_pretrained(
         meta["hf_id"], trust_remote_code=meta["trust_remote_code"]
@@ -187,6 +187,14 @@ def train_one_fold(
 
         val_preds = _predict(model, val_loader, device)
         val_mae = float(np.mean(np.abs(val_targets - val_preds)))
+
+        if np.isnan(val_mae):
+            del model
+            torch.cuda.empty_cache()
+            raise RuntimeError(
+                f"Val MAE became NaN at epoch {_epoch}. "
+                "Likely diverged training; check learning rate or batch_size."
+            )
 
         if val_mae < best_val_mae:
             best_val_mae = val_mae
