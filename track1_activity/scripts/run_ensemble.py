@@ -159,6 +159,18 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # Single-model OOF MAE 0.4485, Pearson r vs others: chemprop 0.945,
     # molformer_c3 0.918, 2d_full_boltz 0.943. PR <TBD>.
     "tabpfn_kermt_pretrain_embed_umap_default",
+    # --- AttentiveFP pretrain embed + TabPFN ---
+    # Graph-attention family (PyG AttentiveFP pretrained on
+    # single_concentration log2_fc via PR #79 checkpoint, then 512d
+    # readout frozen into TabPFN). Added as decorrelating 12th pool
+    # member. Complements chemprop (D-MPNN), molformer_c3 (transformer),
+    # kermt (graph-transformer). See
+    # docs/superpowers/specs/2026-04-21-attentivefp-pretrain-embed-design.md.
+    # Single-model OOF MAE 0.4844, Pearson r vs existing:
+    # chemprop 0.937, molformer_c3 0.922, 2d_full_boltz 0.941, kermt 0.920.
+    # 12-pool caruana_bag20 OOF MAE 0.4242 (-0.0026 vs 11-pool 0.4268),
+    # attentivefp caruana weight 0.0223. PR <TBD>.
+    "tabpfn_attentivefp_pretrain_embed_umap_default",
 )
 
 
