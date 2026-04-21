@@ -58,11 +58,26 @@ Uni-Mol's deps (DGL, specific pytorch, rdkit<numpy2.0) may conflict with main pi
 - Main pixi env untouched
 - Uni-Mol runs output npz/parquet → main pixi consumes
 
-### Phase 1: ETKDG conformer pre-generation (explicit) + Uni-Mol pretrain on log2_fc
+### Phase 1: ETKDG conformer pre-generation + Uni-Mol pretrain on log2_fc
+
+**ETKDG source optimization (user finding 2026-04-21 evening)**:
+Boltz-2 preprocessing already caches ETKDG pre-diffusion conformers at
+`structures/boltz2/outputs/boltz_results_inputs/processed/mols/<id>.pkl`
+(dict form `{"LIG1": RDKit Mol with 1 conformer}`). 4,652 compounds
+already have cached ETKDG structures — we can reuse them directly.
+Remaining 8,484 compounds (13,136 - 4,652) require fresh ETKDG
+generation via RDKit.
+
+Benefits:
+- Saves ~8 min of ETKDG recomputation
+- **Exact reproducibility** for the Boltz-covered subset (identical ETKDG
+  seed/params to whatever Boltz used internally)
+- Enables clean Path 1 vs Path 2 comparison later (same ETKDG, different
+  final coords)
 
 **Two sub-options**:
 
-**Option A (simpler, default)**: Pass SMILES list to `unimol_tools.MolTrain`. It generates ETKDG conformers internally and handles everything.
+**Option A (simpler, default)**: Pass SMILES list to `unimol_tools.MolTrain`. It generates ETKDG conformers internally and handles everything. Drawback: ignores our cached Boltz ETKDG.
 
 ```python
 from unimol_tools import MolTrain
@@ -82,9 +97,14 @@ clf.fit(data=pretrain_df)
 # Saves checkpoint to ./exp/{timestamp}/
 ```
 
-**Option B (explicit control)**: Generate ETKDG conformers ourselves, pass as dict via `UniMolRepr.get_repr(data={atoms:..., coordinates:...})`. More control but more code.
+**Option B (hybrid, recommended)**: Build a unified conformer bank:
+- Load 4,652 Boltz-cached ETKDG from `processed/mols/<id>.pkl["LIG1"]`
+- Generate 8,484 new ETKDG via `rdkit.Chem.AllChem.EmbedMolecule(mol, AllChem.ETKDGv3())`
+- Pass as dict `{atoms: [...], coordinates: [...]}` to Uni-Mol (custom conformer route)
 
-Start with A.
+**Option C (fully explicit)**: Regenerate all 13,136 ETKDG via RDKit, ignore cached. Safest for uniform reproducibility but wastes ~8 min.
+
+**Recommendation**: **Start with A** (simplest smoke), pivot to **B** (cache reuse) if A works. Skip C unless A+B both fail.
 
 ### Phase 2: Extract CLS representation (frozen)
 
