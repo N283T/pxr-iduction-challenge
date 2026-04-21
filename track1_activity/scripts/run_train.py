@@ -383,6 +383,43 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    if feature_name == "cheme_2d_full_boltz_log2fc_pred":
+        # Chemeleon (300d) + 2d_full_boltz_log2fc_pred (1803d) = 2103d.
+        # Empirically discovered via mix-feature bakeoff 2026-04-21: this
+        # concat is a strict supersede of 2d_full_boltz_log2fc_pred alone
+        # (single-model OOF MAE 0.4234 vs 0.4427). Chemeleon foundation FP
+        # on its own was weak with TabPFN (user-confirmed "iffy"), but
+        # mixed with the 2D/Boltz descriptors it adds complementary signal
+        # that caruana strongly rewards (post-swap 8-pool MAE 0.4181,
+        # cheme_2df alone carries weight 0.388).
+        X_train_base, X_test_base = load_features(
+            "2d_full_boltz_log2fc_pred", train_df, test_df
+        )
+        # Load chemeleon from DB
+        import psycopg2 as _pg
+
+        with _pg.connect(**DB_PARAMS) as conn, conn.cursor() as cur:
+            cur.execute(
+                "SELECT compound_id, embedding FROM compound_chemeleon ORDER BY compound_id"
+            )
+            rows = cur.fetchall()
+        cheme_map = {int(r[0]): np.asarray(r[1], dtype=np.float32) for r in rows}
+        cheme_tr = np.stack(
+            [cheme_map.get(cid, np.zeros(300, dtype=np.float32)) for cid in train_ids]
+        )
+        cheme_te = np.stack(
+            [cheme_map.get(cid, np.zeros(300, dtype=np.float32)) for cid in test_ids]
+        )
+        cheme_tr = np.nan_to_num(cheme_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        cheme_te = np.nan_to_num(cheme_te, nan=0.0, posinf=0.0, neginf=0.0)
+        X_train = np.concatenate([cheme_tr, X_train_base], axis=1)
+        X_test = np.concatenate([cheme_te, X_test_base], axis=1)
+        print(
+            f"  cheme_2d_full_boltz_log2fc_pred: {cheme_tr.shape[1]} chemeleon + "
+            f"{X_train_base.shape[1]} 2df_lf = {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
     if feature_name == "chemprop_pretrain_embed":
         # 256d per-compound fingerprints from MPNN.fingerprint() of the
         # chemprop pretrain checkpoint (track1_activity/checkpoints/
@@ -1405,6 +1442,7 @@ def main():
             "attentivefp_pretrain_embed",
             "gatedgcn_pretrain_embed",
             "2d_full_boltz_log2fc_pred",
+            "cheme_2d_full_boltz_log2fc_pred",
             "3d_ligand",
             "jazzy",
         ]

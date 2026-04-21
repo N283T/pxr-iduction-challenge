@@ -117,9 +117,16 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # tabpfn_2d_full_boltz_umap replaced 2026-04-20 by its
     # log2fc_pred-augmented variant (same 1801 base features + 2
     # predicted log2_fc scalars from the chemprop pretrain model).
-    # OOF MAE 0.4825 -> 0.4429 (-0.04); r=0.975 = strict supersession.
-    # Buterez 2024 strategy-2 (predicted LF labels as side features).
-    "tabpfn_2d_full_boltz_log2fc_pred_umap_default",
+    # 2026-04-21 PM: that 1803-feature variant further superseded by
+    # chemeleon (300d foundation FP) + 2d_full_boltz_log2fc_pred =
+    # 2103d concat, discovered via mix-feature bakeoff. Same feature
+    # universe but with chemeleon's foundation-model signal stacked in.
+    # Single-model OOF MAE 0.4427 -> 0.4213 (Δ -0.021, strict
+    # supersession). Post-swap 8-pool caruana MAE 0.4181 (Δ -0.0065
+    # vs 0.4246) with cheme_2df carrying caruana weight 0.388 (pool-top).
+    # Chemeleon alone with TabPFN was empirically iffy, but mixed with
+    # the 2D/Boltz descriptors it adds decorrelating signal.
+    "tabpfn_cheme_2d_full_boltz_log2fc_pred_umap_default",
     # TabPFN on chemprop pretrain encoder fingerprint (256d).
     # Buterez 2024 strategy-3 (LF embedding as side feature).
     # OOF MAE 0.4373 / Spearman 0.8102 -- pool single-best.
