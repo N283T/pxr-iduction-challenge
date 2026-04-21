@@ -49,11 +49,15 @@ The blocker is that existing Boltz-2 trunk embeddings cover only 4,653 compounds
   - `s` (per-residue/atom single representation, ~434 prot + ligand_atoms tokens × 384 dim)
   - `z` (pair representation, tokens × tokens × 128 dim)
 
-- Apply existing pooling (`track1_activity/scripts/boltz_affhead/01_pool_embeddings.py`-style) to derive the same 1024d feature schema:
+- Apply existing `all_pairs` pooling (`track1_activity/scripts/boltz_affhead/01b_pool_embeddings_allpairs.py`-style) to derive the 1024d feature schema:
   - `s_prot_mean` (384) — mean over 434 PXR residue tokens
   - `s_lig_mean` (384) — mean over ligand atom tokens
-  - `z_if_mean` (128) — mean over (core_pocket × ligand_atoms)
+  - `z_if_mean` (128) — mean over (core_pocket × ligand_atoms) — **all_pairs variant used, not interaction-only**
   - `z_if_max` (128) — max over same
+
+**Pool variant note**: The Boltz-2 paper's affinity module masks out intra-protein pairs in MeanPool (Appendix B.5). We previously tested both `all_pairs` and the paper's interaction-only-masked pooling in PR #74 (memory: `project_boltz2_trunk_pool_retarget`) — **`all_pairs` was empirically better**, so we stick with it here.
+
+**Recycling choice**: Paper uses rcycle=5 during training. We commit to **rcycle=1** for the 8,483 new compounds (quality-for-speed tradeoff). Rationale: PXR LBD has abundant PDB coverage, so the trunk is well-trained on this target and should generalize even with reduced recycling. Skipping an explicit rcycle quality A/B per user decision.
 
 ### Phase 2: New DB table `compound_boltz2_trunk_fast`
 
@@ -76,28 +80,34 @@ For train+test (4,653 compounds) we **reuse existing `compound_boltz2` + pooled.
 
 ### Phase 3: MLP pretrain on log2_fc (Buterez strategy-3 core)
 
-Architecture variants to try (user: "MLP は色々試す"):
+Architecture variants to try (paper-aligned ordering):
 
 ```
-Variant A (baseline, simple):
+Variant A (baseline, simple MLP):
   Linear(1024 → 256) → GELU → Dropout → Linear(256 → 2)
 
-Variant B (wider):
+Variant B (wider MLP):
   Linear(1024 → 512) → GELU → Dropout → Linear(512 → 256) → GELU → Dropout → Linear(256 → 2)
 
-Variant C (attention):
-  Linear(1024 → 256) → LayerNorm → Self-Attention(heads=4) → Linear(256 → 256) → GELU → Linear(256 → 2)
+Variant C (PairFormer-inspired, paper-aligned):
+  Linear(1024 → 256) → LayerNorm → TransformerBlock(heads=4, layers=2) → Linear(256 → 256) → GELU → Linear(256 → 2)
 ```
 
+**Variant C is paper-aligned** (Boltz-2 affinity module uses PairFormer-style attention). Expected to be strongest; A/B serve as lower-bound baselines and quick sanity checks.
+
 Training:
-- Data: 13,136 compounds × 1024d Boltz trunk
+- Data: 13,136 compounds × 1024d Boltz trunk (mixed quality: 4,653 at rcycle=3, 8,483 at rcycle=1)
 - Targets: [log2fc_8p25, log2fc_33] (z-scored, NaN-masked MSE)
 - Split: 90/10 random (seed=42)
 - Optimizer: AdamW, lr 1e-3 (MLP) or 3e-4 (attention)
 - Epochs: 50 max, early stop patience 10 on val_loss
 - Batch size: 256 (fits easily in 16GB VRAM for MLP)
 
-Pick the variant with best val_loss **that also has distinct enough penultimate representation** to be useful downstream. Quick sanity check: TabPFN OOF MAE on a 2-fold smoke test before committing to 5-fold.
+**Final member choice options**:
+- Pick single best variant by val_loss
+- OR ensemble average of A + B + C outputs (paper uses 2-member PairFormer ensemble, inspiration for this option)
+
+Quick sanity check before committing to 5-fold TabPFN: run 2-fold smoke test on the chosen variant's embedding.
 
 ### Phase 4: Extract frozen embedding
 
@@ -206,9 +216,22 @@ Phase 5: TabPFN + ensemble (~30-45 min)
   - Morning: Phase 2-4 execution
   - Afternoon: Phase 5 + PR + LB submission
 
+## Notes from Boltz-2 paper reading (2026-04-21)
+
+Relevant findings from `docs/papers/boltz2_affinity_notes.md` that informed this spec:
+
+1. **Trunk gradient detached in affinity module training** — paper explicitly trains affinity with frozen trunk. Direct support for our strategy-3 (frozen + MLP on top).
+2. **Affinity module architecture is PairFormer-style** (not simple MLP) — motivates Variant C as paper-aligned.
+3. **Affinity head pooling masks out intra-protein pairs** (MeanPool over protein_ligand + intra_ligand only). We tested this pool variant in PR #74 and **`all_pairs` was better on PXR** — so we keep existing pool.
+4. **Paper uses rcycle=5 during training**; our rcycle=1 for the new 8,483 compounds is aggressive. Accepted per user (PXR has abundant PDB structure coverage).
+5. **ChEMBL-based affinity training may contain PXR assays** — leakage risk acknowledged but accepted: (a) our pool uses Boltz trunk (not affinity output) so leakage is less direct; (b) competition test is Enamine synthetic, which Boltz's affinity training didn't see.
+6. **Affinity_pred_value × linear vs pEC50 already tested** (user: "2d_full_boltz の形が一番良かった") — no separate baseline needed.
+7. **binding_likelihood × affinity_value interaction term**: already implicitly available via existing `2d_full_boltz` tier-0 features (both columns concat'd) + TabPFN non-linearity. Adding the explicit product as a feature is redundant.
+
 ## Out of scope (future PRs)
 
 - **Uni-Mol v2 on ETKDG+Boltz-pose hybrid** — explicit follow-up, different architecture
 - **Add affinity-head finetune alongside log2_fc pretrain** — could stack
 - **Cross-attention encoder (Boltz trunk × 2d_full_boltz) → hidden** — transformer-style mix, ambitious
 - **Re-run existing 4,653 at rcycle=1** — only if mixed-quality issue is empirically observed
+- **paper-style interaction-only pooling** — already tested negative in PR #74, do not revisit
