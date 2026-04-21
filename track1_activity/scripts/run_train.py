@@ -124,6 +124,7 @@ DEFAULT_PARAMS = {
         "device": "cuda",
         "softmax_temperature": 0.9,
         "random_state": 42,
+        "ignore_pretraining_limits": True,
     },
 }
 
