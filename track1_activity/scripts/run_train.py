@@ -492,13 +492,18 @@ def load_features(feature_name: str, train_df, test_df):
         return X_train, X_test
 
     if feature_name == "gatedgcn_pretrain_embed":
-        # 128d graph-pooled embedding from PyG ResGatedGraphConv stack
+        # 512d graph-pooled embedding from PyG ResGatedGraphConv stack
         # pretrained on single_concentration log2_fc (2-head, z-scored
-        # targets). Extracted by replacing GatedGCNModel.ffn with
-        # nn.Identity() so forward returns the global_mean_pool output.
+        # targets, hidden_dim=512, batch=64). Extracted by replacing
+        # GatedGCNModel.ffn with nn.Identity() so forward returns the
+        # global_mean_pool output.
         # See: track1_activity/scripts/run_gatedgcn_embed_extract.py
         # Buterez 2024 strategy-3 with gated edge-conditioned message
         # passing backbone (fifth pretrain-embed family member).
+        # Note: PR #79 h128 checkpoint (val_loss 0.7394) was upgraded to
+        # h512 (val_loss 0.7478) to bring single-model OOF MAE from
+        # 0.4902 to 0.4740. h128 backup retained at
+        # checkpoints/gatedgcn_pretrain/pretrain_h128.pt.
         embed_path = REPO_ROOT.joinpath("data", "gatedgcn_pretrain_embed.parquet")
         if not embed_path.exists():
             raise SystemExit(

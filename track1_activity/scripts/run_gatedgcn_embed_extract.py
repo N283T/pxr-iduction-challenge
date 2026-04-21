@@ -1,14 +1,14 @@
-"""Extract 128d per-compound graph-pooled embeddings from the GatedGCN
+"""Extract 512d per-compound graph-pooled embeddings from the GatedGCN
 pretrain checkpoint.
 
 Phase 2 of Buterez 2024 strategy-3 for GatedGCN. Loads the pretrain
 checkpoint produced by run_gatedgcn_pretrain_finetune.py --phase
 pretrain, replaces the FFN head with nn.Identity() so forward returns
-the 128d global_mean_pool output (post-conv stack, pre-FFN), then
+the 512d global_mean_pool output (post-conv stack, pre-FFN), then
 batch-extracts embeddings for all 13,136 compounds.
 
 Output: data/gatedgcn_pretrain_embed.parquet (index=compound_id,
-columns=emb_0000..emb_0127, float32).
+columns=emb_0000..emb_0511, float32).
 
 Usage:
     pixi run python track1_activity/scripts/run_gatedgcn_embed_extract.py
@@ -95,7 +95,7 @@ def load_model() -> GatedGCNModel:
             f"unexpected={result.unexpected_keys}"
         )
 
-    # Replace the FFN head with Identity so forward returns the 128d
+    # Replace the FFN head with Identity so forward returns the 512d
     # global_mean_pool output (post-conv stack, pre-FFN projection).
     model.ffn = nn.Identity()
 
