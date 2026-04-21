@@ -149,6 +149,16 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # run_train.py used its 20-trial Optuna default, not --trials 0.
     # PR #98.
     "tabpfn_molformer_c3_pretrain_embed_umap",
+    # --- KERMT/GROVER pretrain embed + TabPFN ---
+    # Graph-transformer family (continued-pretrain of GROVER_base on
+    # single_concentration log2_fc, frozen, then TabPFN with
+    # ignore_pretraining_limits=True for 3200d). Added as a
+    # decorrelating 11th pool member. Previous pretrain-embed backbones:
+    # chemprop (GNN) and MoLFormer-c3 (transformer). See
+    # docs/superpowers/specs/2026-04-21-kermt-grover-pretrain-embed-design.md.
+    # Single-model OOF MAE 0.4485, Pearson r vs others: chemprop 0.945,
+    # molformer_c3 0.918, 2d_full_boltz 0.943. PR <TBD>.
+    "tabpfn_kermt_pretrain_embed_umap_default",
 )
 
 

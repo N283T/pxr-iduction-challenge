@@ -124,6 +124,7 @@ DEFAULT_PARAMS = {
         "device": "cuda",
         "softmax_temperature": 0.9,
         "random_state": 42,
+        "ignore_pretraining_limits": True,
     },
 }
 
@@ -429,6 +430,36 @@ def load_features(feature_name: str, train_df, test_df):
         X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
         print(
             f"  molformer_c3_pretrain_embed: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
+    if feature_name == "kermt_pretrain_embed":
+        # 3200d per-compound graph embedding from KERMT (GROVER_base)
+        # after continued-pretrain on single_concentration log2_fc.
+        # Dims = 4 GROVER heads (atom_from_atom, atom_from_bond,
+        # bond_from_atom, bond_from_bond) x hidden=800 with
+        # --fingerprint_source both.
+        # See:
+        #   track1_activity/scripts/run_kermt_pretrain.sh
+        #   track1_activity/scripts/run_kermt_embed_extract.sh
+        #   track1_activity/scripts/kermt_embed_npz_to_parquet.py
+        # Buterez 2024 strategy-3 with a graph-transformer backbone
+        # (parallel to chemprop_pretrain_embed = GNN,
+        # molformer_c3_pretrain_embed = transformer).
+        embed_path = REPO_ROOT.joinpath("data", "kermt_pretrain_embed.parquet")
+        if not embed_path.exists():
+            raise SystemExit(
+                f"Missing {embed_path}. Run "
+                f"track1_activity/scripts/kermt_embed_npz_to_parquet.py"
+            )
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(
+            f"  kermt_pretrain_embed: {X_train.shape[1]} dims "
             f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
         )
         return X_train, X_test
@@ -1313,6 +1344,7 @@ def main():
             "pooled_boltz_allpairs",
             "chemprop_pretrain_embed",
             "molformer_c3_pretrain_embed",
+            "kermt_pretrain_embed",
             "2d_full_boltz_log2fc_pred",
             "3d_ligand",
             "jazzy",

@@ -85,3 +85,9 @@ track1_activity/mordred_feature_importance.json
 
 # uv lockfile (project uses pixi)
 uv.lock
+
+# KERMT pipeline artifacts (weights + CSVs + embed parquet)
+models/kermt/*
+!models/kermt/README.md
+data/kermt/
+data/kermt_pretrain_embed.parquet
