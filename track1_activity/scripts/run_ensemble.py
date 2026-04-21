@@ -99,13 +99,20 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     #     signal insufficient to compensate for redundancy)
     # All three had caruana weights 0.03-0.06 (combined ~0.13 share).
     # Pool size 12 -> 9.
-    # --- DL molecular graph (4) ---
-    "chemprop_optuna_umap",  # D-MPNN, pool-top by weight
-    "chemprop_chemeleon_umap",  # CheMeleon foundation finetune
-    "attentivefp_optuna_umap",
-    # gatedgcn_optuna_umap replaced 2026-04-19 by its pretrain+frozen variant
-    # (OOF MAE 0.5464 -> 0.5077, r=0.924 = strict supersede).
-    "gatedgcn_pretrain_finetune_frozen_umap",  # pretrain+frozen upgrade
+    # 2026-04-21 PM drop: 4 direct-GNN members all at caruana weight=0
+    # in the post-GatedGCN 12-pool. Each was redundant with its
+    # pretrain-embed sibling (chemprop_optuna/chemeleon vs
+    # tabpfn_chemprop_pretrain_embed, attentivefp_optuna vs
+    # tabpfn_attentivefp_pretrain_embed, gatedgcn_pretrain_finetune_frozen
+    # vs tabpfn_gatedgcn_pretrain_embed). Bakeoff showed removing all 4
+    # together IMPROVES OOF (-0.0005), whereas keeping any single member
+    # REGRESSED (+0.002) -- caruana's bagged search is non-monotone in
+    # partial-direct-GNN presence. Framework + DB experiments stay;
+    # dropped from allow-list only. Pool size 12 -> 8.
+    #   chemprop_optuna_umap (dropped)
+    #   chemprop_chemeleon_umap (dropped)
+    #   attentivefp_optuna_umap (dropped)
+    #   gatedgcn_pretrain_finetune_frozen_umap (dropped)
     # --- Foundation tabular (2) ---
     # tabpfn_2d_full_boltz_umap replaced 2026-04-20 by its
     # log2fc_pred-augmented variant (same 1801 base features + 2
