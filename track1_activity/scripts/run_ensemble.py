@@ -119,14 +119,18 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # Correlated r=0.962 with the log2fc_pred variant above (both
     # carry pretrain signal), caruana spreads weight between them.
     "tabpfn_chemprop_pretrain_embed_umap_default",
-    # --- Boltz trunk embedding pool (3) ---
+    # --- Boltz trunk embedding pool (2) ---
     # 1024-dim pooled trunk embeddings (s_prot_mean 384 + s_lig_mean 384 +
-    # z_interface_mean/max 128+128). Three variants: LGBM Optuna tuned (core
-    # pocket), TabPFN default on core pocket, TabPFN default on all protein
-    # x ligand pairs. Single OOF MAEs: 0.5116 / 0.4861 / 0.4860.
-    # Inter-correlation 0.96-0.99, so they only add diversity via
+    # z_interface_mean/max 128+128). Two TabPFN variants retained: core
+    # pocket and all protein x ligand pairs. Single OOF MAEs: 0.4861 /
+    # 0.4860. Inter-correlation 0.96-0.99, so they only add diversity via
     # Caruana-style weight spreading.
-    "lgbm_pooled_boltz_umap",
+    # 2026-04-21 PM drop: lgbm_pooled_boltz_umap (MAE 0.5116, wt 0.011)
+    # swapped out for tabpfn_gatedgcn_pretrain_embed_umap_default in the
+    # h512 GatedGCN PR. LGBM variant was largely redundant with the TabPFN
+    # variant on the same feature; bakeoff showed swap is the lowest-
+    # regression way to seat GatedGCN embed (MAE 0.4251, Δ +0.0009, within
+    # fold std 0.027 = noise). Framework stays in the DB and run_train.py.
     "tabpfn_pooled_boltz_umap_default",
     "tabpfn_pooled_boltz_allpairs_umap_default",
     # 2026-04-20 PM drop: peft_molformer_xl_lora_r32a64_umap_default (added
@@ -169,8 +173,22 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # Single-model OOF MAE 0.4844, Pearson r vs existing:
     # chemprop 0.937, molformer_c3 0.922, 2d_full_boltz 0.941, kermt 0.920.
     # 12-pool caruana_bag20 OOF MAE 0.4242 (-0.0026 vs 11-pool 0.4268),
-    # attentivefp caruana weight 0.0223. PR <TBD>.
+    # attentivefp caruana weight 0.0223. PR #104.
     "tabpfn_attentivefp_pretrain_embed_umap_default",
+    # --- GatedGCN pretrain embed + TabPFN (h512, added via swap) ---
+    # Gated edge-conditioned message-passing family (PyG ResGatedGraphConv
+    # pretrained on single_concentration log2_fc, hidden_dim=512,
+    # batch=64, 74 epochs until early stop, val_loss 0.7478). 512d
+    # global_mean_pool frozen into TabPFN. Single-model OOF MAE 0.4740
+    # (h128 was 0.4902; re-pretrain with 4x hidden bought -0.016).
+    # Pearson r vs existing: chemprop 0.941, molformer_c3 0.912
+    # (decorrelation champion), 2d_full_boltz 0.941, kermt 0.941,
+    # attentivefp 0.934. Caruana weight 0.036 in the swap config.
+    # Added via swap with lgbm_pooled_boltz_umap (12->12 members).
+    # 12-pool MAE 0.4251 (+0.0009 vs 0.4242 = noise-level within fold
+    # std 0.027). See
+    # docs/superpowers/specs/2026-04-21-gatedgcn-pretrain-embed-design.md.
+    "tabpfn_gatedgcn_pretrain_embed_umap_default",
 )
 
 
