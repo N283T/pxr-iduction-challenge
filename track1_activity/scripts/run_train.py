@@ -491,6 +491,31 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    if feature_name == "gatedgcn_pretrain_embed":
+        # 128d graph-pooled embedding from PyG ResGatedGraphConv stack
+        # pretrained on single_concentration log2_fc (2-head, z-scored
+        # targets). Extracted by replacing GatedGCNModel.ffn with
+        # nn.Identity() so forward returns the global_mean_pool output.
+        # See: track1_activity/scripts/run_gatedgcn_embed_extract.py
+        # Buterez 2024 strategy-3 with gated edge-conditioned message
+        # passing backbone (fifth pretrain-embed family member).
+        embed_path = REPO_ROOT.joinpath("data", "gatedgcn_pretrain_embed.parquet")
+        if not embed_path.exists():
+            raise SystemExit(
+                f"Missing {embed_path}. Run "
+                f"track1_activity/scripts/run_gatedgcn_embed_extract.py"
+            )
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(
+            f"  gatedgcn_pretrain_embed: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
     if feature_name == "pooled_boltz":
         # Pooled Boltz-2 trunk embeddings (1024 features):
         #   s_prot_mean (384) -- global mean of s over 434 PXR residue tokens
@@ -1373,6 +1398,7 @@ def main():
             "molformer_c3_pretrain_embed",
             "kermt_pretrain_embed",
             "attentivefp_pretrain_embed",
+            "gatedgcn_pretrain_embed",
             "2d_full_boltz_log2fc_pred",
             "3d_ligand",
             "jazzy",
