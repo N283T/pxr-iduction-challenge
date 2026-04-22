@@ -622,6 +622,10 @@ def load_features(feature_name: str, train_df, test_df):
             "slig": ["s_lig_mean"],
             "zmean": ["z_xp_mean"],
             "zmax": ["z_xp_max"],
+            # 896d: full 1024d minus z_xp_max (ablation showed z_xp_max is
+            # ~noise -- solo MAE 0.5755, the worst single component). Drop
+            # it as a quick de-noising experiment.
+            "nozmax": ["s_prot_mean", "s_lig_mean", "z_xp_mean"],
         }
         if subset not in prefix_sets:
             raise SystemExit(
@@ -1590,6 +1594,7 @@ def main():
             "pooled_boltz_ab_slig",
             "pooled_boltz_ab_zmean",
             "pooled_boltz_ab_zmax",
+            "pooled_boltz_ab_nozmax",
             "2d_full_boltz_log2fc_pred",
             "cheme_2d_full_boltz_log2fc_pred",
             "3d_ligand",
