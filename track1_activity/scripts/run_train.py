@@ -558,6 +558,139 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    if feature_name.startswith("boltz_trunk_pretrain_embed_"):
+        # 256d embedding from the Boltz-2 trunk MLP pretrain head
+        # (Buterez 2024 strategy-3 on the Boltz backbone, issue #109).
+        # Variant suffix: _a simple MLP, _b wider MLP, _c PairFormer-inspired
+        # transformer over 4 pooled tokens (s_prot / s_lig / z_mean / z_max).
+        # Input = 13134-compound 1024d all-pairs pooled trunk vectors
+        # (4652 rcycle=3 from the original full run + 8482 rcycle=1 from the
+        # fast embeddings-only run) stored in compound_boltz2_trunk_fast.
+        # See:
+        #   track1_activity/scripts/boltz_affhead/09_mlp_pretrain.py
+        #   track1_activity/scripts/boltz_affhead/09b_extract_embed.py
+        # Sixth pretrain-embed family member (parallel to chemprop D-MPNN,
+        # molformer transformer, kermt graph-transformer, attentivefp
+        # graph-attention, gatedgcn gated-MPNN) and the first with explicit
+        # protein-ligand structural context.
+        # Suffix after "boltz_trunk_pretrain_embed_" maps directly to the
+        # parquet filename: "a", "b", "c", or "b_first" (B's 512d
+        # intermediate). Variant letter is the first token.
+        suffix = feature_name[len("boltz_trunk_pretrain_embed_") :]
+        variant = suffix.split("_", 1)[0]
+        embed_path = REPO_ROOT.joinpath(
+            "data", f"boltz_trunk_pretrain_embed_{suffix}.parquet"
+        )
+        if not embed_path.exists():
+            raise SystemExit(
+                f"Missing {embed_path}. Run "
+                f"track1_activity/scripts/boltz_affhead/09b_extract_embed.py "
+                f"--variant {variant}"
+            )
+        emb_df = pd.read_parquet(embed_path).set_index("compound_id")
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        # Coverage caveat: 01576 / 01657 / 03840 are Boltz preprocessing
+        # failures absent from compound_boltz2_trunk_fast and will show up
+        # here as NaN rows. Fill with column means so TabPFN has well-
+        # defined rows (same convention as pooled_boltz below).
+        col_means_train = np.nanmean(X_train, axis=0)
+        col_means_train = np.where(np.isfinite(col_means_train), col_means_train, 0.0)
+        X_train = np.where(np.isfinite(X_train), X_train, col_means_train)
+        X_test = np.where(np.isfinite(X_test), X_test, col_means_train)
+        print(
+            f"  {feature_name}: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
+    if feature_name.startswith("pooled_boltz_ab_"):
+        # Ablation subsets of the raw all-pairs pooled trunk. Suffix:
+        #   sonly  = s_prot_mean + s_lig_mean      (768d)
+        #   zonly  = z_xp_mean + z_xp_max          (256d)
+        #   sprot  = s_prot_mean                   (384d)
+        #   slig   = s_lig_mean                    (384d)
+        #   zmean  = z_xp_mean                     (128d)
+        #   zmax   = z_xp_max                      (128d)
+        # Used to diagnose which component(s) of the 1024d trunk carry
+        # the downstream signal. s/z ablation (option 7) per issue #109.
+        subset = feature_name[len("pooled_boltz_ab_") :]
+        prefix_sets = {
+            "sonly": ["s_prot_mean", "s_lig_mean"],
+            "zonly": ["z_xp_mean", "z_xp_max"],
+            "sprot": ["s_prot_mean"],
+            "slig": ["s_lig_mean"],
+            "zmean": ["z_xp_mean"],
+            "zmax": ["z_xp_max"],
+        }
+        if subset not in prefix_sets:
+            raise SystemExit(
+                f"Unknown pooled_boltz_ab subset '{subset}'. Choices: {list(prefix_sets)}"
+            )
+        raw_path = REPO_ROOT.joinpath(
+            "data", "boltz_affhead", "pooled_allpairs.parquet"
+        )
+        if not raw_path.exists():
+            raise SystemExit(f"Missing {raw_path}")
+        raw_df = pd.read_parquet(raw_path).set_index("compound_id")
+        keep_cols = [
+            c
+            for c in raw_df.columns
+            if any(c.startswith(p) for p in prefix_sets[subset])
+        ]
+        sub_df = raw_df[keep_cols]
+
+        def _sub_matrix(ids):
+            X = sub_df.reindex(index=ids).to_numpy(dtype=np.float32).copy()
+            col_mean = np.nanmean(X, axis=0)
+            col_mean = np.where(np.isfinite(col_mean), col_mean, 0.0)
+            X[~np.isfinite(X)] = np.broadcast_to(col_mean, X.shape)[~np.isfinite(X)]
+            return X
+
+        X_train = _sub_matrix(train_ids)
+        X_test = _sub_matrix(test_ids)
+        print(
+            f"  {feature_name}: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
+    if feature_name == "boltz_raw_plus_pretrain_concat":
+        # Hybrid: concat raw all-pairs pooled trunk (1024d) with the
+        # pretrained concat-pool embedding (1024d) -> 2048d for TabPFN.
+        # Rationale: C-concat beat raw by MAE -0.0009, so each side has
+        # marginal unique signal; join them rather than swap.
+        raw_path = REPO_ROOT.joinpath(
+            "data", "boltz_affhead", "pooled_allpairs.parquet"
+        )
+        pre_path = REPO_ROOT.joinpath(
+            "data", "boltz_trunk_pretrain_embed_c_concat.parquet"
+        )
+        if not raw_path.exists():
+            raise SystemExit(f"Missing {raw_path}")
+        if not pre_path.exists():
+            raise SystemExit(f"Missing {pre_path}")
+        raw_df = pd.read_parquet(raw_path).set_index("compound_id")
+        pre_df = pd.read_parquet(pre_path).set_index("compound_id")
+
+        def _concat_matrix(ids):
+            Xraw = raw_df.reindex(index=ids).to_numpy(dtype=np.float32).copy()
+            Xpre = pre_df.reindex(index=ids).to_numpy(dtype=np.float32).copy()
+            # Column-mean fill for NaN rows (same convention as pooled_boltz)
+            for X in (Xraw, Xpre):
+                col_mean = np.nanmean(X, axis=0)
+                col_mean = np.where(np.isfinite(col_mean), col_mean, 0.0)
+                X[~np.isfinite(X)] = np.broadcast_to(col_mean, X.shape)[~np.isfinite(X)]
+            return np.concatenate([Xraw, Xpre], axis=1)
+
+        X_train = _concat_matrix(train_ids)
+        X_test = _concat_matrix(test_ids)
+        print(
+            f"  boltz_raw_plus_pretrain_concat: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
     if feature_name == "pooled_boltz":
         # Pooled Boltz-2 trunk embeddings (1024 features):
         #   s_prot_mean (384) -- global mean of s over 434 PXR residue tokens
@@ -1441,6 +1574,22 @@ def main():
             "kermt_pretrain_embed",
             "attentivefp_pretrain_embed",
             "gatedgcn_pretrain_embed",
+            "boltz_trunk_pretrain_embed_a",
+            "boltz_trunk_pretrain_embed_b",
+            "boltz_trunk_pretrain_embed_b_first",
+            "boltz_trunk_pretrain_embed_c",
+            "boltz_trunk_pretrain_embed_c_h512",
+            "boltz_trunk_pretrain_embed_c_h1024",
+            "boltz_trunk_pretrain_embed_c_concat",
+            "boltz_trunk_pretrain_embed_c_concat_t8p25",
+            "boltz_trunk_pretrain_embed_c_cls",
+            "boltz_raw_plus_pretrain_concat",
+            "pooled_boltz_ab_sonly",
+            "pooled_boltz_ab_zonly",
+            "pooled_boltz_ab_sprot",
+            "pooled_boltz_ab_slig",
+            "pooled_boltz_ab_zmean",
+            "pooled_boltz_ab_zmax",
             "2d_full_boltz_log2fc_pred",
             "cheme_2d_full_boltz_log2fc_pred",
             "3d_ligand",

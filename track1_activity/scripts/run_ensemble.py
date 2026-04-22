@@ -203,6 +203,23 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # std 0.027). See
     # docs/superpowers/specs/2026-04-21-gatedgcn-pretrain-embed-design.md.
     "tabpfn_gatedgcn_pretrain_embed_umap_default",
+    # --- Boltz strategy-3 raw+pretrain concat (issue #109, 2026-04-22) ---
+    # 2048d = raw all-pairs pooled (1024d) + pretrained C-concat embed
+    # (1024d) concatenated at feature time. Single-model OOF MAE 0.4818
+    # (new best for Boltz-family, beats raw's 0.4859).
+    # Bakeoff (10_pool_bakeoff.py): ADD as 9th member alone regresses
+    # the pool (+0.0010 MAE) due to redundancy with raw pooled_boltz_*.
+    # Pairing with c_concat below yields the unique winning config
+    # (ADD-both, -0.0004 MAE, +0.0002 Spearman vs 8-pool baseline).
+    "tabpfn_boltz_raw_plus_pretrain_concat_umap_default",
+    # --- Boltz strategy-3 pretrain-only C-concat (issue #109, 2026-04-22) ---
+    # 1024d = 4 tokens × 256d after PairFormer-inspired transformer over
+    # (s_prot / s_lig / z_mean / z_max), concat-pooled (no compression).
+    # Single-model OOF MAE 0.4850, Spearman 0.7612. Correlates highly
+    # with raw_plus_pretrain_concat (both derive from the same Boltz
+    # trunk) but caruana extracts decorrelating signal when BOTH are
+    # added together (see 10_pool_bakeoff.py add_both variant).
+    "tabpfn_boltz_trunk_pretrain_embed_c_concat_umap_default",
 )
 
 
