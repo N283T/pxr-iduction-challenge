@@ -203,6 +203,29 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # std 0.027). See
     # docs/superpowers/specs/2026-04-21-gatedgcn-pretrain-embed-design.md.
     "tabpfn_gatedgcn_pretrain_embed_umap_default",
+    # --- top500 LGBM-selected TabPFN (2026-04-22 evening) ---
+    # Same feature base as cheme_2d_full_boltz_log2fc_pred (2103d) but
+    # reduced to top-500 features per-fold via LGBM gain. Per-fold
+    # selection = leak-free. Single-model OOF MAE 0.4181 vs production
+    # baseline 0.4212 (Δ -0.0031) -- strict supersession on all metrics.
+    # Bakeoff (16_pool_bakeoff_top500.py, add_top500_drop_both_boltz_strategy3):
+    # 9-pool ADD top500 + DROP c_concat + DROP raw_plus_pretrain_concat
+    # delivered caruana OOF MAE 0.4150 (-0.0031 vs 10-pool baseline 0.4181),
+    # top500 caruana weight 0.2427 (pool-top). The Boltz-strategy-3 pair
+    # we added this afternoon was net +0.0004 weak-signal; top500 fully
+    # displaces them.
+    # Mechanism: TabPFN v7 is pretrained on d<=500, and manual LGBM-gain
+    # feature selection outperforms TabPFN's internal random subsampling
+    # when fed large-d inputs.
+    "tabpfn_cheme_2d_full_boltz_log2fc_pred_top500_umap",
+    # --- Mixed-source top-500 (2026-04-23 深夜) ---
+    # 7-source concatenated 8375d mega-feature → per-fold LGBM gain top-500
+    # → TabPFN. Single-model OOF MAE 0.4113 = historical best (beats
+    # cheme_2df_top500 0.4179 and even current caruana ensemble 0.4150).
+    # Source attribution: KERMT 42% / cheme_2df 15% / pooled_boltz 14% /
+    # molformer 14% / gatedgcn 7% / attentivefp 5% / chemprop 3%.
+    # Unlocks multi-source synergy that single-source top-K misses.
+    "tabpfn_mixed_pool_top500_umap",
 )
 
 
