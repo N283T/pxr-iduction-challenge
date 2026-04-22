@@ -383,6 +383,59 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    if feature_name == "cconcat_2d_full_boltz_log2fc_pred":
+        # SWAP: replace chemeleon (300d) with Boltz C-concat pretrain embed
+        # (1024d) in the cheme_2df recipe. Tests whether TabPFN benefits
+        # mainly from Boltz-trunk-pretrained dims vs chemeleon's foundation
+        # FP dims. Expected ambiguous: chemeleon is ZINC-scale decorrelating
+        # signal, C-concat is Boltz-family (high redundancy with 2d_full_boltz
+        # tier-0/1). Quick ablation per 2026-04-22 evening.
+        X_train_base, X_test_base = load_features(
+            "2d_full_boltz_log2fc_pred", train_df, test_df
+        )
+        embed_path = REPO_ROOT.joinpath(
+            "data", "boltz_trunk_pretrain_embed_c_concat.parquet"
+        )
+        emb_df = pd.read_parquet(embed_path).set_index("compound_id")
+        c_tr = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        c_te = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        for X in (c_tr, c_te):
+            cm = np.nanmean(X, axis=0)
+            cm = np.where(np.isfinite(cm), cm, 0.0)
+            X[~np.isfinite(X)] = np.broadcast_to(cm, X.shape)[~np.isfinite(X)]
+        X_train = np.concatenate([c_tr, X_train_base], axis=1)
+        X_test = np.concatenate([c_te, X_test_base], axis=1)
+        print(
+            f"  cconcat_2d_full_boltz_log2fc_pred: {c_tr.shape[1]} c_concat + "
+            f"{X_train_base.shape[1]} 2df_lf = {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
+    if feature_name == "cheme_cconcat_2d_full_boltz_log2fc_pred":
+        # ADD: chemeleon (300d) + C-concat (1024d) + 2d_full_boltz_log2fc_pred
+        # (1803d) = 3127d. Tests if both foundation FPs stack (they're from
+        # different pretrain corpora: ZINC vs PXR single_conc log2_fc).
+        X_train_base, X_test_base = load_features(
+            "cheme_2d_full_boltz_log2fc_pred", train_df, test_df
+        )
+        embed_path = REPO_ROOT.joinpath(
+            "data", "boltz_trunk_pretrain_embed_c_concat.parquet"
+        )
+        emb_df = pd.read_parquet(embed_path).set_index("compound_id")
+        c_tr = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        c_te = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        for X in (c_tr, c_te):
+            cm = np.nanmean(X, axis=0)
+            cm = np.where(np.isfinite(cm), cm, 0.0)
+            X[~np.isfinite(X)] = np.broadcast_to(cm, X.shape)[~np.isfinite(X)]
+        X_train = np.concatenate([c_tr, X_train_base], axis=1)
+        X_test = np.concatenate([c_te, X_test_base], axis=1)
+        print(
+            f"  cheme_cconcat_2d_full_boltz_log2fc_pred: {c_tr.shape[1]} c_concat + "
+            f"{X_train_base.shape[1]} cheme_2df_lf = {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
     if feature_name == "cheme_2d_full_boltz_log2fc_pred":
         # Chemeleon (300d) + 2d_full_boltz_log2fc_pred (1803d) = 2103d.
         # Empirically discovered via mix-feature bakeoff 2026-04-21: this
@@ -1597,6 +1650,8 @@ def main():
             "pooled_boltz_ab_nozmax",
             "2d_full_boltz_log2fc_pred",
             "cheme_2d_full_boltz_log2fc_pred",
+            "cconcat_2d_full_boltz_log2fc_pred",
+            "cheme_cconcat_2d_full_boltz_log2fc_pred",
             "3d_ligand",
             "jazzy",
         ]
