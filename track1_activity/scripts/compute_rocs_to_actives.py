@@ -120,6 +120,12 @@ def query_one(
             cid = idx_to_cid.get(result.GetMolIdx())
             if cid is None:
                 continue
+            # Skip self-match: when target_id == query_id the overlay is
+            # trivially perfect (combo ~2.0) and encodes "this compound is
+            # pEC50 >= 6" directly (label leak L1). See issue #100 research
+            # log for the leak analysis.
+            if cid == query_id:
+                continue
             shape = result.GetShapeTanimoto()
             color = result.GetColorTanimoto()
             combo = result.GetTanimotoCombo()
