@@ -473,6 +473,85 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    if feature_name == "oe_cheme_2d_full_boltz_log2fc_pred":
+        # OpenEye full bundle (23) + chemeleon 300 + 2d_full_boltz_log2fc_pred
+        # 1803 = 2126. Intended as the base for top-K LGBM gain selection;
+        # per-fold selection naturally drops redundant OE scalars (xlogp is
+        # redundant with log2fc_pred at 0.09% gain share, quacpac at 0.01%,
+        # most oemedchem at <0.05%) while keeping ROCS 6 features (all
+        # rank in overall top 30 in eda_oe_vs_2dfull_log2fc.py, 2026-04-23).
+        # Constant anionic_carbon_count is the only explicitly excluded
+        # oemedchem scalar.
+        X_train_base, X_test_base = load_features(
+            "cheme_2d_full_boltz_log2fc_pred", train_df, test_df
+        )
+        oemedchem_cols = [
+            "xlogp",
+            "psa_2d",
+            "mw",
+            "hba",
+            "hbd",
+            "lipinski_hba",
+            "lipinski_hbd",
+            "aromatic_ring_count",
+            "rotatable_bond_count",
+            "fraction_csp3",
+            "halide_fraction",
+            "longest_unbranched_c_chain",
+            "longest_unbranched_heavy_chain",
+            "num_unspecified_atom_stereo",
+            "num_unspecified_bond_stereo",
+        ]  # anionic_carbon_count dropped (constant 0 on PXR)
+        rocs_cols = [
+            "max_shape_tanimoto",
+            "max_color_tanimoto",
+            "max_combo_tanimoto",
+            "mean_shape_tanimoto",
+            "mean_color_tanimoto",
+            "mean_combo_tanimoto",
+        ]
+        import psycopg2 as _pg
+
+        with _pg.connect(**DB_PARAMS) as conn:
+            oe_df = pd.read_sql(
+                f"SELECT compound_id, {','.join(oemedchem_cols)} FROM compound_oemedchem",
+                conn,
+            ).set_index("compound_id")
+            rocs_df = pd.read_sql(
+                f"SELECT compound_id, {','.join(rocs_cols)} FROM compound_rocs",
+                conn,
+            ).set_index("compound_id")
+            quacpac_df = pd.read_sql(
+                "SELECT q.compound_id, q.formal_charge, t.n_tautomers "
+                "FROM compound_quacpac q "
+                "JOIN compound_tautomers t ON t.compound_id = q.compound_id",
+                conn,
+            ).set_index("compound_id")
+        quacpac_cols = ["formal_charge", "n_tautomers"]
+
+        def _stack(df, cols, ids):
+            X = df.reindex(ids)[cols].to_numpy(dtype=np.float32)
+            cm = np.nanmean(X, axis=0)
+            cm = np.where(np.isfinite(cm), cm, 0.0)
+            return np.where(np.isfinite(X), X, cm).astype(np.float32)
+
+        oe_tr = _stack(oe_df, oemedchem_cols, train_ids)
+        oe_te = _stack(oe_df, oemedchem_cols, test_ids)
+        rocs_tr = _stack(rocs_df, rocs_cols, train_ids)
+        rocs_te = _stack(rocs_df, rocs_cols, test_ids)
+        qp_tr = _stack(quacpac_df, quacpac_cols, train_ids)
+        qp_te = _stack(quacpac_df, quacpac_cols, test_ids)
+
+        X_train = np.concatenate([oe_tr, rocs_tr, qp_tr, X_train_base], axis=1)
+        X_test = np.concatenate([oe_te, rocs_te, qp_te, X_test_base], axis=1)
+        print(
+            f"  oe_cheme_2d_full_boltz_log2fc_pred: "
+            f"oemedchem {oe_tr.shape[1]} + rocs {rocs_tr.shape[1]} + "
+            f"quacpac {qp_tr.shape[1]} + cheme_2df_lf {X_train_base.shape[1]} "
+            f"= {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
     if feature_name == "chemprop_pretrain_embed":
         # 256d per-compound fingerprints from MPNN.fingerprint() of the
         # chemprop pretrain checkpoint (track1_activity/checkpoints/
