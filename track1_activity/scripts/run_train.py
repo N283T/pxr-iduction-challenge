@@ -355,20 +355,27 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
-    if feature_name == "2d_full_boltz_log2fc_pred":
-        # 2d_full_boltz (1817d) + 2 predicted log2_fc scalars from the
-        # chemprop pretrain model (LF head forward, un-z-scored).
+    if feature_name in (
+        "2d_full_boltz_log2fc_pred",
+        "2d_full_boltz_log2fc_pred_ens4",
+    ):
+        # 2d_full_boltz (1817d) + 2 predicted log2_fc scalars.
         # Buterez 2024 strategy-2: predicted LF labels as side feature.
-        # See track1_activity/scripts/run_chemprop_predict_log2fc.py.
+        # - "2d_full_boltz_log2fc_pred": chemprop-only log2fc predictor
+        #   (baseline). See run_chemprop_predict_log2fc.py.
+        # - "2d_full_boltz_log2fc_pred_ens4": inverse-val-loss weighted
+        #   mean of 4 encoders (chemprop + molformer_c3 + attentivefp +
+        #   gatedgcn). See build_ensemble_log2fc.py (#115).
         X_train_base, X_test_base = load_features("2d_full_boltz", train_df, test_df)
-        lf_path = REPO_ROOT.joinpath(
-            "data", "chemprop_pretrain_log2fc_predictions.parquet"
-        )
+        if feature_name == "2d_full_boltz_log2fc_pred":
+            lf_filename = "chemprop_pretrain_log2fc_predictions.parquet"
+            rebuild_hint = "track1_activity/scripts/run_chemprop_predict_log2fc.py"
+        else:
+            lf_filename = "ensemble4_log2fc_predictions.parquet"
+            rebuild_hint = "track1_activity/scripts/build_ensemble_log2fc.py"
+        lf_path = REPO_ROOT.joinpath("data", lf_filename)
         if not lf_path.exists():
-            raise SystemExit(
-                f"Missing {lf_path}. Run "
-                f"track1_activity/scripts/run_chemprop_predict_log2fc.py"
-            )
+            raise SystemExit(f"Missing {lf_path}. Run {rebuild_hint}")
         lf_df = pd.read_parquet(lf_path)
         cols = ["log2fc_8p25_pred", "log2fc_33_pred"]
         Xl_tr = lf_df.reindex(index=train_ids)[cols].to_numpy(dtype=np.float32).copy()
@@ -378,7 +385,7 @@ def load_features(feature_name: str, train_df, test_df):
         X_train = np.concatenate([X_train_base, Xl_tr], axis=1)
         X_test = np.concatenate([X_test_base, Xl_te], axis=1)
         print(
-            f"  2d_full_boltz_log2fc_pred: {X_train_base.shape[1]} base + "
+            f"  {feature_name}: {X_train_base.shape[1]} base + "
             f"{Xl_tr.shape[1]} LF preds = {X_train.shape[1]} features"
         )
         return X_train, X_test
@@ -436,7 +443,10 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
-    if feature_name == "cheme_2d_full_boltz_log2fc_pred":
+    if feature_name in (
+        "cheme_2d_full_boltz_log2fc_pred",
+        "cheme_2d_full_boltz_log2fc_pred_ens4",
+    ):
         # Chemeleon (300d) + 2d_full_boltz_log2fc_pred (1803d) = 2103d.
         # Empirically discovered via mix-feature bakeoff 2026-04-21: this
         # concat is a strict supersede of 2d_full_boltz_log2fc_pred alone
@@ -445,9 +455,14 @@ def load_features(feature_name: str, train_df, test_df):
         # mixed with the 2D/Boltz descriptors it adds complementary signal
         # that caruana strongly rewards (post-swap 8-pool MAE 0.4181,
         # cheme_2df alone carries weight 0.388).
-        X_train_base, X_test_base = load_features(
-            "2d_full_boltz_log2fc_pred", train_df, test_df
+        # "_ens4" swaps chemprop-only log2fc_pred for 4-encoder inverse-
+        # val-loss weighted ensemble (#115 Phase 3).
+        base_name = (
+            "2d_full_boltz_log2fc_pred_ens4"
+            if feature_name.endswith("_ens4")
+            else "2d_full_boltz_log2fc_pred"
         )
+        X_train_base, X_test_base = load_features(base_name, train_df, test_df)
         # Load chemeleon from DB
         import psycopg2 as _pg
 
@@ -1861,7 +1876,9 @@ def main():
             "pooled_boltz_ab_zmax",
             "pooled_boltz_ab_nozmax",
             "2d_full_boltz_log2fc_pred",
+            "2d_full_boltz_log2fc_pred_ens4",
             "cheme_2d_full_boltz_log2fc_pred",
+            "cheme_2d_full_boltz_log2fc_pred_ens4",
             "cconcat_2d_full_boltz_log2fc_pred",
             "cheme_cconcat_2d_full_boltz_log2fc_pred",
             "3d_ligand",
