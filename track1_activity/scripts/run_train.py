@@ -552,6 +552,138 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    if feature_name == "3d_ligand_omega":
+        # Same descriptor set as 3d_ligand (RDKit scalar 11 + vector 973)
+        # but computed on OpenEye Omega conformers (lowest-energy per mol
+        # from structures/omega/<id>.sdf) instead of Boltz-2 docked poses.
+        # Omega = solution-state statistical sampling, Boltz = docked
+        # bound-state. Different conformer source -> different descriptor
+        # values = complementary information axis. skfp3d + mordred3d
+        # not included (need separate venv / additional compute).
+        # Total: 11 + 973 = 984 dims.
+        scalar_cols = [
+            "asphericity",
+            "eccentricity",
+            "inertial_shape_factor",
+            "npr1",
+            "npr2",
+            "pmi1",
+            "pmi2",
+            "pmi3",
+            "radius_of_gyration",
+            "spherocity_index",
+            "pbf",
+        ]
+        with psycopg2.connect(**DB_PARAMS) as conn:
+            scalar_df = pd.read_sql(
+                f"SELECT compound_id, {', '.join(scalar_cols)} "
+                f"FROM compound_omega_desc3d",
+                conn,
+            ).set_index("compound_id")
+            vec_df = pd.read_sql(
+                "SELECT compound_id, autocorr3d, getaway, morse, rdf, "
+                "whim, usr, usrcat FROM compound_omega_desc3d_vector",
+                conn,
+            ).set_index("compound_id")
+
+        def _fill_vec(series, dim):
+            out = []
+            for v in series:
+                if v is None or (isinstance(v, float) and np.isnan(v)):
+                    out.append(np.zeros(dim, dtype=np.float32))
+                else:
+                    a = np.asarray(v, dtype=np.float64)
+                    a = np.where(np.isnan(a) | np.isinf(a), 0.0, a)
+                    out.append(a.astype(np.float32))
+            return np.stack(out, axis=0)
+
+        def _build(ids):
+            s = scalar_df.reindex(ids)[scalar_cols].to_numpy(dtype=np.float32)
+            s = np.nan_to_num(s, nan=0.0, posinf=0.0, neginf=0.0)
+            v = vec_df.reindex(ids)
+            autocorr = _fill_vec(v["autocorr3d"], 80)
+            getaway = _fill_vec(v["getaway"], 273)
+            morse = _fill_vec(v["morse"], 224)
+            rdf = _fill_vec(v["rdf"], 210)
+            whim = _fill_vec(v["whim"], 114)
+            usr = _fill_vec(v["usr"], 12)
+            usrcat = _fill_vec(v["usrcat"], 60)
+            return np.concatenate(
+                [s, autocorr, getaway, morse, rdf, whim, usr, usrcat], axis=1
+            )
+
+        X_train = _build(train_ids)
+        X_test = _build(test_ids)
+        print(f"  3d_ligand_omega: scalar 11 + vector 973 = {X_train.shape[1]} dims")
+        return X_train, X_test
+
+    if feature_name == "unimol_v2_3d_omega":
+        # Finetuned Uni-Mol v2 CLS/mean/max concat (2304d) +
+        # 3d_ligand_omega (984d, Omega conformer 3D desc) = 3288d.
+        # Base for per-fold top-K LGBM-gain selection. Omega conformers
+        # are solution-state; complements Uni-Mol's internal 3D attention.
+        X_uni_tr, X_uni_te = load_features(
+            "unimol_v2_pretrain_embed", train_df, test_df
+        )
+        X_3d_tr, X_3d_te = load_features("3d_ligand_omega", train_df, test_df)
+        X_train = np.concatenate([X_uni_tr, X_3d_tr], axis=1).astype(np.float32)
+        X_test = np.concatenate([X_uni_te, X_3d_te], axis=1).astype(np.float32)
+        print(
+            f"  unimol_v2_3d_omega: unimol_v2 {X_uni_tr.shape[1]} + "
+            f"3d_ligand_omega {X_3d_tr.shape[1]} = {X_train.shape[1]} dims"
+        )
+        return X_train, X_test
+
+    if feature_name == "unimol_v2_3ddesc":
+        # unimol_v2_pretrain_embed (2304d concat cls/mean/max) +
+        # 3d_ligand (1212d Boltz-2 pose descriptors) = 3516d. Intended
+        # as base for top-K LGBM-gain selection; per-fold selection
+        # keeps the signal-bearing dims and drops redundant ones.
+        X_uni_tr, X_uni_te = load_features(
+            "unimol_v2_pretrain_embed", train_df, test_df
+        )
+        X_3d_tr, X_3d_te = load_features("3d_ligand", train_df, test_df)
+        X_train = np.concatenate([X_uni_tr, X_3d_tr], axis=1).astype(np.float32)
+        X_test = np.concatenate([X_uni_te, X_3d_te], axis=1).astype(np.float32)
+        print(
+            f"  unimol_v2_3ddesc: unimol_v2 {X_uni_tr.shape[1]} + "
+            f"3d_ligand {X_3d_tr.shape[1]} = {X_train.shape[1]} dims"
+        )
+        return X_train, X_test
+
+    if feature_name == "unimol_v2_pretrain_embed":
+        # 768d CLS representation from Uni-Mol v2 (84M). Extracted via
+        # unimol_tools.UniMolRepr.get_repr() on all 13,136 std_smiles;
+        # see track1_activity/scripts/unimol/03_extract_repr.sh and
+        # 04_npz_to_parquet.py (PR feature/unimol-etkdg-pretrain-embed).
+        #
+        # CAVEAT: our Task 3 log2_fc finetune (kfold=2, 30 epochs) hit
+        # Pearson 0.09 / R^2 -0.003 on the pretrain task, and
+        # unimol_tools UniMolRepr auto-downloaded the PUBLIC Uni-Mol v2
+        # checkpoint (ignoring our finetuned .pth files which have a
+        # different serialization format). So this embedding is
+        # effectively the BASE Uni-Mol v2 representation, NOT our
+        # log2_fc finetune. That is probably fine given the finetune
+        # was weak; a separate finetuned variant can be added later
+        # by bridging the checkpoint format.
+        embed_path = REPO_ROOT.joinpath("data", "unimol_v2_pretrain_embed.parquet")
+        if not embed_path.exists():
+            raise SystemExit(
+                f"Missing {embed_path}. Run "
+                f"track1_activity/scripts/unimol/03_extract_repr.sh then "
+                f"04_npz_to_parquet.py"
+            )
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(
+            f"  unimol_v2_pretrain_embed: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
     if feature_name == "chemprop_pretrain_embed":
         # 256d per-compound fingerprints from MPNN.fingerprint() of the
         # chemprop pretrain checkpoint (track1_activity/checkpoints/
@@ -1710,6 +1842,7 @@ def main():
             "kermt_pretrain_embed",
             "attentivefp_pretrain_embed",
             "gatedgcn_pretrain_embed",
+            "unimol_v2_pretrain_embed",
             "boltz_trunk_pretrain_embed_a",
             "boltz_trunk_pretrain_embed_b",
             "boltz_trunk_pretrain_embed_b_first",

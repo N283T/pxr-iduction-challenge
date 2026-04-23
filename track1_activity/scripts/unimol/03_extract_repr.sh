@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Extract Uni-Mol v2 CLS representation for all 13,136 compounds using the
-# log2_fc-finetuned checkpoint from Task 3.
+# Extract Uni-Mol v2 molecule-level representation (concat: CLS + mean-pool +
+# max-pool of atomic reprs = 3 x 768 = 2304d) for all 13,136 compounds.
 #
-# Output: data/unimol/cls_repr.npz (keys: compound_id, cls_repr)
+# Output: data/unimol/cls_repr.npz with keys:
+#   - compound_id (int64, N)
+#   - cls_repr    (float32, N x 2304)  -- concat [cls, mean_atomic, max_atomic]
 set -euo pipefail
 
 PXR_REPO="${PXR_REPO:-$HOME/pxr-iduction-challenge}"
@@ -17,7 +19,6 @@ if [[ ! -f "$INPUT_CSV" ]]; then
     exit 1
 fi
 
-# Point unimol_tools UniMolRepr at our finetuned checkpoint dir
 export UNIMOL_WEIGHT_DIR="$CKPT_DIR"
 
 cat > /tmp/unimol_extract_repr.py <<PYEOF
@@ -36,13 +37,32 @@ df = pd.read_csv(args.csv)
 assert 'SMILES' in df.columns
 smiles = df['SMILES'].tolist()
 cids = df['compound_id'].astype(int).tolist()
-print(f'Loaded {len(smiles)} SMILES for extraction')
+print(f'Loaded {len(smiles)} SMILES')
 
 r = UniMolRepr(model_name='unimolv2', model_size=args.model_size, use_cuda=True)
-out = r.get_repr(data=smiles)
+out = r.get_repr(data=smiles, return_atomic_reprs=True)
+
 cls = np.array(out['cls_repr'], dtype=np.float32)
-print(f'cls shape: {cls.shape}')
-np.savez(args.out, compound_id=np.array(cids, dtype=np.int64), cls_repr=cls)
+atomic = out['atomic_reprs']  # list of (n_atoms_i, 768) per molecule
+
+# Compute mean and max pool per molecule
+n = len(smiles)
+emb_dim = cls.shape[1]
+mean_pool = np.zeros((n, emb_dim), dtype=np.float32)
+max_pool = np.zeros((n, emb_dim), dtype=np.float32)
+for i, a in enumerate(atomic):
+    arr = np.asarray(a, dtype=np.float32)
+    if arr.ndim == 1 or arr.shape[0] == 0:
+        # fallback: use cls
+        mean_pool[i] = cls[i]
+        max_pool[i] = cls[i]
+    else:
+        mean_pool[i] = arr.mean(axis=0)
+        max_pool[i] = arr.max(axis=0)
+
+concat = np.concatenate([cls, mean_pool, max_pool], axis=1)
+print(f'cls {cls.shape}  mean {mean_pool.shape}  max {max_pool.shape}  concat {concat.shape}')
+np.savez(args.out, compound_id=np.array(cids, dtype=np.int64), cls_repr=concat)
 print(f'saved: {args.out}')
 PYEOF
 
