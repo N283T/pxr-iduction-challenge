@@ -235,10 +235,13 @@ def main() -> None:
         )
         row = cur.fetchone()
         if row:
-            print(f"  {ref_name}: MAE={row[0]:.4f} RAE={row[1]:.4f} Sp={row[2]:.4f}")
+            # PG NUMERIC returns Decimal; cast to float for arithmetic
+            mae_ref, rae_ref, sp_ref = float(row[0]), float(row[1]), float(row[2])
+            print(f"  {ref_name}: MAE={mae_ref:.4f} RAE={rae_ref:.4f} Sp={sp_ref:.4f}")
             print(
-                f"  Δ (TabM - TabPFN): MAE={overall['MAE'] - row[0]:+.4f} "
-                f"RAE={overall['RAE'] - row[1]:+.4f} Sp={overall['Spearman_R'] - row[2]:+.4f}"
+                f"  Δ (TabM - TabPFN): MAE={overall['MAE'] - mae_ref:+.4f} "
+                f"RAE={overall['RAE'] - rae_ref:+.4f} "
+                f"Sp={overall['Spearman_R'] - sp_ref:+.4f}"
             )
         else:
             print(f"  {ref_name}: not found in experiment_summary")

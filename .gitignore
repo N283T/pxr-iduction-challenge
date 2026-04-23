@@ -42,6 +42,11 @@ structures/gator/
 # OpenEye Omega 3D conformer SDFs (~545 MB, regenerable via db/compute_omega.py)
 structures/omega/
 
+# Uni-Mol ETKDG pretrain-embed data + checkpoints (regenerable)
+data/unimol/
+data/unimol_v2_pretrain_embed.parquet
+models/unimol_v2_log2fc/
+
 # Boltz-2 affinity-head retarget (issue #74) pooled embeddings parquet
 data/boltz_affhead/
 
