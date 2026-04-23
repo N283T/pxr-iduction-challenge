@@ -39,6 +39,9 @@ structures/boltz2/posebusters*.csv
 # GatorAffinity Phase A/B pipeline (re-creatable from compound_boltz2)
 structures/gator/
 
+# OpenEye Omega 3D conformer SDFs (~545 MB, regenerable via db/compute_omega.py)
+structures/omega/
+
 # Boltz-2 affinity-head retarget (issue #74) pooled embeddings parquet
 data/boltz_affhead/
 

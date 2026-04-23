@@ -218,14 +218,19 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # feature selection outperforms TabPFN's internal random subsampling
     # when fed large-d inputs.
     "tabpfn_cheme_2d_full_boltz_log2fc_pred_top500_umap",
-    # --- Mixed-source top-500 (2026-04-23 深夜) ---
-    # 7-source concatenated 8375d mega-feature → per-fold LGBM gain top-500
-    # → TabPFN. Single-model OOF MAE 0.4113 = historical best (beats
-    # cheme_2df_top500 0.4179 and even current caruana ensemble 0.4150).
-    # Source attribution: KERMT 42% / cheme_2df 15% / pooled_boltz 14% /
-    # molformer 14% / gatedgcn 7% / attentivefp 5% / chemprop 3%.
-    # Unlocks multi-source synergy that single-source top-K misses.
-    "tabpfn_mixed_pool_top500_umap",
+    # 2026-04-23 dropped: tabpfn_mixed_pool_top500_umap.
+    # Two LB submissions regressed (+0.0051, +0.0091) despite OOF 0.4113 best.
+    # Per-fold LGBM-gain on 8375d mega-concat overfits fold structure.
+    # See memory:feedback_mixed_top500_oof_lb_disconnect and issue #100 log.
+    # Framework (script 18_mixed_compression_top500.py) stays for future
+    # research under a proper nested-CV selection protocol.
+    #
+    # 2026-04-23 also tested: tabpfn_oe_cheme_2d_full_boltz_log2fc_pred_top500_umap
+    # LEAK version (ROCS self-match enabled). Single OOF 0.4071 / Ensemble
+    # 0.4103 / LB 0.4243 -- confirmed the OOF improvement does NOT transfer
+    # and actually hurts LB. Clean (self-skipped) ROCS contributed only
+    # Δ -0.0007 OOF = noise, not pool-worthy. See memory:
+    # feedback_self_match_leak_in_similarity_features.
 )
 
 
