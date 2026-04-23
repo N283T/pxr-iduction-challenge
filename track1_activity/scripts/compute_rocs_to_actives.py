@@ -124,7 +124,9 @@ def query_one(
             # trivially perfect (combo ~2.0) and encodes "this compound is
             # pEC50 >= 6" directly (label leak L1). See issue #100 research
             # log for the leak analysis.
-            if cid == query_id:
+            # Env override ROCS_INCLUDE_SELF=1 kept only for deliberate
+            # leak-verification LB experiments (2026-04-23 session).
+            if cid == query_id and not os.environ.get("ROCS_INCLUDE_SELF"):
                 continue
             shape = result.GetShapeTanimoto()
             color = result.GetColorTanimoto()
