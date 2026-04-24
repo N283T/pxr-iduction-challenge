@@ -231,6 +231,18 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # and actually hurts LB. Clean (self-skipped) ROCS contributed only
     # Δ -0.0007 OOF = noise, not pool-worthy. See memory:
     # feedback_self_match_leak_in_similarity_features.
+    # --- Boltz-2 tier-0 post-trunk head tabular (2026-04-24, #115->?) ---
+    # 17 scalars: 6 affinity heads (mean + 2 ensemble members) + 9
+    # confidence (plddt/ptm/iptm/...) + 2 geometry (ligand_atom_count,
+    # ligand_to_pocket_distance). Single OOF MAE 0.5798 -- weakest in
+    # pool by a wide margin. BUT residual r to all existing 9 members
+    # sits at 0.71-0.82 (vs pool-internal 0.90+), hitting Codex's "new
+    # axis" threshold (min-r ≤ 0.85). Caruana ADD: 9-pool 0.4150 ->
+    # 10-pool 0.4130 (Δ -0.0020). mordred3d (213d) gave identical
+    # +Δ single but r=0.80 to tier0 -> adding both regresses to 0.4140
+    # (redundant Boltz-pose family). Picked tier0 over mordred3d:
+    # fewer dims, interpretable columns, identical ensemble effect.
+    "tabpfn_boltz2_tabular_tier0_umap_default",
 )
 
 

@@ -974,6 +974,97 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    if feature_name == "boltz2_mordred3d":
+        # Boltz-2 pose-derived Mordred 3D descriptors (213 features per
+        # compound). Source: compound_boltz2_mordred3d.descriptors JSONB.
+        # Unlike compound_mordred (2D), these use the actual Boltz-2
+        # predicted conformation. Family: 3D tabular (pose-conditioned
+        # scalars). Complementary to tier-0 (post-trunk heads).
+        sql = "SELECT compound_id, descriptors FROM compound_boltz2_mordred3d"
+        with psycopg2.connect(**DB_PARAMS) as conn:
+            rows = pd.read_sql(sql, conn)
+        rows["compound_id"] = rows["compound_id"].astype(int)
+        all_keys = sorted({k for d in rows["descriptors"] for k in d.keys()})
+        mat = np.zeros((len(rows), len(all_keys)), dtype=np.float32)
+        for i, d in enumerate(rows["descriptors"]):
+            for j, k in enumerate(all_keys):
+                v = d.get(k)
+                if v is None:
+                    mat[i, j] = np.nan
+                else:
+                    try:
+                        mat[i, j] = float(v)
+                    except (TypeError, ValueError):
+                        mat[i, j] = np.nan
+        m3d = pd.DataFrame(mat, index=rows["compound_id"].values, columns=all_keys)
+
+        def _m3d_matrix(ids):
+            X = m3d.reindex(index=ids).to_numpy(dtype=np.float32).copy()
+            col_mean = np.nanmean(X, axis=0)
+            if np.isnan(col_mean).any():
+                col_mean_global = np.nanmean(m3d.to_numpy(dtype=np.float32), axis=0)
+                col_mean = np.where(np.isnan(col_mean), col_mean_global, col_mean)
+            col_mean = np.where(np.isfinite(col_mean), col_mean, 0.0)
+            inds = np.where(np.isnan(X))
+            X[inds] = np.take(col_mean, inds[1])
+            return X
+
+        X_train = _m3d_matrix(train_ids)
+        X_test = _m3d_matrix(test_ids)
+        print(
+            f"  boltz2_mordred3d: {X_train.shape[1]} features "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
+    if feature_name == "boltz2_tabular_tier0":
+        # Boltz-2 tier-0 scalar bundle (17 features):
+        #   6 affinity heads: mean ensemble + 2 members, each (pred_value,
+        #     probability_binary)
+        #   9 confidence: confidence_score, ptm, iptm, ligand_iptm,
+        #     protein_iptm, complex_plddt, complex_iplddt, complex_pde,
+        #     complex_ipde
+        #   2 geometry: ligand_atom_count, ligand_to_pocket_distance_a
+        # Source: compound_boltz2 (populated by boltz2_postprocess.py).
+        # Motivation (#116 Codex): currently no pose-derived tabular
+        # feature in the pool — the 2 pooled_boltz members use trunk
+        # embeddings only. tier-0 scalars are from a different level of
+        # the Boltz-2 stack (post-trunk inference heads) and add a new
+        # "axis" the pool doesn't cover.
+        sql = """
+        SELECT compound_id,
+               affinity_pred_value, affinity_probability_binary,
+               affinity_pred_value_1, affinity_probability_binary_1,
+               affinity_pred_value_2, affinity_probability_binary_2,
+               confidence_score, ptm, iptm, ligand_iptm, protein_iptm,
+               complex_plddt, complex_iplddt, complex_pde, complex_ipde,
+               ligand_atom_count, ligand_to_pocket_distance_a
+          FROM compound_boltz2
+        """
+        with psycopg2.connect(**DB_PARAMS) as conn:
+            tier0_df = pd.read_sql(sql, conn).set_index("compound_id")
+        tier0_cols = tier0_df.columns.tolist()
+
+        def _tier0_matrix(ids):
+            X = tier0_df.reindex(index=ids).to_numpy(dtype=np.float32).copy()
+            col_mean = np.nanmean(X, axis=0)
+            if np.isnan(col_mean).any():
+                col_mean_global = tier0_df.to_numpy(dtype=np.float32)
+                col_mean_global = np.nanmean(col_mean_global, axis=0)
+                col_mean = np.where(np.isnan(col_mean), col_mean_global, col_mean)
+            col_mean = np.where(np.isfinite(col_mean), col_mean, 0.0)
+            inds = np.where(np.isnan(X))
+            X[inds] = np.take(col_mean, inds[1])
+            return X
+
+        X_train = _tier0_matrix(train_ids)
+        X_test = _tier0_matrix(test_ids)
+        print(
+            f"  boltz2_tabular_tier0: {X_train.shape[1]} features "
+            f"(cols: {tier0_cols[:3]}...)"
+        )
+        return X_train, X_test
+
     if feature_name == "pooled_boltz":
         # Pooled Boltz-2 trunk embeddings (1024 features):
         #   s_prot_mean (384) -- global mean of s over 434 PXR residue tokens
@@ -1883,6 +1974,8 @@ def main():
             "cheme_cconcat_2d_full_boltz_log2fc_pred",
             "3d_ligand",
             "jazzy",
+            "boltz2_tabular_tier0",
+            "boltz2_mordred3d",
         ]
         + list(FP_REGISTRY.keys())
         + list(EMBEDDING_TABLES.keys())
