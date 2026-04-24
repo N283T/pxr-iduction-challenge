@@ -231,18 +231,18 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # and actually hurts LB. Clean (self-skipped) ROCS contributed only
     # Δ -0.0007 OOF = noise, not pool-worthy. See memory:
     # feedback_self_match_leak_in_similarity_features.
-    # --- Boltz-2 tier-0 post-trunk head tabular (2026-04-24, #115->?) ---
-    # 17 scalars: 6 affinity heads (mean + 2 ensemble members) + 9
-    # confidence (plddt/ptm/iptm/...) + 2 geometry (ligand_atom_count,
-    # ligand_to_pocket_distance). Single OOF MAE 0.5798 -- weakest in
-    # pool by a wide margin. BUT residual r to all existing 9 members
-    # sits at 0.71-0.82 (vs pool-internal 0.90+), hitting Codex's "new
-    # axis" threshold (min-r ≤ 0.85). Caruana ADD: 9-pool 0.4150 ->
-    # 10-pool 0.4130 (Δ -0.0020). mordred3d (213d) gave identical
-    # +Δ single but r=0.80 to tier0 -> adding both regresses to 0.4140
-    # (redundant Boltz-pose family). Picked tier0 over mordred3d:
-    # fewer dims, interpretable columns, identical ensemble effect.
-    "tabpfn_boltz2_tabular_tier0_umap_default",
+    # 2026-04-24 dropped: tabpfn_boltz2_tabular_tier0_umap_default (added
+    # in PR #117). 17 scalars (6 affinity + 9 confidence + 2 geometry)
+    # passed BOTH gates at OOF level: 9-pool 0.4150 -> 10-pool 0.4130
+    # (Δ -0.0020) AND Codex new-family min residual r ≤ 0.85 (actual
+    # r 0.71-0.82 to all 9 existing members). But LB A/B (id=29, PR #117
+    # submission) regressed: LB MAE 0.4149 -> 0.4189 (Δ +0.0040, 2x
+    # reverse amplification of the OOF gain). rank 3 held but gap to
+    # rank 2 widened 0.006 -> 0.010.
+    # Follows memory feedback_no_revert_prefer_ensemble_drop: drop from
+    # allow-list, keep single-model experiment (id=1332) + feature
+    # handler in run_train.py + Phase A/B/C bakeoff scripts. mordred3d
+    # counterpart (id=1353) also stays in DB.
 )
 
 
