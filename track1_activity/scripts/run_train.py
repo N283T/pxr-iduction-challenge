@@ -67,6 +67,8 @@ EMBEDDING_TABLES = {
     "chemberta_77m_mtr": "compound_chemberta_mtr",
     "chemberta_100m_mlm": "compound_chemberta_100m",
     "chemberta_10m_mlm": "compound_chemberta_10m",
+    "chemberta_10m_mtr": "compound_chemberta_10m_mtr",
+    "chemberta_5m_mlm": "compound_chemberta_5m",
     "chemberta_5m_mtr": "compound_chemberta_5m_mtr",
     "chemberta_zinc_v1": "compound_chemberta_zinc_v1",
     "bert_base_smiles": "compound_bert_smiles",
@@ -746,6 +748,33 @@ def load_features(feature_name: str, train_df, test_df):
         X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
         print(
             f"  molformer_c3_pretrain_embed: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
+    if feature_name == "chemberta_5m_mtr_pretrain_embed":
+        # 384d per-compound [CLS] embeddings from ChemBERTa-5M-MTR (RoBERTa
+        # 3L, ~5M params) continued-pretrained on 2-head log2_fc via LoRA.
+        # See run_chemberta_5m_mtr_pretrain.py + _embed_extract.py.
+        # Phase B of #100 BERT-family audit: Phase B1 raw audit found
+        # 5m_mtr was the best raw (MAE 0.5287 / min-r 0.77) but caruana
+        # ADD was only -0.002. This continued-pretrain should tighten the
+        # single-model gap to pool weakest.
+        embed_path = REPO_ROOT.joinpath(
+            "data", "chemberta_5m_mtr_pretrain_embed.parquet"
+        )
+        if not embed_path.exists():
+            raise SystemExit(
+                f"Missing {embed_path}. Run "
+                f"track1_activity/scripts/run_chemberta_5m_mtr_embed_extract.py"
+            )
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(
+            f"  chemberta_5m_mtr_pretrain_embed: {X_train.shape[1]} dims "
             f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
         )
         return X_train, X_test
@@ -1945,6 +1974,7 @@ def main():
             "pooled_boltz_allpairs",
             "chemprop_pretrain_embed",
             "molformer_c3_pretrain_embed",
+            "chemberta_5m_mtr_pretrain_embed",
             "kermt_pretrain_embed",
             "attentivefp_pretrain_embed",
             "gatedgcn_pretrain_embed",
