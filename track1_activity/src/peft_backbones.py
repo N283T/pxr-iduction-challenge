@@ -44,6 +44,23 @@ BACKBONES: dict[str, dict] = {
         # architecture); PeftRegressor recomputes inv_freq + cos/sin cache.
         "fix_rotary": True,
     },
+    "chemberta_5m_mtr": {
+        "hf_id": "DeepChem/ChemBERTa-5M-MTR",
+        "hidden_dim": 384,
+        "max_length": 202,
+        "trust_remote_code": False,
+        # RoBERTa-3L architecture, ~5M params. Phase B1 audit
+        # (2026-04-24): best raw-embedding candidate among 9 BERT-family
+        # tables -- single-model OOF MAE 0.5287 (pool weakest + 0.043,
+        # passes gate 2), min residual r 0.77 vs 9-pool (passes gate 1).
+        # But caruana ADD Δ only -0.0020 (below the -0.003 threshold
+        # tightened after the tier-0 LB regression). Phase B = continued
+        # pretrain on log2fc via LoRA to adapt the embedding to the
+        # task before retesting.
+        "lora_target_modules_qv": ["query", "value"],
+        "lora_target_modules_qkvo": ["query", "key", "value", "dense"],
+        "fix_rotary": False,
+    },
 }
 
 
