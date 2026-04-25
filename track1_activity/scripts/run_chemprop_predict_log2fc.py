@@ -46,16 +46,31 @@ from data import DB_PARAMS  # noqa: E402
 CKPT_PATH = REPO_ROOT.joinpath(
     "track1_activity", "checkpoints", "chemprop_pretrain", "pretrain.pt"
 )
-OUT_PATH = REPO_ROOT.joinpath(
-    "data", "chemprop_pretrain_log2fc_predictions.parquet"
-)
+OUT_PATH = REPO_ROOT.joinpath("data", "chemprop_pretrain_log2fc_predictions.parquet")
 OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
 def main() -> None:
-    if not CKPT_PATH.exists():
-        raise FileNotFoundError(f"missing pretrain ckpt: {CKPT_PATH}")
-    ckpt = torch.load(CKPT_PATH, map_location="cpu", weights_only=False)
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--ckpt",
+        type=Path,
+        default=CKPT_PATH,
+        help=f"Path to chemprop pretrain .pt (default: {CKPT_PATH})",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=OUT_PATH,
+        help=f"Output parquet path (default: {OUT_PATH})",
+    )
+    args = parser.parse_args()
+
+    if not args.ckpt.exists():
+        raise FileNotFoundError(f"missing pretrain ckpt: {args.ckpt}")
+    ckpt = torch.load(args.ckpt, map_location="cpu", weights_only=False)
     params = ckpt["params"]
     means = np.asarray(ckpt["target_means"], dtype=np.float32)  # (2,)
     stds = np.asarray(ckpt["target_stds"], dtype=np.float32)  # (2,)
@@ -72,15 +87,11 @@ def main() -> None:
     print(f"Model on {device}, loaded state_dict")
 
     pts = [
-        chemprop_data.MoleculeDatapoint.from_smi(
-            smi, np.full(2, 0.0, dtype=np.float32)
-        )
+        chemprop_data.MoleculeDatapoint.from_smi(smi, np.full(2, 0.0, dtype=np.float32))
         for smi in df["smiles"]
     ]
     dataset = chemprop_data.MoleculeDataset(pts)
-    loader = chemprop_data.build_dataloader(
-        dataset, batch_size=256, shuffle=False
-    )
+    loader = chemprop_data.build_dataloader(dataset, batch_size=256, shuffle=False)
 
     preds_z: list[np.ndarray] = []
     with torch.no_grad():
@@ -106,15 +117,18 @@ def main() -> None:
             "log2fc_33_pred": preds_raw[:, 1],
         }
     ).set_index("compound_id")
-    out.to_parquet(OUT_PATH)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    out.to_parquet(args.out)
 
-    print(f"Saved {out.shape} to {OUT_PATH}")
-    print("  log2fc_8p25_pred: mean=%.3f std=%.3f" % (
-        out.log2fc_8p25_pred.mean(), out.log2fc_8p25_pred.std()
-    ))
-    print("  log2fc_33_pred:   mean=%.3f std=%.3f" % (
-        out.log2fc_33_pred.mean(), out.log2fc_33_pred.std()
-    ))
+    print(f"Saved {out.shape} to {args.out}")
+    print(
+        "  log2fc_8p25_pred: mean=%.3f std=%.3f"
+        % (out.log2fc_8p25_pred.mean(), out.log2fc_8p25_pred.std())
+    )
+    print(
+        "  log2fc_33_pred:   mean=%.3f std=%.3f"
+        % (out.log2fc_33_pred.mean(), out.log2fc_33_pred.std())
+    )
 
     # Sanity check: compare predicted vs real for train compounds that
     # have single_conc data, to measure LF model quality on train.
@@ -135,9 +149,19 @@ def main() -> None:
     if m8.sum() > 10:
         from scipy.stats import pearsonr, spearmanr
 
-        r8 = pearsonr(joined.loc[m8, "log2fc_8p25_pred"], joined.loc[m8, "log2fc_8p25"]).statistic
-        sp8 = spearmanr(joined.loc[m8, "log2fc_8p25_pred"], joined.loc[m8, "log2fc_8p25"]).correlation
-        mae8 = float(np.mean(np.abs(joined.loc[m8, "log2fc_8p25_pred"] - joined.loc[m8, "log2fc_8p25"])))
+        r8 = pearsonr(
+            joined.loc[m8, "log2fc_8p25_pred"], joined.loc[m8, "log2fc_8p25"]
+        ).statistic
+        sp8 = spearmanr(
+            joined.loc[m8, "log2fc_8p25_pred"], joined.loc[m8, "log2fc_8p25"]
+        ).correlation
+        mae8 = float(
+            np.mean(
+                np.abs(
+                    joined.loc[m8, "log2fc_8p25_pred"] - joined.loc[m8, "log2fc_8p25"]
+                )
+            )
+        )
         print(
             f"\n  LF quality @ 8.25uM on {int(m8.sum())} overlapping compounds: "
             f"r={r8:.3f}, spearman={sp8:.3f}, MAE={mae8:.3f}"
@@ -145,9 +169,17 @@ def main() -> None:
     if m33.sum() > 10:
         from scipy.stats import pearsonr, spearmanr
 
-        r33 = pearsonr(joined.loc[m33, "log2fc_33_pred"], joined.loc[m33, "log2fc_33"]).statistic
-        sp33 = spearmanr(joined.loc[m33, "log2fc_33_pred"], joined.loc[m33, "log2fc_33"]).correlation
-        mae33 = float(np.mean(np.abs(joined.loc[m33, "log2fc_33_pred"] - joined.loc[m33, "log2fc_33"])))
+        r33 = pearsonr(
+            joined.loc[m33, "log2fc_33_pred"], joined.loc[m33, "log2fc_33"]
+        ).statistic
+        sp33 = spearmanr(
+            joined.loc[m33, "log2fc_33_pred"], joined.loc[m33, "log2fc_33"]
+        ).correlation
+        mae33 = float(
+            np.mean(
+                np.abs(joined.loc[m33, "log2fc_33_pred"] - joined.loc[m33, "log2fc_33"])
+            )
+        )
         print(
             f"  LF quality @ 33uM on {int(m33.sum())} overlapping compounds: "
             f"r={r33:.3f}, spearman={sp33:.3f}, MAE={mae33:.3f}"
