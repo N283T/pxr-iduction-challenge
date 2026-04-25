@@ -4,7 +4,7 @@ This module is side-effect free: it reads predicted complexes and the
 ligand mol cache that Boltz writes during preprocessing, builds a fully
 bonded RDKit Mol with the predicted pose coordinates, and returns
 metadata dicts. The actual filesystem writes and DB upserts live in
-``track2_structure/scripts/boltz2_postprocess.py`` so this module can be
+``track1_activity/boltz2/scripts/boltz2_postprocess.py`` so this module can be
 imported and unit-tested without side effects.
 
 Why we need the cached pickle

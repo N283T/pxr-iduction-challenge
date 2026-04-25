@@ -7,8 +7,8 @@ shared with the post-processing phase.
 
 Usage
 -----
-    pixi run python track2_structure/scripts/boltz2_build_inputs.py             # full run (4653 compounds)
-    pixi run python track2_structure/scripts/boltz2_build_inputs.py --smoke     # smoke test (10 compounds)
+    pixi run python track1_activity/boltz2/scripts/boltz2_build_inputs.py             # full run (4653 compounds)
+    pixi run python track1_activity/boltz2/scripts/boltz2_build_inputs.py --smoke     # smoke test (10 compounds)
 """
 
 from __future__ import annotations

@@ -7,9 +7,9 @@ so the run is safe in dry-run mode.
 
 Usage
 -----
-    pixi run python track2_structure/scripts/boltz2_postprocess.py             # full set, csv only
-    pixi run python track2_structure/scripts/boltz2_postprocess.py --smoke     # 10-compound smoke set
-    pixi run python track2_structure/scripts/boltz2_postprocess.py --db        # csv + upsert into DB
+    pixi run python track1_activity/boltz2/scripts/boltz2_postprocess.py             # full set, csv only
+    pixi run python track1_activity/boltz2/scripts/boltz2_postprocess.py --smoke     # 10-compound smoke set
+    pixi run python track1_activity/boltz2/scripts/boltz2_postprocess.py --db        # csv + upsert into DB
 """
 
 from __future__ import annotations
