@@ -9,7 +9,8 @@ Two tracks:
 - **Track 1 (Activity)**: Predict pEC50 for 513 blinded compounds. Primary metric: **MAE** (with RAE/R²/Spearman/Kendall as secondaries).
 - **Track 2 (Structure)**: Predict protein-ligand 3D structures for 78 compounds. Primary metric: LDDT-PLI.
 
-Current status: **7th place** (MAE=0.4358, RAE=0.5474 on leaderboard, 2026-04-21).
+Current status: **1st place** (MAE=0.4084, RAE=0.5132 on leaderboard, 2026-04-25).
+Gap to rank 2 (sia 0.4095) is +0.0011 MAE — razor-thin lead, treat ±0.002 LB swings as noise.
 Research log: issue #100. See latest snapshot in `docs/leaderboard_<date>.csv`.
 
 ## Environment
@@ -100,6 +101,10 @@ db/
   compute_jazzy.py                   # Jazzy H-bond descriptors -> compound_jazzy
   compute_embeddings.py              # ChemBERTa/BERT/MoLFormer variants -> DB tables
   compute_chemeleon.py               # CheMeleon MPNN fingerprints -> compound_chemeleon
+  compound_chemfm_schema.sql         # ChemFM 1B + 3B tables + per-pooling SQL views
+  compute_chemfm.py                  # ChemFM-1B/3B (Llama causal LM) embedding extraction;
+                                     #   --size {1b,3b}, last/mean pool both stored
+                                     #   (PR #120 null result, framework retained)
   experiments_schema.sql             # Experiment tracking tables + OOF predictions
   lb_submissions_schema.sql          # Local LB submission history + results tables
   boltz2_schema.sql                  # compound_boltz2 (pose paths, affinity, confidence)
@@ -131,16 +136,33 @@ track1_activity/
     run_ensemble.py                   # Ensemble strategies (caruana_bag20 preferred;
                                       # vanilla / l2_a{0.05..0.5} / fold_l2 / simple_avg
                                       # reported side-by-side for OOF A/B).
-                                      # ENSEMBLE_MODELS allow-list controls the 10-model pool.
+                                      # ENSEMBLE_MODELS allow-list controls the 9-model pool.
     run_ensemble_calibrate.py         # Post-hoc regression calibration: linear, linear_pos
                                       # (slope>=0 affine), spline_k5 (PCHIP monotone),
                                       # isotonic. 4-way nested CV + MAE/Spearman guardrail
                                       # writes ens_caruana_bag20_calibrated_best.csv.
+    run_ensemble_calibrate_importance.py # Density-ratio importance-weighted affine
+                                      # calibrator (rank-1 LB winner of id=31, 2026-04-25).
+                                      # Standalone, picks weights from train-vs-test
+                                      # Morgan-FP classifier and clips to [1/3, 3].
+    run_chemprop_pretrain.py          # Pretrain chemprop encoder on single-conc log2_fc.
+                                      # --seed N + --ckpt-dir for multi-seed ensembling
+                                      # (Plan A 2026-04-25: seeds [42..46] -> rank 1).
+    run_chemprop_predict_log2fc.py    # Use pretrained encoder to predict log2_fc for
+                                      # train+test. --ckpt / --out support per-seed runs.
+    build_log2fc_seed_ensemble.py     # Per-row mean of 5 per-seed log2fc parquets ->
+                                      # data/chemprop_pretrain_log2fc_predictions_seed5ens.parquet.
+                                      # Inter-seed std ~0.09 (~18-20% of target std).
+    run_emax_predict.py               # emax_estimate / emax_vs_pos_ctrl side-feature
+                                      # generator (Phase 1 null, framework only). LGBM /
+                                      # TabPFN x rdkit_desc_full / cheme_2d_full_boltz.
+    run_counter_decomp.py             # y = c_hat + s_hat decomposition with cross-fit
+                                      # M_c (Phase 1A null, +0.036 vs direct M_total).
+    run_stacker.py                    # Stage-2 stacker on 9-pool OOF (3 phases all
+                                      # ceiling-bounded at -0.002, framework only).
     run_chemprop_optuna.py            # ChemProp D-MPNN Optuna tuning
     run_chemprop_chemeleon.py         # CheMeleon foundation finetune (chemprop head)
-    run_chemprop_pretrain.py          # Pretrain chemprop encoder on single-conc log2_fc
     run_chemprop_embed_extract.py     # Extract frozen [encoded] chemprop features
-    run_chemprop_predict_log2fc.py    # Use pretrained encoder to predict log2_fc for test
     run_chemprop_finetune.py          # Frozen-encoder head FT on pEC50
     run_chemprop_multitask.py         # Multitask (pec50 + log2_fc) head
     run_chemprop_multitask_desc.py    # Multitask with descriptor aux (negative result, #86)
@@ -218,6 +240,11 @@ structures/
 - `compound_bert_smiles` -- BERT-base-SMILES (768d)
 - `compound_molformer` -- MoLFormer-XL (768d, requires rotary fix)
 - `compound_chemeleon` -- CheMeleon MPNN fingerprints (300d)
+- `compound_chemfm_1b` / `compound_chemfm_3b` -- ChemFM Llama causal LM
+  (TheLuoFengLab Nature Comm Chem 2025), both `embedding_last` (last
+  non-padding token) and `embedding_mean` (BERT-style attention-weighted
+  mean) stored side-by-side. Per-pooling SQL views for run_train.py
+  consumption. PR #120 null result, framework retained.
 
 ### Pose-derived feature tables (from Boltz-2 outputs)
 - `compound_boltz2_jazzy` / `_desc3d` / `_desc3d_vector` / `_mordred3d` / `_skfp3d`
@@ -266,14 +293,18 @@ structures/
   destructively when a correlated challenger is added — see issue #82 for the LB
   regression incident that motivated this. Vanilla is still reported side-by-side
   for OOF A/B diagnostics.
-- **Post-hoc calibration is part of the final submission**. `run_ensemble_calibrate.py`
-  runs 4-way nested CV (linear / linear_pos / spline_k5 / isotonic) on the
-  ens_caruana_bag20 output and picks the best calibrator via MAE with a
-  `|ΔSpearman| < 0.005` guardrail. `linear_pos` (positive-constrained affine)
-  was the 2026-04-21 LB winner, moving us rank 10 → 7 (OOF ΔMAE −0.0009 → LB ΔMAE
-  −0.0065, ~7× amplification). See PR #101. Other variants (K=3..30 splines,
-  full isotonic, importance-weighted, per-cluster, stacked) all regressed; see
-  the PR #101 comment for the full falsification log.
+- **Post-hoc calibration is part of the final submission**.
+  - `run_ensemble_calibrate.py` runs 4-way nested CV (linear / linear_pos /
+    spline_k5 / isotonic) on the ens_caruana_bag20 output and picks the
+    best calibrator via MAE with a `|ΔSpearman| < 0.005` guardrail.
+    `linear_pos` was the 2026-04-21 LB winner (id=22, rank 10 → 7).
+  - `run_ensemble_calibrate_importance.py` is a separate density-ratio
+    importance-weighted affine calibrator. Was the rank-1 LB winner of
+    id=31 (2026-04-25, post seed5ens double-swap). Standalone script —
+    grep for it explicitly when announcing submissions.
+  - The two calibrators have alternated as LB winners depending on pool
+    composition. Re-run both whenever ENSEMBLE_MODELS changes
+    materially and submit the one with better LB precedent.
 - **Pretrain + frozen + embed recipe (Buterez 2024 strategy-3)**: pretrain an
   encoder on single-concentration log2_fc (13,136 compounds, transductive,
   NaN-masked MSE per concentration head), freeze it, extract embeddings for all
@@ -282,10 +313,23 @@ structures/
   `tabpfn_2d_full_boltz_log2fc_pred`) and jointly account for >65% of caruana
   weight. Direct PEFT FT on pEC50 (PR #95 MoLFormer-XL LoRA) underperforms this
   recipe and was dropped from the pool.
+- **Multi-seed pretrain ensemble (Plan A, 2026-04-25 PR #120, rank-1 driver)**:
+  same encoder + hyperparams, re-run with seeds [42..46], per-row mean of the 5
+  log2fc_pred parquets via `build_log2fc_seed_ensemble.py`. SWAP (not ADD) into
+  ENSEMBLE_MODELS because residual r 0.985 with single-seed -> structural
+  upgrade, not a new pool member. Drove caruana_bag20 OOF 0.4150 -> 0.4034
+  (Δ -0.0116) and LB 0.4149 (rank 3) -> 0.4084 (rank 1). Memory:
+  `reference_multi_seed_pretrain_recipe`. Untested but expected to extend
+  to 10 seeds for an additional Δ -0.002 to -0.005.
 - **Submission workflow**:
   1. `run_ensemble.py` -> caruana_bag20 -> `ens_caruana_bag20.csv`
-  2. `run_ensemble_calibrate.py` -> 4-way nested CV -> `ens_caruana_bag20_calibrated_best.csv`
+  2. Calibrate. Both calibrators must be re-evaluated when pool composition
+     changes:
+     - `run_ensemble_calibrate.py` -> 4-way nested CV -> `ens_caruana_bag20_calibrated_best.csv`
+     - `run_ensemble_calibrate_importance.py` -> `ens_caruana_bag20_calibrated_importance.csv`
+       (was the rank-1 LB winner of id=31, 2026-04-25)
   3. `api.py cooldown` to check 4h window, `api.py submit ...` with `--notes`.
+     Always state the calibrator + pool snapshot explicitly in the notes.
   4. `api.py fetch` after ~30 min to ~2 h to back-fill LB rank/metrics.
 - **No CI in this repo.** There is no GitHub Actions workflow, no `.github/workflows/`,
   no hosted test runner. Run `pixi run ruff format <file>` + `pixi run ruff check <file>`
@@ -296,11 +340,21 @@ structures/
 
 ## Known Issues
 
-- OOF/LB MAE gap: raw ensemble OOF MAE ~0.43, LB MAE ~0.44 (post-calibration
-  LB 0.4358). The gap is driven by the test pEC50 distribution being ~12%
-  narrower than train (analog enrichment), which compresses the RAE denominator
-  but leaves MAE roughly faithful. Prefer MAE for ensemble selection and
-  calibrator tuning; RAE is useful for LB ranking but is noisier across runs.
+- OOF/LB MAE gap: raw ensemble OOF MAE ~0.40, LB MAE ~0.41 (post-calibration
+  LB 0.4084 as of 2026-04-25). The gap is driven by the test pEC50 distribution
+  being ~12% narrower than train (analog enrichment), which compresses the RAE
+  denominator but leaves MAE roughly faithful. Prefer MAE for ensemble selection
+  and calibrator tuning; RAE is useful for LB ranking but is noisier across runs.
+- LB "amplification" patterns:
+  - `feedback_oof_lb_reverse_amplification`: small OOF Δ (≤ fold std 0.025)
+    can amplify into a ~2-7× larger LB Δ (positive or negative).
+  - `feedback_tier0_weak_single_oof_lb_regress`: weak-single members (single
+    OOF MAE far from pool top tier) tend to amplify NEGATIVELY at LB even when
+    they pass OOF gate 3 — observed twice (tier-0 PR #117, mixed_top500 PR #110).
+  - `feedback_oof_minus_0002_ceiling`: OOF Δ -0.002 alone is bag-noise, not a
+    real signal. Require Δ ≤ -0.003 AND single MAE near pool top tier.
+  - On the success side: 2026-04-25 seed5ens DOUBLE swap had OOF Δ -0.0116
+    (well above noise) and translated to LB Δ -0.0065 (forward, ~0.56× amp).
 - MoLFormer requires rotary embedding fix for transformers v5 (see issue #30);
   `peft_trainer.py` + `compute_embeddings.py` recompute `inv_freq` and rebuild
   the cos/sin cache before PEFT wrapping.
