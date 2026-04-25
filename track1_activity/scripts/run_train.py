@@ -13,6 +13,7 @@ Key changes from legacy scripts:
 """
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -363,10 +364,14 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
-    if feature_name in (
-        "2d_full_boltz_log2fc_pred",
-        "2d_full_boltz_log2fc_pred_ens4",
-        "2d_full_boltz_log2fc_pred_seed5ens",
+    _seed_match = re.match(r"^2d_full_boltz_log2fc_pred_seed(\d+)ens$", feature_name)
+    if (
+        feature_name
+        in (
+            "2d_full_boltz_log2fc_pred",
+            "2d_full_boltz_log2fc_pred_ens4",
+        )
+        or _seed_match is not None
     ):
         # 2d_full_boltz (1817d) + 2 predicted log2_fc scalars.
         # Buterez 2024 strategy-2: predicted LF labels as side feature.
@@ -385,8 +390,11 @@ def load_features(feature_name: str, train_df, test_df):
         if feature_name == "2d_full_boltz_log2fc_pred":
             lf_filename = "chemprop_pretrain_log2fc_predictions.parquet"
             rebuild_hint = "track1_activity/scripts/run_chemprop_predict_log2fc.py"
-        elif feature_name == "2d_full_boltz_log2fc_pred_seed5ens":
-            lf_filename = "chemprop_pretrain_log2fc_predictions_seed5ens.parquet"
+        elif _seed_match is not None:
+            n_seeds = _seed_match.group(1)
+            lf_filename = (
+                f"chemprop_pretrain_log2fc_predictions_seed{n_seeds}ens.parquet"
+            )
             rebuild_hint = "track1_activity/scripts/build_log2fc_seed_ensemble.py"
         else:
             lf_filename = "ensemble4_log2fc_predictions.parquet"
@@ -461,10 +469,16 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
-    if feature_name in (
-        "cheme_2d_full_boltz_log2fc_pred",
-        "cheme_2d_full_boltz_log2fc_pred_ens4",
-        "cheme_2d_full_boltz_log2fc_pred_seed5ens",
+    _cheme_seed_match = re.match(
+        r"^cheme_2d_full_boltz_log2fc_pred_seed(\d+)ens$", feature_name
+    )
+    if (
+        feature_name
+        in (
+            "cheme_2d_full_boltz_log2fc_pred",
+            "cheme_2d_full_boltz_log2fc_pred_ens4",
+        )
+        or _cheme_seed_match is not None
     ):
         # Chemeleon (300d) + 2d_full_boltz_log2fc_pred (1803d) = 2103d.
         # Empirically discovered via mix-feature bakeoff 2026-04-21: this
@@ -478,8 +492,8 @@ def load_features(feature_name: str, train_df, test_df):
         # val-loss weighted ensemble (#115 Phase 3).
         if feature_name.endswith("_ens4"):
             base_name = "2d_full_boltz_log2fc_pred_ens4"
-        elif feature_name.endswith("_seed5ens"):
-            base_name = "2d_full_boltz_log2fc_pred_seed5ens"
+        elif _cheme_seed_match is not None:
+            base_name = f"2d_full_boltz_log2fc_pred_seed{_cheme_seed_match.group(1)}ens"
         else:
             base_name = "2d_full_boltz_log2fc_pred"
         X_train_base, X_test_base = load_features(base_name, train_df, test_df)
@@ -2049,7 +2063,13 @@ def main():
             "cheme_2d_full_boltz_log2fc_pred",
             "cheme_2d_full_boltz_log2fc_pred_ens4",
             "cheme_2d_full_boltz_log2fc_pred_seed5ens",
+            "cheme_2d_full_boltz_log2fc_pred_seed10ens",
+            "cheme_2d_full_boltz_log2fc_pred_seed15ens",
+            "cheme_2d_full_boltz_log2fc_pred_seed20ens",
             "2d_full_boltz_log2fc_pred_seed5ens",
+            "2d_full_boltz_log2fc_pred_seed10ens",
+            "2d_full_boltz_log2fc_pred_seed15ens",
+            "2d_full_boltz_log2fc_pred_seed20ens",
             "cheme_2d_full_boltz_log2fc_emax_pred",
             "cconcat_2d_full_boltz_log2fc_pred",
             "cheme_cconcat_2d_full_boltz_log2fc_pred",

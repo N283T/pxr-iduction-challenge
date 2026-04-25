@@ -18,6 +18,18 @@ PXR_REPO="${PXR_REPO:-$HOME/pxr-iduction-challenge}"
 KERMT_REPO="${KERMT_REPO:-$HOME/ghq/github.com/NVIDIA-Digital-Bio/KERMT}"
 EPOCHS="${1:-30}"
 BATCH_SIZE="${BATCH_SIZE:-32}"
+# SEED env var: pretrain seed. Default 0 (KERMT default = original
+# production checkpoint). Multi-seed ensembling: SEED=43, 44, ...
+SEED="${SEED:-0}"
+# SAVE_DIR env var: ckpt output. Default = canonical production path
+# for SEED=0, seed-suffixed otherwise.
+if [[ -z "${SAVE_DIR:-}" ]]; then
+    if [[ "$SEED" -eq 0 ]]; then
+        SAVE_DIR="$PXR_REPO/models/kermt/pretrain"
+    else
+        SAVE_DIR="$PXR_REPO/models/kermt/pretrain_seed${SEED}"
+    fi
+fi
 
 if [[ ! -f "$KERMT_REPO/main.py" ]]; then
     echo "ERROR: KERMT repo not found at $KERMT_REPO (override with KERMT_REPO=...)" >&2
@@ -40,10 +52,11 @@ cd "$KERMT_REPO"
 export PYTHONPATH="$PWD"
 export CUBLAS_WORKSPACE_CONFIG=:4096:8
 
+echo "KERMT pretrain: seed=$SEED, save_dir=$SAVE_DIR"
 pixi run --manifest-path "$KERMT_REPO/pixi.toml" python main.py finetune \
     --data_path "$PXR_REPO/data/kermt/pretrain_train.csv" \
     --separate_val_path "$PXR_REPO/data/kermt/pretrain_val.csv" \
-    --save_dir "$PXR_REPO/models/kermt/pretrain" \
+    --save_dir "$SAVE_DIR" \
     --checkpoint_path "$PXR_REPO/models/kermt/grover_base.pt" \
     --dataset_type regression \
     --split_type scaffold_balanced \
@@ -60,4 +73,5 @@ pixi run --manifest-path "$KERMT_REPO/pixi.toml" python main.py finetune \
     --max_lr 1e-4 \
     --final_lr 2e-5 \
     --dropout 0.1 \
-    --batch_size "$BATCH_SIZE"
+    --batch_size "$BATCH_SIZE" \
+    --seed "$SEED"
