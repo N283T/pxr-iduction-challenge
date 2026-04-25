@@ -35,6 +35,11 @@ structures/boltz2/ligands/
 structures/boltz2/manifest*.csv
 structures/boltz2/postprocess*.csv
 structures/boltz2/posebusters*.csv
+structures/boltz2_track2/
+
+# Track 2 input YAMLs are derivable from data/structure_test.parquet via
+# build_inputs.py, so we don't track them in git.
+track2_structure/inputs/
 
 # GatorAffinity Phase A/B pipeline (re-creatable from compound_boltz2)
 structures/gator/
