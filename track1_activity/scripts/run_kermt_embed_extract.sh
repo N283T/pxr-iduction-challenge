@@ -37,6 +37,24 @@ PXR_REPO="${PXR_REPO:-$HOME/pxr-iduction-challenge}"
 KERMT_REPO="${KERMT_REPO:-$HOME/ghq/github.com/NVIDIA-Digital-Bio/KERMT}"
 LIMIT="${LIMIT:-0}"  # 0 = all compounds; positive = smoke test
 BATCH_SIZE="${BATCH_SIZE:-32}"
+# SEED env var: which pretrain checkpoint to use. Default 0 = canonical
+# production path (models/kermt/pretrain/fold_0/model_0/model.pt).
+# Multi-seed: SEED=43 uses models/kermt/pretrain_seed43/...
+SEED="${SEED:-0}"
+if [[ -z "${CKPT_PATH:-}" ]]; then
+    if [[ "$SEED" -eq 0 ]]; then
+        CKPT_PATH="$PXR_REPO/models/kermt/pretrain/fold_0/model_0/model.pt"
+    else
+        CKPT_PATH="$PXR_REPO/models/kermt/pretrain_seed${SEED}/fold_0/model_0/model.pt"
+    fi
+fi
+if [[ -z "${OUTPUT_NPZ:-}" ]]; then
+    if [[ "$SEED" -eq 0 ]]; then
+        OUTPUT_NPZ="$PXR_REPO/data/kermt/embeddings.npz"
+    else
+        OUTPUT_NPZ="$PXR_REPO/data/kermt/embeddings_seed${SEED}.npz"
+    fi
+fi
 
 # Pre-flight
 if [[ ! -f "$KERMT_REPO/main.py" ]]; then
@@ -47,8 +65,8 @@ if [[ ! -f "$PXR_REPO/data/kermt/pretrain_all.csv" ]]; then
     echo "ERROR: pretrain_all.csv not found. Run prepare_kermt_pretrain_csv.py first." >&2
     exit 1
 fi
-if [[ ! -f "$PXR_REPO/models/kermt/pretrain/fold_0/model_0/model.pt" ]]; then
-    echo "ERROR: Pretrained checkpoint not found at $PXR_REPO/models/kermt/pretrain/fold_0/model_0/model.pt. Run run_kermt_pretrain.sh first." >&2
+if [[ ! -f "$CKPT_PATH" ]]; then
+    echo "ERROR: Pretrained checkpoint not found at $CKPT_PATH. Run run_kermt_pretrain.sh (with matching SEED) first." >&2
     exit 1
 fi
 
@@ -76,10 +94,11 @@ export PYTHONPATH="$PWD"
 # env var for CuBLAS linear kernels under CUDA >= 10.2.
 export CUBLAS_WORKSPACE_CONFIG=:4096:8
 
+echo "KERMT embed extract: seed=$SEED  ckpt=$CKPT_PATH  out=$OUTPUT_NPZ"
 pixi run --manifest-path "$KERMT_REPO/pixi.toml" python \
     "$PXR_REPO/track1_activity/scripts/kermt_fingerprint_patched.py" fingerprint \
     --data_path "$INPUT_CSV" \
-    --checkpoint_path "$PXR_REPO/models/kermt/pretrain/fold_0/model_0/model.pt" \
+    --checkpoint_path "$CKPT_PATH" \
     --fingerprint_source both \
-    --output_path "$PXR_REPO/data/kermt/embeddings.npz" \
+    --output_path "$OUTPUT_NPZ" \
     --batch_size "$BATCH_SIZE"

@@ -127,17 +127,25 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # Chemeleon alone with TabPFN was empirically iffy, but mixed with
     # the 2D/Boltz descriptors it adds decorrelating signal.
     #
-    # 2026-04-25 SWAP: default cheme_2df_lf -> seed5ens variant (Plan A
-    # multi-seed pretrain). chemprop pretrain re-run 4 more times with
-    # seeds [43,44,45,46], log2fc_pred parquets averaged per row. Same
-    # 2103d feature shape, only the 2 log2fc cols change to a 5-seed
-    # mean. Single-model OOF MAE 0.4213 -> 0.4069 (Δ -0.0144). 9-pool
-    # caruana MAE 0.4150 -> 0.4097 (single-swap Δ -0.0053). Combined
-    # with the top500 sibling swap (below) the double-swap landed at
-    # 0.4034 (Δ -0.0116). Residual r 0.985 with the original single-seed
-    # version — same encoder family, only random-init variance averaged
-    # out, so this is structurally a SWAP rather than an ADD.
-    "tabpfn_cheme_2d_full_boltz_log2fc_pred_seed5ens_umap_default",
+    # 2026-04-25 SWAP: default cheme_2df_lf -> seedNens variant (Plan A
+    # multi-seed pretrain). chemprop pretrain re-run with 5 seeds [43..46]
+    # then 5 more [47..51], log2fc_pred parquets averaged per row. Same
+    # 2103d feature shape, only the 2 log2fc cols change to a multi-seed
+    # mean.
+    #
+    # 5-seed (id=31, rank 1, MAE 0.4084 / Sp 0.846): 9-pool caruana MAE
+    # 0.4150 -> 0.4034 (Δ -0.0116) and Sp 0.840 -> 0.840.
+    #
+    # 10-seed (id=32 candidate, 2026-04-25 evening, this entry):
+    # additional 5 seeds [47..51]. Single-model OOF MAE 0.4068 -> 0.4056
+    # (Δ -0.0012) AND Sp 0.836 -> 0.840 (Δ +0.004). Caruana MAE 0.4034
+    # -> 0.4019 (Δ -0.0015) AND Sp 0.8403 -> 0.8424 (Δ +0.0021).
+    # Spearman gain matches the gap to rank 2 (sia 0.850 vs us 0.846)
+    # — primary motivation for the extension.
+    #
+    # Same SWAP semantics as 5-seed: structurally an upgrade of the same
+    # encoder family, residual r ~0.99 with the prior 5-seed variant.
+    "tabpfn_cheme_2d_full_boltz_log2fc_pred_seed10ens_umap_default",
     # TabPFN on chemprop pretrain encoder fingerprint (256d).
     # Buterez 2024 strategy-3 (LF embedding as side feature).
     # OOF MAE 0.4373 / Spearman 0.8102 -- pool single-best.
@@ -228,14 +236,19 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # Mechanism: TabPFN v7 is pretrained on d<=500, and manual LGBM-gain
     # feature selection outperforms TabPFN's internal random subsampling
     # when fed large-d inputs.
-    # 2026-04-25 SWAP: top500 variant also rebuilt on the seed5ens
-    # parquet (script 15_tabpfn_topk_proper_cv.py with
-    # --feature cheme_2d_full_boltz_log2fc_pred_seed5ens). Per-fold
-    # LGBM-gain selection from the seed5ens 2103d feature matrix.
-    # Single-model OOF MAE 0.4181 -> 0.3988 (Δ -0.0193, first time a
-    # single member breaks 0.40). Both swaps together push caruana_bag20
-    # to 0.4034 (28_seed5ens_double_swap.py).
-    "tabpfn_cheme_2d_full_boltz_log2fc_pred_seed5ens_top500_umap",
+    # 2026-04-25 SWAP: top500 variant rebuilt on the seedNens parquet
+    # (15_tabpfn_topk_proper_cv.py with --feature
+    # cheme_2d_full_boltz_log2fc_pred_seed{N}ens). Per-fold LGBM-gain
+    # selection from the seed-averaged 2103d feature matrix.
+    #
+    # 5-seed: single-model OOF MAE 0.4181 -> 0.3988 (Δ -0.0193, first
+    # sub-0.40). 10-seed: 0.3988 -> 0.3968 (Δ -0.0020, additional gain)
+    # AND Spearman 0.843 -> 0.846 (Δ +0.003, matches LB Sp).
+    #
+    # Both swaps together (default + top500 -> 10-seed): 9-pool
+    # caruana MAE 0.4034 -> 0.4019 (Δ -0.0015) AND Sp 0.8403 -> 0.8424
+    # (Δ +0.0021).  See 29_seed10ens_swap.py for the bakeoff.
+    "tabpfn_cheme_2d_full_boltz_log2fc_pred_seed10ens_top500_umap",
     # 2026-04-23 dropped: tabpfn_mixed_pool_top500_umap.
     # Two LB submissions regressed (+0.0051, +0.0091) despite OOF 0.4113 best.
     # Per-fold LGBM-gain on 8375d mega-concat overfits fold structure.

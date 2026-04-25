@@ -13,6 +13,7 @@ Key changes from legacy scripts:
 """
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -363,10 +364,14 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
-    if feature_name in (
-        "2d_full_boltz_log2fc_pred",
-        "2d_full_boltz_log2fc_pred_ens4",
-        "2d_full_boltz_log2fc_pred_seed5ens",
+    _seed_match = re.match(r"^2d_full_boltz_log2fc_pred_seed(\d+)ens$", feature_name)
+    if (
+        feature_name
+        in (
+            "2d_full_boltz_log2fc_pred",
+            "2d_full_boltz_log2fc_pred_ens4",
+        )
+        or _seed_match is not None
     ):
         # 2d_full_boltz (1817d) + 2 predicted log2_fc scalars.
         # Buterez 2024 strategy-2: predicted LF labels as side feature.
@@ -385,8 +390,11 @@ def load_features(feature_name: str, train_df, test_df):
         if feature_name == "2d_full_boltz_log2fc_pred":
             lf_filename = "chemprop_pretrain_log2fc_predictions.parquet"
             rebuild_hint = "track1_activity/scripts/run_chemprop_predict_log2fc.py"
-        elif feature_name == "2d_full_boltz_log2fc_pred_seed5ens":
-            lf_filename = "chemprop_pretrain_log2fc_predictions_seed5ens.parquet"
+        elif _seed_match is not None:
+            n_seeds = _seed_match.group(1)
+            lf_filename = (
+                f"chemprop_pretrain_log2fc_predictions_seed{n_seeds}ens.parquet"
+            )
             rebuild_hint = "track1_activity/scripts/build_log2fc_seed_ensemble.py"
         else:
             lf_filename = "ensemble4_log2fc_predictions.parquet"
@@ -461,10 +469,16 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
-    if feature_name in (
-        "cheme_2d_full_boltz_log2fc_pred",
-        "cheme_2d_full_boltz_log2fc_pred_ens4",
-        "cheme_2d_full_boltz_log2fc_pred_seed5ens",
+    _cheme_seed_match = re.match(
+        r"^cheme_2d_full_boltz_log2fc_pred_seed(\d+)ens$", feature_name
+    )
+    if (
+        feature_name
+        in (
+            "cheme_2d_full_boltz_log2fc_pred",
+            "cheme_2d_full_boltz_log2fc_pred_ens4",
+        )
+        or _cheme_seed_match is not None
     ):
         # Chemeleon (300d) + 2d_full_boltz_log2fc_pred (1803d) = 2103d.
         # Empirically discovered via mix-feature bakeoff 2026-04-21: this
@@ -478,8 +492,8 @@ def load_features(feature_name: str, train_df, test_df):
         # val-loss weighted ensemble (#115 Phase 3).
         if feature_name.endswith("_ens4"):
             base_name = "2d_full_boltz_log2fc_pred_ens4"
-        elif feature_name.endswith("_seed5ens"):
-            base_name = "2d_full_boltz_log2fc_pred_seed5ens"
+        elif _cheme_seed_match is not None:
+            base_name = f"2d_full_boltz_log2fc_pred_seed{_cheme_seed_match.group(1)}ens"
         else:
             base_name = "2d_full_boltz_log2fc_pred"
         X_train_base, X_test_base = load_features(base_name, train_df, test_df)
@@ -827,7 +841,8 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
-    if feature_name == "kermt_pretrain_embed":
+    _kermt_seed_match = re.match(r"^kermt_pretrain_embed_seed(\d+)ens$", feature_name)
+    if feature_name == "kermt_pretrain_embed" or _kermt_seed_match is not None:
         # 3200d per-compound graph embedding from KERMT (GROVER_base)
         # after continued-pretrain on single_concentration log2_fc.
         # Dims = 4 GROVER heads (atom_from_atom, atom_from_bond,
@@ -837,14 +852,22 @@ def load_features(feature_name: str, train_df, test_df):
         #   track1_activity/scripts/run_kermt_pretrain.sh
         #   track1_activity/scripts/run_kermt_embed_extract.sh
         #   track1_activity/scripts/kermt_embed_npz_to_parquet.py
+        #   track1_activity/scripts/build_kermt_seed_ensemble.py (multi-seed)
         # Buterez 2024 strategy-3 with a graph-transformer backbone
         # (parallel to chemprop_pretrain_embed = GNN,
         # molformer_c3_pretrain_embed = transformer).
-        embed_path = REPO_ROOT.joinpath("data", "kermt_pretrain_embed.parquet")
+        if _kermt_seed_match is not None:
+            n_seeds = _kermt_seed_match.group(1)
+            embed_path = REPO_ROOT.joinpath(
+                "data", f"kermt_pretrain_embed_seed{n_seeds}ens.parquet"
+            )
+        else:
+            embed_path = REPO_ROOT.joinpath("data", "kermt_pretrain_embed.parquet")
         if not embed_path.exists():
             raise SystemExit(
                 f"Missing {embed_path}. Run "
-                f"track1_activity/scripts/kermt_embed_npz_to_parquet.py"
+                f"track1_activity/scripts/kermt_embed_npz_to_parquet.py "
+                f"or build_kermt_seed_ensemble.py for the seedNens variant."
             )
         emb_df = pd.read_parquet(embed_path)
         X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
@@ -2024,6 +2047,7 @@ def main():
             "molformer_c3_pretrain_embed",
             "chemberta_5m_mtr_pretrain_embed",
             "kermt_pretrain_embed",
+            "kermt_pretrain_embed_seed5ens",
             "attentivefp_pretrain_embed",
             "gatedgcn_pretrain_embed",
             "unimol_v2_pretrain_embed",
@@ -2049,7 +2073,13 @@ def main():
             "cheme_2d_full_boltz_log2fc_pred",
             "cheme_2d_full_boltz_log2fc_pred_ens4",
             "cheme_2d_full_boltz_log2fc_pred_seed5ens",
+            "cheme_2d_full_boltz_log2fc_pred_seed10ens",
+            "cheme_2d_full_boltz_log2fc_pred_seed15ens",
+            "cheme_2d_full_boltz_log2fc_pred_seed20ens",
             "2d_full_boltz_log2fc_pred_seed5ens",
+            "2d_full_boltz_log2fc_pred_seed10ens",
+            "2d_full_boltz_log2fc_pred_seed15ens",
+            "2d_full_boltz_log2fc_pred_seed20ens",
             "cheme_2d_full_boltz_log2fc_emax_pred",
             "cconcat_2d_full_boltz_log2fc_pred",
             "cheme_cconcat_2d_full_boltz_log2fc_pred",
