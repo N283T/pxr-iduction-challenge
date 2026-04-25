@@ -61,3 +61,17 @@ boltz predict "$INPUT_DIR" \
 
 echo | tee -a "$LOG_FILE"
 echo "[track2_apo] done: $(date -Is)" | tee -a "$LOG_FILE"
+
+# Copy the produced ColabFold MSA to a stable shared location so the holo
+# YAMLs (built next via build_inputs.py --mode holo) can reference a single
+# precomputed file via the YAML msa: field — avoids 184 ColabFold calls.
+APO_MSA_SRC="$OUTPUT_DIR/boltz_results_apo/msa/apo_0.csv"
+MSA_DEST="structures/boltz2_track2/msa/pxr_lbd.csv"
+if [[ -f "$APO_MSA_SRC" ]]; then
+    mkdir -p "$(dirname "$MSA_DEST")"
+    cp "$APO_MSA_SRC" "$MSA_DEST"
+    echo "[track2_apo] cached MSA at $MSA_DEST" | tee -a "$LOG_FILE"
+else
+    echo "[track2_apo] WARNING: expected MSA at $APO_MSA_SRC was not produced" \
+        | tee -a "$LOG_FILE"
+fi

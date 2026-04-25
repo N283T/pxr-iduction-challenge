@@ -26,6 +26,7 @@ def build_yaml(
     smiles: str | None,
     *,
     sequence: str = PXR_LBD_SEQUENCE,
+    msa_path: Path | None = None,
     request_affinity: bool = True,
 ) -> dict[str, Any]:
     """Build a Boltz-2 YAML dict for an apo or holo prediction.
@@ -33,10 +34,17 @@ def build_yaml(
     Pass ``smiles=None`` to produce an apo (ligand-free) input — useful as
     a one-off run to populate the MSA cache and produce a reference apo
     LBD model for analysis.
+
+    Pass ``msa_path`` to reference a precomputed MSA (a3m or csv) so all
+    holo runs share a single preprocessing step instead of re-querying
+    the ColabFold MSA server per compound. The path is written as an
+    absolute path so boltz can resolve it from any working directory.
     """
-    sequences: list[dict[str, Any]] = [
-        {"protein": {"id": PROTEIN_CHAIN_ID, "sequence": sequence}},
-    ]
+    protein: dict[str, Any] = {"id": PROTEIN_CHAIN_ID, "sequence": sequence}
+    if msa_path is not None:
+        protein["msa"] = str(Path(msa_path).resolve())
+
+    sequences: list[dict[str, Any]] = [{"protein": protein}]
     if smiles is not None:
         sequences.append({"ligand": {"id": LIGAND_CHAIN_ID, "smiles": smiles}})
 

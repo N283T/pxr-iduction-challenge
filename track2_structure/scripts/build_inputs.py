@@ -31,17 +31,23 @@ import pandas as pd
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT.joinpath("track2_structure", "src")))
 
-from track2.constants import TRACK2_INPUT_DIR  # noqa: E402
+from track2.constants import MSA_PATH, TRACK2_INPUT_DIR  # noqa: E402
 from track2.input_builder import write_yaml  # noqa: E402
 
 
 def _build_apo(out_root: Path) -> None:
     apo_dir = out_root.joinpath("apo")
+    # Apo deliberately omits MSA — its purpose is to fetch and cache the MSA.
     write_yaml(apo_dir.joinpath("apo.yaml"), smiles=None)
     print(f"Wrote {apo_dir.joinpath('apo.yaml')}")
 
 
 def _build_holo(out_root: Path, parquet_path: Path) -> None:
+    if not MSA_PATH.exists():
+        raise FileNotFoundError(
+            f"MSA file {MSA_PATH} not found. Run "
+            "`bash track2_structure/scripts/run_apo.sh` first to populate it."
+        )
     df = pd.read_parquet(parquet_path)
     if df.empty:
         raise ValueError(f"no rows in {parquet_path}")
@@ -49,8 +55,12 @@ def _build_holo(out_root: Path, parquet_path: Path) -> None:
     holo_dir.mkdir(parents=True, exist_ok=True)
     for _, row in df.iterrows():
         sid = row["structure"]
-        write_yaml(holo_dir.joinpath(f"{sid}.yaml"), smiles=row["smiles"])
-    print(f"Wrote {len(df)} holo YAMLs under {holo_dir}/")
+        write_yaml(
+            holo_dir.joinpath(f"{sid}.yaml"),
+            smiles=row["smiles"],
+            msa_path=MSA_PATH,
+        )
+    print(f"Wrote {len(df)} holo YAMLs under {holo_dir}/ (msa={MSA_PATH})")
 
 
 def main() -> None:
