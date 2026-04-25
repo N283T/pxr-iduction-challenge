@@ -32,3 +32,9 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 TRACK2_INPUT_DIR = REPO_ROOT.joinpath("track2_structure", "inputs")
 TRACK2_OUTPUT_DIR = REPO_ROOT.joinpath("structures", "boltz2_track2", "outputs")
 LOG_DIR = REPO_ROOT.joinpath("logs")
+
+# Cached PXR LBD MSA, produced by run_apo.sh (which copies the
+# ColabFold-generated CSV out of the apo run output dir to this stable
+# location). Holo YAMLs reference this path so the 184 production runs
+# share a single preprocessing step instead of hammering ColabFold 184x.
+MSA_PATH = REPO_ROOT.joinpath("structures", "boltz2_track2", "msa", "pxr_lbd.csv")
