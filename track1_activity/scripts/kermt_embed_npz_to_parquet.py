@@ -27,8 +27,8 @@ import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ID_CSV = REPO_ROOT.joinpath("data", "kermt", "pretrain_all.csv")
-NPZ_PATH = REPO_ROOT.joinpath("data", "kermt", "embeddings.npz")
-OUT_PATH = REPO_ROOT.joinpath("data", "kermt_pretrain_embed.parquet")
+DEFAULT_NPZ = REPO_ROOT.joinpath("data", "kermt", "embeddings.npz")
+DEFAULT_OUT = REPO_ROOT.joinpath("data", "kermt_pretrain_embed.parquet")
 
 
 def load_kermt_embeddings(npz_path: Path) -> np.ndarray:
@@ -58,6 +58,23 @@ def load_kermt_embeddings(npz_path: Path) -> np.ndarray:
 
 
 def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--npz",
+        type=Path,
+        default=DEFAULT_NPZ,
+        help=f"Input NPZ from kermt fingerprint (default: {DEFAULT_NPZ})",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=DEFAULT_OUT,
+        help=f"Output parquet (default: {DEFAULT_OUT})",
+    )
+    args = parser.parse_args()
+
     id_df = pd.read_csv(ID_CSV)
     if "compound_id" not in id_df.columns:
         raise ValueError(
@@ -66,7 +83,7 @@ def main() -> None:
     compound_ids = id_df["compound_id"].astype(int).to_numpy()
     print(f"Loaded {len(compound_ids)} compound_ids from {ID_CSV}")
 
-    emb = load_kermt_embeddings(NPZ_PATH)
+    emb = load_kermt_embeddings(args.npz)
     print(f"Loaded embeddings shape {emb.shape} dtype {emb.dtype}")
 
     if len(compound_ids) != emb.shape[0]:
@@ -74,7 +91,7 @@ def main() -> None:
             f"Row count mismatch: {len(compound_ids)} compound_ids "
             f"vs {emb.shape[0]} embedding rows. KERMT may have dropped "
             f"some compounds (e.g. unparseable SMILES). Inspect "
-            f"{NPZ_PATH}."
+            f"{args.npz}."
         )
 
     nan_count = int(np.isnan(emb).sum())
@@ -90,9 +107,9 @@ def main() -> None:
         index=pd.Index(compound_ids, name="compound_id"),
         columns=cols,
     )
-    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(OUT_PATH)
-    print(f"Wrote {OUT_PATH}  shape {df.shape}")
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(args.out)
+    print(f"Wrote {args.out}  shape {df.shape}")
 
 
 if __name__ == "__main__":

@@ -841,7 +841,8 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
-    if feature_name == "kermt_pretrain_embed":
+    _kermt_seed_match = re.match(r"^kermt_pretrain_embed_seed(\d+)ens$", feature_name)
+    if feature_name == "kermt_pretrain_embed" or _kermt_seed_match is not None:
         # 3200d per-compound graph embedding from KERMT (GROVER_base)
         # after continued-pretrain on single_concentration log2_fc.
         # Dims = 4 GROVER heads (atom_from_atom, atom_from_bond,
@@ -851,14 +852,22 @@ def load_features(feature_name: str, train_df, test_df):
         #   track1_activity/scripts/run_kermt_pretrain.sh
         #   track1_activity/scripts/run_kermt_embed_extract.sh
         #   track1_activity/scripts/kermt_embed_npz_to_parquet.py
+        #   track1_activity/scripts/build_kermt_seed_ensemble.py (multi-seed)
         # Buterez 2024 strategy-3 with a graph-transformer backbone
         # (parallel to chemprop_pretrain_embed = GNN,
         # molformer_c3_pretrain_embed = transformer).
-        embed_path = REPO_ROOT.joinpath("data", "kermt_pretrain_embed.parquet")
+        if _kermt_seed_match is not None:
+            n_seeds = _kermt_seed_match.group(1)
+            embed_path = REPO_ROOT.joinpath(
+                "data", f"kermt_pretrain_embed_seed{n_seeds}ens.parquet"
+            )
+        else:
+            embed_path = REPO_ROOT.joinpath("data", "kermt_pretrain_embed.parquet")
         if not embed_path.exists():
             raise SystemExit(
                 f"Missing {embed_path}. Run "
-                f"track1_activity/scripts/kermt_embed_npz_to_parquet.py"
+                f"track1_activity/scripts/kermt_embed_npz_to_parquet.py "
+                f"or build_kermt_seed_ensemble.py for the seedNens variant."
             )
         emb_df = pd.read_parquet(embed_path)
         X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
@@ -2038,6 +2047,7 @@ def main():
             "molformer_c3_pretrain_embed",
             "chemberta_5m_mtr_pretrain_embed",
             "kermt_pretrain_embed",
+            "kermt_pretrain_embed_seed5ens",
             "attentivefp_pretrain_embed",
             "gatedgcn_pretrain_embed",
             "unimol_v2_pretrain_embed",
