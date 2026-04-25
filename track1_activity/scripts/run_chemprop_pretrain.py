@@ -53,10 +53,7 @@ from data import DB_PARAMS  # noqa: E402
 torch.set_float32_matmul_precision("medium")
 
 
-CKPT_DIR = REPO_ROOT.joinpath(
-    "track1_activity", "checkpoints", "chemprop_pretrain"
-)
-CKPT_DIR.mkdir(parents=True, exist_ok=True)
+CKPT_BASE = REPO_ROOT.joinpath("track1_activity", "checkpoints")
 
 
 # Default architecture mirrors run_chemprop_multitask's TUNED_PARAMS
@@ -179,11 +176,29 @@ def main() -> None:
         default=0.5,
         help="Loss weight on 33uM head (secondary, r=0.50)",
     )
+    parser.add_argument(
+        "--ckpt-dir",
+        type=Path,
+        default=None,
+        help="Checkpoint output directory. Default: chemprop_pretrain (seed 42) "
+        "or chemprop_pretrain_seed{N} for non-default seeds. Use this for "
+        "multi-seed ensembles (Plan A).",
+    )
     args = parser.parse_args()
 
     params = DEFAULT_PARAMS.copy()
     if args.max_epochs is not None:
         params["max_epochs"] = args.max_epochs
+
+    # Resolve ckpt directory: explicit override, or seed-derived default
+    if args.ckpt_dir is not None:
+        ckpt_dir = args.ckpt_dir
+    elif args.seed == 42:
+        ckpt_dir = CKPT_BASE.joinpath("chemprop_pretrain")
+    else:
+        ckpt_dir = CKPT_BASE.joinpath(f"chemprop_pretrain_seed{args.seed}")
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+    print(f"  ckpt_dir: {ckpt_dir}")
 
     print("ChemProp pretrain (13k compounds + single_conc 2-head)")
     print(f"  params: {params}")
@@ -242,7 +257,7 @@ def main() -> None:
         monitor="val_loss", patience=params["patience"], mode="min"
     )
     best_ckpt = pl.callbacks.ModelCheckpoint(
-        dirpath=str(CKPT_DIR),
+        dirpath=str(ckpt_dir),
         filename="pretrain_best",
         monitor="val_loss",
         mode="min",
@@ -263,7 +278,7 @@ def main() -> None:
     # We save the FULL state_dict; the fine-tune loader picks out the
     # encoder keys (message_passing.*, agg.*, batch_norm-related) and
     # discards the predictor FFN (single-task head will be fresh).
-    state_path = CKPT_DIR.joinpath("pretrain.pt")
+    state_path = ckpt_dir.joinpath("pretrain.pt")
     torch.save(
         {
             "state_dict": model.state_dict(),
@@ -280,7 +295,7 @@ def main() -> None:
     print(f"  saved state_dict: {state_path}")
 
     # Separate JSON for quick inspection
-    meta_path = CKPT_DIR.joinpath("pretrain_meta.json")
+    meta_path = ckpt_dir.joinpath("pretrain_meta.json")
     meta_path.write_text(
         json.dumps(
             {
@@ -294,9 +309,7 @@ def main() -> None:
                     "8.25uM": n_valid_8,
                     "33uM": n_valid_33,
                 },
-                "final_val_loss": float(
-                    trainer.callback_metrics.get("val_loss", -1)
-                ),
+                "final_val_loss": float(trainer.callback_metrics.get("val_loss", -1)),
                 "best_ckpt_path": str(best_ckpt.best_model_path),
             },
             indent=2,

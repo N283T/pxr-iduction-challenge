@@ -73,6 +73,12 @@ EMBEDDING_TABLES = {
     "chemberta_zinc_v1": "compound_chemberta_zinc_v1",
     "bert_base_smiles": "compound_bert_smiles",
     "molformer_xl": "compound_molformer",
+    # ChemFM-1B (TheLuoFengLab, Nature Comm Chem 2025): Llama-style causal LM
+    # pretrained on UniChem SMILES. Two pooling variants exposed via SQL views.
+    "chemfm_1b_last": "compound_chemfm_1b_last",
+    "chemfm_1b_mean": "compound_chemfm_1b_mean",
+    "chemfm_3b_last": "compound_chemfm_3b_last",
+    "chemfm_3b_mean": "compound_chemfm_3b_mean",
 }
 
 # Default hyperparams per model type (used when --trials 0)
@@ -360,18 +366,28 @@ def load_features(feature_name: str, train_df, test_df):
     if feature_name in (
         "2d_full_boltz_log2fc_pred",
         "2d_full_boltz_log2fc_pred_ens4",
+        "2d_full_boltz_log2fc_pred_seed5ens",
     ):
         # 2d_full_boltz (1817d) + 2 predicted log2_fc scalars.
         # Buterez 2024 strategy-2: predicted LF labels as side feature.
         # - "2d_full_boltz_log2fc_pred": chemprop-only log2fc predictor
-        #   (baseline). See run_chemprop_predict_log2fc.py.
+        #   (baseline, single seed=42). See run_chemprop_predict_log2fc.py.
         # - "2d_full_boltz_log2fc_pred_ens4": inverse-val-loss weighted
         #   mean of 4 encoders (chemprop + molformer_c3 + attentivefp +
         #   gatedgcn). See build_ensemble_log2fc.py (#115).
+        # - "2d_full_boltz_log2fc_pred_seed5ens": same chemprop arch
+        #   trained with seeds [42,43,44,45,46] then averaged. Variance
+        #   reduction trick (Plan A 2026-04-25). Multi-arch ens4 was null
+        #   per #116 because weak encoders diluted chemprop; same-arch
+        #   multi-seed only averages noise so should be at least as good
+        #   as single seed.
         X_train_base, X_test_base = load_features("2d_full_boltz", train_df, test_df)
         if feature_name == "2d_full_boltz_log2fc_pred":
             lf_filename = "chemprop_pretrain_log2fc_predictions.parquet"
             rebuild_hint = "track1_activity/scripts/run_chemprop_predict_log2fc.py"
+        elif feature_name == "2d_full_boltz_log2fc_pred_seed5ens":
+            lf_filename = "chemprop_pretrain_log2fc_predictions_seed5ens.parquet"
+            rebuild_hint = "track1_activity/scripts/build_log2fc_seed_ensemble.py"
         else:
             lf_filename = "ensemble4_log2fc_predictions.parquet"
             rebuild_hint = "track1_activity/scripts/build_ensemble_log2fc.py"
@@ -448,6 +464,7 @@ def load_features(feature_name: str, train_df, test_df):
     if feature_name in (
         "cheme_2d_full_boltz_log2fc_pred",
         "cheme_2d_full_boltz_log2fc_pred_ens4",
+        "cheme_2d_full_boltz_log2fc_pred_seed5ens",
     ):
         # Chemeleon (300d) + 2d_full_boltz_log2fc_pred (1803d) = 2103d.
         # Empirically discovered via mix-feature bakeoff 2026-04-21: this
@@ -459,11 +476,12 @@ def load_features(feature_name: str, train_df, test_df):
         # cheme_2df alone carries weight 0.388).
         # "_ens4" swaps chemprop-only log2fc_pred for 4-encoder inverse-
         # val-loss weighted ensemble (#115 Phase 3).
-        base_name = (
-            "2d_full_boltz_log2fc_pred_ens4"
-            if feature_name.endswith("_ens4")
-            else "2d_full_boltz_log2fc_pred"
-        )
+        if feature_name.endswith("_ens4"):
+            base_name = "2d_full_boltz_log2fc_pred_ens4"
+        elif feature_name.endswith("_seed5ens"):
+            base_name = "2d_full_boltz_log2fc_pred_seed5ens"
+        else:
+            base_name = "2d_full_boltz_log2fc_pred"
         X_train_base, X_test_base = load_features(base_name, train_df, test_df)
         # Load chemeleon from DB
         import psycopg2 as _pg
@@ -487,6 +505,36 @@ def load_features(feature_name: str, train_df, test_df):
         print(
             f"  cheme_2d_full_boltz_log2fc_pred: {cheme_tr.shape[1]} chemeleon + "
             f"{X_train_base.shape[1]} 2df_lf = {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
+    if feature_name == "cheme_2d_full_boltz_log2fc_emax_pred":
+        # cheme_2d_full_boltz_log2fc_pred (2103d) + 2 emax_pred scalars
+        # (emax_estimate_pred + emax_vs_pos_ctrl_pred) = 2105d.
+        # emax labels are 100% in train_activity (4140/4140) and orthogonal
+        # to pec50 (corr ~ -0.13), so emax_pred captures efficacy signal
+        # not directly encoded by pool members today. Generated via
+        # run_emax_predict.py (LGBM cross-fit on rdkit_desc_full).
+        # Same Buterez 2024 strategy-2 pattern as log2fc_pred.
+        X_train_base, X_test_base = load_features(
+            "cheme_2d_full_boltz_log2fc_pred", train_df, test_df
+        )
+        emax_path = REPO_ROOT.joinpath("data", "emax_predictions.parquet")
+        if not emax_path.exists():
+            raise SystemExit(
+                f"Missing {emax_path}. Run track1_activity/scripts/run_emax_predict.py"
+            )
+        emax_df = pd.read_parquet(emax_path)
+        cols = ["emax_estimate_pred", "emax_vs_pos_ctrl_pred"]
+        Xe_tr = emax_df.reindex(index=train_ids)[cols].to_numpy(dtype=np.float32).copy()
+        Xe_te = emax_df.reindex(index=test_ids)[cols].to_numpy(dtype=np.float32).copy()
+        Xe_tr = np.nan_to_num(Xe_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        Xe_te = np.nan_to_num(Xe_te, nan=0.0, posinf=0.0, neginf=0.0)
+        X_train = np.concatenate([X_train_base, Xe_tr], axis=1)
+        X_test = np.concatenate([X_test_base, Xe_te], axis=1)
+        print(
+            f"  cheme_2d_full_boltz_log2fc_emax_pred: {X_train_base.shape[1]} cheme_2df_lf + "
+            f"{Xe_tr.shape[1]} emax_pred = {X_train.shape[1]} features"
         )
         return X_train, X_test
 
@@ -2000,6 +2048,9 @@ def main():
             "2d_full_boltz_log2fc_pred_ens4",
             "cheme_2d_full_boltz_log2fc_pred",
             "cheme_2d_full_boltz_log2fc_pred_ens4",
+            "cheme_2d_full_boltz_log2fc_pred_seed5ens",
+            "2d_full_boltz_log2fc_pred_seed5ens",
+            "cheme_2d_full_boltz_log2fc_emax_pred",
             "cconcat_2d_full_boltz_log2fc_pred",
             "cheme_cconcat_2d_full_boltz_log2fc_pred",
             "3d_ligand",

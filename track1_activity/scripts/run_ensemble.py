@@ -126,7 +126,18 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # vs 0.4246) with cheme_2df carrying caruana weight 0.388 (pool-top).
     # Chemeleon alone with TabPFN was empirically iffy, but mixed with
     # the 2D/Boltz descriptors it adds decorrelating signal.
-    "tabpfn_cheme_2d_full_boltz_log2fc_pred_umap_default",
+    #
+    # 2026-04-25 SWAP: default cheme_2df_lf -> seed5ens variant (Plan A
+    # multi-seed pretrain). chemprop pretrain re-run 4 more times with
+    # seeds [43,44,45,46], log2fc_pred parquets averaged per row. Same
+    # 2103d feature shape, only the 2 log2fc cols change to a 5-seed
+    # mean. Single-model OOF MAE 0.4213 -> 0.4069 (Δ -0.0144). 9-pool
+    # caruana MAE 0.4150 -> 0.4097 (single-swap Δ -0.0053). Combined
+    # with the top500 sibling swap (below) the double-swap landed at
+    # 0.4034 (Δ -0.0116). Residual r 0.985 with the original single-seed
+    # version — same encoder family, only random-init variance averaged
+    # out, so this is structurally a SWAP rather than an ADD.
+    "tabpfn_cheme_2d_full_boltz_log2fc_pred_seed5ens_umap_default",
     # TabPFN on chemprop pretrain encoder fingerprint (256d).
     # Buterez 2024 strategy-3 (LF embedding as side feature).
     # OOF MAE 0.4373 / Spearman 0.8102 -- pool single-best.
@@ -217,7 +228,14 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # Mechanism: TabPFN v7 is pretrained on d<=500, and manual LGBM-gain
     # feature selection outperforms TabPFN's internal random subsampling
     # when fed large-d inputs.
-    "tabpfn_cheme_2d_full_boltz_log2fc_pred_top500_umap",
+    # 2026-04-25 SWAP: top500 variant also rebuilt on the seed5ens
+    # parquet (script 15_tabpfn_topk_proper_cv.py with
+    # --feature cheme_2d_full_boltz_log2fc_pred_seed5ens). Per-fold
+    # LGBM-gain selection from the seed5ens 2103d feature matrix.
+    # Single-model OOF MAE 0.4181 -> 0.3988 (Δ -0.0193, first time a
+    # single member breaks 0.40). Both swaps together push caruana_bag20
+    # to 0.4034 (28_seed5ens_double_swap.py).
+    "tabpfn_cheme_2d_full_boltz_log2fc_pred_seed5ens_top500_umap",
     # 2026-04-23 dropped: tabpfn_mixed_pool_top500_umap.
     # Two LB submissions regressed (+0.0051, +0.0091) despite OOF 0.4113 best.
     # Per-fold LGBM-gain on 8375d mega-concat overfits fold structure.
