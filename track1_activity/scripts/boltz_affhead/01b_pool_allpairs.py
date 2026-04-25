@@ -24,7 +24,7 @@ import psycopg2
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT.joinpath("track1_activity", "src")))
 sys.path.insert(
-    0, str(REPO_ROOT.joinpath("track2_structure", "src", "boltz2"))
+    0, str(REPO_ROOT.joinpath("track1_activity", "boltz2", "src", "boltz2"))
 )
 from constants import PXR_SEQUENCE  # noqa: E402
 from data import DB_PARAMS  # noqa: E402
@@ -34,9 +34,7 @@ PROTEIN_N_RES = len(PXR_SEQUENCE)  # 434
 OUT_PATH = REPO_ROOT.joinpath("data", "boltz_affhead", "pooled_allpairs.parquet")
 
 
-def pool_one(
-    npz_path: Path, n_ligand_atoms: int
-) -> dict[str, np.ndarray] | None:
+def pool_one(npz_path: Path, n_ligand_atoms: int) -> dict[str, np.ndarray] | None:
     try:
         data = np.load(npz_path, allow_pickle=False)
     except Exception as e:  # noqa: BLE001
@@ -47,9 +45,7 @@ def pool_one(
     T = s.shape[0]
     expected = PROTEIN_N_RES + n_ligand_atoms
     if T != expected:
-        print(
-            f"  warn {npz_path.name}: T={T} != expected {expected}"
-        )
+        print(f"  warn {npz_path.name}: T={T} != expected {expected}")
 
     prot_slice = slice(0, PROTEIN_N_RES)
     lig_slice = slice(PROTEIN_N_RES, T)

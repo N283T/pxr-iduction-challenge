@@ -199,11 +199,12 @@ track1_activity/
     boltz_affhead/                  # Boltz-2 trunk-embedding retarget (issue #74)
     run_all_models.sh               # Sequential DL training pipeline
     api.py                          # OpenADMET LB client (fetch / submit / status / cooldown)
+  boltz2/                    # Boltz-2 inference pipeline (Track 1 feature provider; Track 2 will reuse)
+    src/boltz2/              # Input builder + post-processor
+    scripts/                 # Boltz-2 full run, recovery, embeddings, posebusters
   notebooks/                 # marimo notebooks
   submissions/               # Submission CSVs (gitignored)
-track2_structure/
-  src/boltz2/                # Input builder + post-processor
-  scripts/                   # Boltz-2 full run, recovery, embeddings, posebusters
+track2_structure/            # Track 2 (pose submission) — not yet started
 structures/                  # Boltz-2 artifacts (MSA, inputs, outputs) — gitignored
 ```
 

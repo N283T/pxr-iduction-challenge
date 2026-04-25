@@ -8,7 +8,7 @@ YAMLs emitted here via boltz's ``--embeddings_only`` mode.
 
 Track-1 placement (under ``track1_activity/scripts/boltz_affhead/``) — the
 extension is a Track-1 feature engineering concern, not a Track-2 structure
-run. Reuses ``track2_structure/src/boltz2/input_builder.py`` + constants for
+run. Reuses ``track1_activity/boltz2/src/boltz2/input_builder.py`` + constants for
 YAML construction so the schema matches the existing 4,653-compound trunk.
 
 Usage
@@ -29,7 +29,7 @@ import psycopg2
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # Reuse existing Boltz-2 YAML builder from Track 2
-sys.path.insert(0, str(REPO_ROOT.joinpath("track2_structure", "src")))
+sys.path.insert(0, str(REPO_ROOT.joinpath("track1_activity", "boltz2", "src")))
 sys.path.insert(0, str(REPO_ROOT.joinpath("track1_activity", "src")))
 
 from boltz2.input_builder import build_yaml, write_yaml  # noqa: E402

@@ -40,7 +40,9 @@ from psycopg2.extras import execute_values
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT.joinpath("track1_activity", "src")))
-sys.path.insert(0, str(REPO_ROOT.joinpath("track2_structure", "src", "boltz2")))
+sys.path.insert(
+    0, str(REPO_ROOT.joinpath("track1_activity", "boltz2", "src", "boltz2"))
+)
 
 from constants import PXR_SEQUENCE  # noqa: E402
 from data import DB_PARAMS  # noqa: E402

@@ -29,7 +29,7 @@ Summary of the literature context: `docs/papers/boltz2_affinity_notes.md`.
 ### Tier-0 — DB-resident scalars (19 features)
 
 Already populated in `compound_boltz2` by
-`track2_structure/scripts/boltz2_postprocess.py`. Pulled via SQL;
+`track1_activity/boltz2/scripts/boltz2_postprocess.py`. Pulled via SQL;
 see `track1_activity/scripts/eda_boltz2_feature_bakeoff.py` for the
 column list. Includes:
 
