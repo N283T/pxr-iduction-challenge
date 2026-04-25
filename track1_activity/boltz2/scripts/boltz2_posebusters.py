@@ -17,9 +17,9 @@ GIL enough for multiprocess scaling.
 
 Usage
 -----
-    pixi run python track2_structure/scripts/boltz2_posebusters.py --smoke
-    pixi run python track2_structure/scripts/boltz2_posebusters.py --db
-    pixi run python track2_structure/scripts/boltz2_posebusters.py --workers 8 --db
+    pixi run python track1_activity/boltz2/scripts/boltz2_posebusters.py --smoke
+    pixi run python track1_activity/boltz2/scripts/boltz2_posebusters.py --db
+    pixi run python track1_activity/boltz2/scripts/boltz2_posebusters.py --workers 8 --db
 """
 
 from __future__ import annotations

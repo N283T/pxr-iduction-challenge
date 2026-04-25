@@ -12,9 +12,9 @@
 # presence).
 #
 # Usage:
-#     bash track2_structure/scripts/boltz2_recover_run.sh <compound_id> [<compound_id> ...]
+#     bash track1_activity/boltz2/scripts/boltz2_recover_run.sh <compound_id> [<compound_id> ...]
 # Example:
-#     bash track2_structure/scripts/boltz2_recover_run.sh 03840
+#     bash track1_activity/boltz2/scripts/boltz2_recover_run.sh 03840
 set -euo pipefail
 
 if [[ $# -eq 0 ]]; then
@@ -106,5 +106,5 @@ boltz predict "$SCRATCH_INPUT" \
 
 echo | tee -a "$LOG_FILE"
 echo "[boltz2_recover] done: $(date -Is)" | tee -a "$LOG_FILE"
-echo "[boltz2_recover] next: pixi run python track2_structure/scripts/boltz2_postprocess.py --db" \
+echo "[boltz2_recover] next: pixi run python track1_activity/boltz2/scripts/boltz2_postprocess.py --db" \
     | tee -a "$LOG_FILE"
