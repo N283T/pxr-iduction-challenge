@@ -60,29 +60,29 @@ One-time:
 ```bash
 uv tool install 'boltz[cuda]' --python 3.12      # Boltz-2 CLI (~3GB model on first run)
 cp /mnt/c/Users/<user>/Downloads/AF-O75469-F1-msa_v6.a3m structures/boltz2/msa/pxr.a3m
-pixi run python track2_structure/scripts/boltz2_build_inputs.py     # 4653 input YAMLs
+pixi run python track1_activity/boltz2/scripts/boltz2_build_inputs.py     # 4653 input YAMLs
 ```
 
 Full inference run (~4 days on RTX 5080, resume-safe):
 ```bash
 tmux new -s boltz2
-bash track2_structure/scripts/boltz2_full_run.sh
+bash track1_activity/boltz2/scripts/boltz2_full_run.sh
 # Ctrl+C anytime; re-running the script resumes from cached predictions.
 ```
 
 Recovery + DB registration:
 ```bash
 # Targeted re-run for a handful of compound IDs (stereo repair, failure recovery)
-bash track2_structure/scripts/boltz2_recover_run.sh <compound_id> [<compound_id> ...]
+bash track1_activity/boltz2/scripts/boltz2_recover_run.sh <compound_id> [<compound_id> ...]
 
 # Record permanently-failed compounds (see issue #50)
-pixi run python track2_structure/scripts/boltz2_record_failures.py
+pixi run python track1_activity/boltz2/scripts/boltz2_record_failures.py
 
 # Phase 2 post-processing: ligand pkl + sdf + DB upsert
-pixi run python track2_structure/scripts/boltz2_postprocess.py --db
+pixi run python track1_activity/boltz2/scripts/boltz2_postprocess.py --db
 
 # Pose quality validation (PoseBusters)
-pixi run python track2_structure/scripts/boltz2_posebusters.py --workers 8 --db
+pixi run python track1_activity/boltz2/scripts/boltz2_posebusters.py --workers 8 --db
 ```
 
 ## Project Structure
@@ -188,21 +188,23 @@ track1_activity/
                                       # cooldown). Writes lb_submissions + back-fills
                                       # LB results on each `fetch`.
     archive/                          # Early exploration scripts
+  boltz2/                      # Boltz-2 inference pipeline (Track 1 feature provider; will
+                               #   be reused by Track 2 pose submission once that work starts)
+    src/boltz2/
+      constants.py               # PXR sequence, core pocket residues, paths, chain ids
+      input_builder.py           # SMILES -> Boltz-2 YAML (affinity + pocket constraint)
+      postprocess.py             # pose .cif + cached .pkl -> fully-bonded RDKit Mol
+    scripts/
+      boltz2_build_inputs.py     # DB -> 4653 YAML files + manifest.csv
+      boltz2_full_run.sh         # 4653-compound full run
+      boltz2_embeddings_run.sh   # trunk-only re-run, dumps s/z embeddings to existing outputs (issue #57)
+      boltz2_recover_run.sh      # re-run selected compound IDs into the main output tree (stereo fix, failure recovery)
+      boltz2_postprocess.py      # 4653 pose pkl+sdf + metadata CSV + compound_boltz2 upsert
+      boltz2_posebusters.py      # PoseBusters pose quality checks (19 booleans) + DB upsert
+      boltz2_record_failures.py  # insert permanently-failed compounds into compound_boltz2
   notebooks/                 # marimo notebooks
   submissions/               # CSV submission files (gitignored)
-track2_structure/
-  src/boltz2/
-    constants.py               # PXR sequence, core pocket residues, paths, chain ids
-    input_builder.py           # SMILES -> Boltz-2 YAML (affinity + pocket constraint)
-    postprocess.py              # pose .cif + cached .pkl -> fully-bonded RDKit Mol
-  scripts/
-    boltz2_build_inputs.py     # DB -> 4653 YAML files + manifest.csv
-    boltz2_full_run.sh         # 4653-compound full run
-    boltz2_embeddings_run.sh   # trunk-only re-run, dumps s/z embeddings to existing outputs (issue #57)
-    boltz2_recover_run.sh      # re-run selected compound IDs into the main output tree (stereo fix, failure recovery)
-    boltz2_postprocess.py      # 4653 pose pkl+sdf + metadata CSV + compound_boltz2 upsert
-    boltz2_posebusters.py      # PoseBusters pose quality checks (19 booleans) + DB upsert
-    boltz2_record_failures.py  # insert permanently-failed compounds into compound_boltz2
+track2_structure/              # Track 2 (pose submission) — not yet started; will be created when work begins
 structures/
   boltz2/                      # All runtime artifacts (gitignored)
     msa/pxr.a3m                # AFDB MSA (copied once)

@@ -1,6 +1,6 @@
 -- Boltz-2 prediction outputs (one row per compound).
 --
--- Populated by track2_structure/scripts/boltz2_postprocess.py after the
+-- Populated by track1_activity/boltz2/scripts/boltz2_postprocess.py after the
 -- full Boltz-2 inference run completes. Failed compounds get
 -- preprocessing_failed=TRUE and a failure_reason; the per-compound files
 -- are then NULL.

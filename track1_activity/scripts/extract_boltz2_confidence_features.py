@@ -32,7 +32,7 @@ import psycopg2
 from tqdm import tqdm
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT.joinpath("track2_structure/src")))
+sys.path.insert(0, str(ROOT.joinpath("track1_activity/boltz2/src")))
 
 from boltz2.constants import PXR_CORE_POCKET_RESIDUES  # noqa: E402
 
@@ -47,8 +47,12 @@ def safe_stats(arr: np.ndarray, prefix: str, pctl: bool = False) -> dict:
     """mean/std/min/max; optional 10th percentile for pLDDT."""
     if arr.size == 0:
         nan = float("nan")
-        out = {f"{prefix}_mean": nan, f"{prefix}_std": nan,
-               f"{prefix}_min": nan, f"{prefix}_max": nan}
+        out = {
+            f"{prefix}_mean": nan,
+            f"{prefix}_std": nan,
+            f"{prefix}_min": nan,
+            f"{prefix}_max": nan,
+        }
         if pctl:
             out[f"{prefix}_p10"] = nan
         return out

@@ -3,7 +3,7 @@
 -- 19 individual checks + summary counts per compound. A row exists only
 -- for compounds that have a Boltz-2 prediction (ie. compound_boltz2.
 -- preprocessing_failed = FALSE). Populated by
--- track2_structure/scripts/boltz2_posebusters.py.
+-- track1_activity/boltz2/scripts/boltz2_posebusters.py.
 --
 -- PoseBusters column names use ``-`` which is invalid in SQL, so they
 -- are rewritten with underscores. The ordering below matches the output

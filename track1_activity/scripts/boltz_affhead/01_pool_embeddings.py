@@ -14,7 +14,7 @@ We compute three pooling strategies per compound:
                         (core_pocket_residues x ligand_tokens) -> (256,)
 
 Core pocket residues are the 13 contact residues from
-track2_structure/src/boltz2/constants.py (UniProt numbering, 1-based).
+track1_activity/boltz2/src/boltz2/constants.py (UniProt numbering, 1-based).
 Token index = residue_number - 1.
 
 Output: structures/gator/... no wait, this is a Boltz-path experiment.
@@ -35,7 +35,7 @@ import psycopg2
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT.joinpath("track1_activity", "src")))
 sys.path.insert(
-    0, str(REPO_ROOT.joinpath("track2_structure", "src", "boltz2"))
+    0, str(REPO_ROOT.joinpath("track1_activity", "boltz2", "src", "boltz2"))
 )
 from constants import PXR_CORE_POCKET_RESIDUES, PXR_SEQUENCE  # noqa: E402
 from data import DB_PARAMS  # noqa: E402
@@ -43,16 +43,12 @@ from data import DB_PARAMS  # noqa: E402
 
 PROTEIN_N_RES = len(PXR_SEQUENCE)  # 434
 # Token index for each core pocket residue (0-based)
-CORE_POCKET_IDX = np.asarray(
-    [r - 1 for r in PXR_CORE_POCKET_RESIDUES], dtype=np.int64
-)
+CORE_POCKET_IDX = np.asarray([r - 1 for r in PXR_CORE_POCKET_RESIDUES], dtype=np.int64)
 
 OUT_PATH = REPO_ROOT.joinpath("data", "boltz_affhead", "pooled.parquet")
 
 
-def pool_one(
-    npz_path: Path, n_ligand_atoms: int
-) -> dict[str, np.ndarray] | None:
+def pool_one(npz_path: Path, n_ligand_atoms: int) -> dict[str, np.ndarray] | None:
     try:
         data = np.load(npz_path, allow_pickle=False)
     except Exception as e:  # noqa: BLE001
