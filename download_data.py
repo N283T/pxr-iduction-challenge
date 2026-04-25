@@ -1,8 +1,12 @@
-"""Download all PXR challenge datasets to data/ directory."""
+"""Download PXR challenge datasets to data/ directory.
 
+By default downloads every config. Pass --configs to restrict to a subset,
+e.g. ``python download_data.py --configs structure`` to refresh Track 2 only.
+"""
+
+import argparse
 from pathlib import Path
 
-import pandas as pd
 from datasets import load_dataset
 
 DATA_DIR = Path(__file__).parent.joinpath("data")
@@ -15,14 +19,31 @@ CONFIGS = {
     "structure": {"splits": ["test"]},
 }
 
-for config_name, info in CONFIGS.items():
-    print(f"Downloading config: {config_name}")
-    ds = load_dataset("openadmet/pxr-challenge-train-test", config_name)
-    for split in info["splits"]:
-        df = ds[split].to_pandas()
-        filename = f"{config_name}_{split}.parquet"
-        output_path = DATA_DIR.joinpath(filename)
-        df.to_parquet(output_path, index=False)
-        print(f"  Saved {filename} ({len(df)} rows)")
 
-print("\nDone! All datasets saved to data/")
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--configs",
+        nargs="+",
+        choices=list(CONFIGS.keys()),
+        default=list(CONFIGS.keys()),
+        help="Subset of configs to download (default: all).",
+    )
+    args = parser.parse_args()
+
+    for config_name in args.configs:
+        info = CONFIGS[config_name]
+        print(f"Downloading config: {config_name}")
+        ds = load_dataset("openadmet/pxr-challenge-train-test", config_name)
+        for split in info["splits"]:
+            df = ds[split].to_pandas()
+            filename = f"{config_name}_{split}.parquet"
+            output_path = DATA_DIR.joinpath(filename)
+            df.to_parquet(output_path, index=False)
+            print(f"  Saved {filename} ({len(df)} rows)")
+
+    print("\nDone! Datasets saved to data/")
+
+
+if __name__ == "__main__":
+    main()
