@@ -150,6 +150,20 @@ fi
         sleep "$SAFETY"
     fi
 
+    # Pre-submit fetch: refresh the local lb_submissions DB with any
+    # LB rows that have appeared since the previous submission. This
+    # keeps the back-fill chain intact when a series of scheduled
+    # submissions runs back-to-back: by the time the cooldown unlocks
+    # and we're about to submit the next one, the previous submission's
+    # LB row has likely been published, and pulling it now ensures the
+    # local record is updated before we add a new pending row to the DB.
+    echo ""
+    echo "=== Pre-submit fetch (back-fill previous submission if any) ==="
+    set +e
+    pixi run python track1_activity/scripts/api.py fetch \
+        --track "$COOLDOWN_TRACK" 2>&1 | tail -10
+    set -e
+
     echo ""
     echo "=== Submitting at $(date) ==="
     set +e
