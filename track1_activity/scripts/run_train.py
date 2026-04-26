@@ -365,6 +365,9 @@ def load_features(feature_name: str, train_df, test_df):
         return X_train, X_test
 
     _seed_match = re.match(r"^2d_full_boltz_log2fc_pred_seed(\d+)ens$", feature_name)
+    _optuna_match = re.match(
+        r"^2d_full_boltz_log2fc_pred_optuna_trial(\d+)_seed5ens$", feature_name
+    )
     if (
         feature_name
         in (
@@ -372,6 +375,7 @@ def load_features(feature_name: str, train_df, test_df):
             "2d_full_boltz_log2fc_pred_ens4",
         )
         or _seed_match is not None
+        or _optuna_match is not None
     ):
         # 2d_full_boltz (1817d) + 2 predicted log2_fc scalars.
         # Buterez 2024 strategy-2: predicted LF labels as side feature.
@@ -386,10 +390,20 @@ def load_features(feature_name: str, train_df, test_df):
         #   per #116 because weak encoders diluted chemprop; same-arch
         #   multi-seed only averages noise so should be at least as good
         #   as single seed.
+        # - "2d_full_boltz_log2fc_pred_optuna_trial{N}_seed5ens": Phase 4
+        #   chemprop pretrain re-tuned via Optuna for downstream TabPFN
+        #   OOF MAE (2026-04-26). Top trials from study log2fc_optuna_v1.
+        #   See run_chemprop_pretrain_optuna.py + phase4_prep.py.
         X_train_base, X_test_base = load_features("2d_full_boltz", train_df, test_df)
         if feature_name == "2d_full_boltz_log2fc_pred":
             lf_filename = "chemprop_pretrain_log2fc_predictions.parquet"
             rebuild_hint = "track1_activity/scripts/run_chemprop_predict_log2fc.py"
+        elif _optuna_match is not None:
+            trial_n = _optuna_match.group(1)
+            lf_filename = f"chemprop_pretrain_log2fc_predictions_optuna_trial{trial_n}_seed5ens.parquet"
+            rebuild_hint = (
+                "track1_activity/scripts/run_chemprop_pretrain_phase4_prep.py"
+            )
         elif _seed_match is not None:
             n_seeds = _seed_match.group(1)
             lf_filename = (
@@ -472,6 +486,9 @@ def load_features(feature_name: str, train_df, test_df):
     _cheme_seed_match = re.match(
         r"^cheme_2d_full_boltz_log2fc_pred_seed(\d+)ens$", feature_name
     )
+    _cheme_optuna_match = re.match(
+        r"^cheme_2d_full_boltz_log2fc_pred_optuna_trial(\d+)_seed5ens$", feature_name
+    )
     if (
         feature_name
         in (
@@ -479,6 +496,7 @@ def load_features(feature_name: str, train_df, test_df):
             "cheme_2d_full_boltz_log2fc_pred_ens4",
         )
         or _cheme_seed_match is not None
+        or _cheme_optuna_match is not None
     ):
         # Chemeleon (300d) + 2d_full_boltz_log2fc_pred (1803d) = 2103d.
         # Empirically discovered via mix-feature bakeoff 2026-04-21: this
@@ -490,8 +508,12 @@ def load_features(feature_name: str, train_df, test_df):
         # cheme_2df alone carries weight 0.388).
         # "_ens4" swaps chemprop-only log2fc_pred for 4-encoder inverse-
         # val-loss weighted ensemble (#115 Phase 3).
+        # "_optuna_trial{N}_seed5ens" uses Phase 4 Optuna-tuned chemprop
+        # pretrain (2026-04-26).
         if feature_name.endswith("_ens4"):
             base_name = "2d_full_boltz_log2fc_pred_ens4"
+        elif _cheme_optuna_match is not None:
+            base_name = f"2d_full_boltz_log2fc_pred_optuna_trial{_cheme_optuna_match.group(1)}_seed5ens"
         elif _cheme_seed_match is not None:
             base_name = f"2d_full_boltz_log2fc_pred_seed{_cheme_seed_match.group(1)}ens"
         else:
@@ -2076,10 +2098,14 @@ def main():
             "cheme_2d_full_boltz_log2fc_pred_seed10ens",
             "cheme_2d_full_boltz_log2fc_pred_seed15ens",
             "cheme_2d_full_boltz_log2fc_pred_seed20ens",
+            "cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens",
+            "cheme_2d_full_boltz_log2fc_pred_optuna_trial11_seed5ens",
             "2d_full_boltz_log2fc_pred_seed5ens",
             "2d_full_boltz_log2fc_pred_seed10ens",
             "2d_full_boltz_log2fc_pred_seed15ens",
             "2d_full_boltz_log2fc_pred_seed20ens",
+            "2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens",
+            "2d_full_boltz_log2fc_pred_optuna_trial11_seed5ens",
             "cheme_2d_full_boltz_log2fc_emax_pred",
             "cconcat_2d_full_boltz_log2fc_pred",
             "cheme_cconcat_2d_full_boltz_log2fc_pred",
