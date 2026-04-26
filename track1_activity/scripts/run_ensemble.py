@@ -145,7 +145,23 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     #
     # Same SWAP semantics as 5-seed: structurally an upgrade of the same
     # encoder family, residual r ~0.99 with the prior 5-seed variant.
-    "tabpfn_cheme_2d_full_boltz_log2fc_pred_seed10ens_umap_default",
+    #
+    # 2026-04-26 Phase 4 (log2fc Optuna PR): SWAPPED for
+    # `tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens_umap_default`.
+    # Optuna re-tuned chemprop pretrain hparams (16-trial TPE +
+    # multi-seed validate) against downstream TabPFN OOF MAE.
+    # Trial 10 5-seed: hidden_dim=384, mp_dropout~0, lr=4.6e-4, w_33=0.98.
+    # Single-model OOF: MAE 0.4055 -> 0.3959 (Δ -0.0096), Sp 0.8380 -> 0.8425.
+    # Caruana_bag20 (with t11 ADD below): MAE 0.4019 -> 0.3920 (Δ -0.0099),
+    # Sp 0.8424 -> 0.8504 (Δ +0.0080, ties sia 0.8506). See
+    # 31_optuna_pretrain_swap.py + run_chemprop_pretrain_optuna.py.
+    "tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens_umap_default",
+    # 2026-04-26 Phase 4 ADD: Trial 11 5-seed log2fc parquet — best Sp
+    # (0.8412) and lowest per-seed std (0.0030) of all top trials.
+    # Adds to caruana (10-pool) for further -0.005 OOF MAE / +0.005 Sp
+    # over Trial 10 alone (3-bin SWAP test). Same Optuna pipeline,
+    # different hparam neighborhood (also hidden=384, lr=2-5e-4).
+    "tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial11_seed5ens_umap_default",
     # TabPFN on chemprop pretrain encoder fingerprint (256d).
     # Buterez 2024 strategy-3 (LF embedding as side feature).
     # OOF MAE 0.4373 / Spearman 0.8102 -- pool single-best.

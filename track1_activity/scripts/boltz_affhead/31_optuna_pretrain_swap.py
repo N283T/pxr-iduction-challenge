@@ -59,13 +59,18 @@ def run_variant(name: str, pool: tuple[str, ...]) -> dict:
     orig = run_ensemble.ENSEMBLE_MODELS
     run_ensemble.ENSEMBLE_MODELS = pool
     buf = io.StringIO()
+    err: Exception | None = None
     try:
         with contextlib.redirect_stdout(buf):
             run_ensemble.main()
+    except Exception as e:  # capture partial caruana output on later strategy failure
+        err = e
     finally:
         run_ensemble.ENSEMBLE_MODELS = orig
     output = buf.getvalue()
     print(output)
+    if err is not None:
+        print(f"  [variant {name}] partial: {type(err).__name__}: {err}")
     metrics = {"name": name, "n_pool": len(pool)}
     lines = output.splitlines()
     for i, line in enumerate(lines):

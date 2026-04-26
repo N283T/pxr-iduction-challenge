@@ -313,12 +313,20 @@ def evaluate_oof_mae(
     oof_pred = np.zeros(len(y_train), dtype=np.float32)
     oof_mask = np.zeros(len(y_train), dtype=bool)
 
+    # Production TabPFN params (run_train.py DEFAULT_PARAMS["tabpfn"])
+    tabpfn_params = dict(
+        n_estimators=8,
+        device="cuda" if torch.cuda.is_available() else "cpu",
+        softmax_temperature=0.9,
+        random_state=42,
+        ignore_pretraining_limits=True,
+    )
     for fold_i, (tr_idx, va_idx) in enumerate(folds):
         X_tr = X_train[tr_idx]
         X_va = X_train[va_idx]
         y_tr = y_train[tr_idx]
 
-        model = TabPFNRegressor(device="cuda" if torch.cuda.is_available() else "cpu")
+        model = TabPFNRegressor(**tabpfn_params)
         model.fit(X_tr, y_tr)
         pred_va = model.predict(X_va)
         oof_pred[va_idx] = pred_va
