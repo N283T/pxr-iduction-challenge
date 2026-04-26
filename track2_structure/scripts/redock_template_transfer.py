@@ -191,6 +191,7 @@ def _select_best_template(
             best = {
                 "ccd": row.ccd_code,
                 "pdb": row.pdb_id,
+                "chain_id": row.get("chain_id", None),
                 "instance": int(row.instance),
                 "smiles": row.smiles,
                 "sdf_path": str(PROJECT_ROOT.joinpath(row.sdf_path)),
@@ -417,7 +418,7 @@ def _process_one(qid: str, qsmi: str, templates_df: pd.DataFrame) -> dict[str, A
     cif_path = _per_pdb_cif_path(best["pdb"])
     if not cif_path.exists():
         return {**base, "error": f"per_pdb_cif_missing: {cif_path.name}"}
-    template_ca, template_res = _read_protein_ca(cif_path)
+    template_ca, template_res = _read_protein_ca(cif_path, best.get("chain_id"))
     boltz_ca, boltz_res = _read_pdb_ca(boltz_pdb)
     if len(template_ca) == 0 or len(boltz_ca) == 0:
         return {**base, "error": "empty_ca"}
