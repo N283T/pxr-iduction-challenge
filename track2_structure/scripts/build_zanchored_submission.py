@@ -80,14 +80,74 @@ def _resolve_pdb(sid: str, source: str) -> Path:
     return SOURCE_PDB_RESOLVERS[source](sid)
 
 
+def _load_posebusters_pass(pb_csv: Path) -> set[tuple[str, str]]:
+    """Return {(compound, 'boltz_model_<i>')} pairs that pass all PoseBusters
+    validity checks. Only Boltz model rows are considered (model 0..4)."""
+    df = pd.read_csv(pb_csv)
+    bool_cols = [
+        c
+        for c in df.columns
+        if c not in {"compound", "model", "error"}
+        and df[c].dropna().isin([True, False]).all()
+        and df[c].notna().any()
+    ]
+    df = df.copy()
+    df["all_passed"] = df[bool_cols].all(axis=1)
+    passing = df[df["all_passed"]]
+    return {
+        (row["compound"], f"boltz_model_{int(row['model'])}")
+        for _, row in passing.iterrows()
+    }
+
+
 def _select_z_anchored(
-    hotspot_df: pd.DataFrame, allowed_sources: set[str]
+    hotspot_df: pd.DataFrame,
+    allowed_sources: set[str],
+    *,
+    posebusters_pass: set[tuple[str, str]] | None = None,
+    min_z_improvement: float = 0.0,
+    baseline_source: str = "boltz_model_0",
 ) -> dict[str, str]:
-    """Per compound, pick the source in ``allowed_sources`` with the
-    smallest dist_to_Z. Returns a {compound: source} dict."""
+    """Per compound, pick the candidate source with the smallest dist_to_Z,
+    subject to two optional safety gates.
+
+    Gate A (validity): if ``posebusters_pass`` is provided, restrict every
+    boltz_model_<i> candidate to (compound, source) pairs found in the set.
+    Other source families are not gated (they have their own validity steps).
+
+    Gate B (improvement margin): drop any non-baseline candidate whose
+    dist_to_Z improvement vs ``baseline_source`` is below
+    ``min_z_improvement``. The compound's baseline candidate is always
+    retained (so we fall back to it when no swap meets the bar).
+    """
     sub = hotspot_df[
         hotspot_df["source"].isin(allowed_sources) & hotspot_df["dist_to_Z"].notna()
     ].copy()
+    if sub.empty:
+        return {}
+
+    if posebusters_pass is not None:
+        boltz_mask = sub["source"].str.startswith("boltz_model_")
+        keep_boltz = sub[boltz_mask].apply(
+            lambda r: (r["compound"], r["source"]) in posebusters_pass, axis=1
+        )
+        sub = pd.concat([sub[~boltz_mask], sub[boltz_mask][keep_boltz]])
+
+    if min_z_improvement > 0.0:
+        baseline = (
+            sub[sub["source"] == baseline_source]
+            .set_index("compound")["dist_to_Z"]
+            .to_dict()
+        )
+        sub = sub.assign(
+            _baseline_dist=sub["compound"].map(baseline),
+        )
+        sub["_improvement"] = sub["_baseline_dist"] - sub["dist_to_Z"]
+        keep = (sub["source"] == baseline_source) | (
+            sub["_improvement"] >= min_z_improvement
+        )
+        sub = sub[keep].drop(columns=["_baseline_dist", "_improvement"])
+
     if sub.empty:
         return {}
     sub_sorted = sub.sort_values("dist_to_Z").groupby("compound").first().reset_index()
@@ -120,6 +180,28 @@ def main() -> None:
         default=None,
         help="Output zip path (default: track2_structure/submissions/<tag>.zip).",
     )
+    parser.add_argument(
+        "--require-posebusters-passed",
+        type=Path,
+        default=None,
+        help=(
+            "Path to PoseBusters CSV (e.g. docs/track2_posebusters_all.csv). "
+            "If set, restricts each boltz_model_<i> candidate to (compound, "
+            "model) pairs that pass all validity checks. Other source "
+            "families are not gated."
+        ),
+    )
+    parser.add_argument(
+        "--min-z-improvement",
+        type=float,
+        default=0.0,
+        help=(
+            "Minimum required dist_to_Z improvement (Å) for any non-baseline "
+            "swap. Below this threshold the compound stays on --fallback. "
+            "Use 0.0 (default) to disable. 0.5 is a safe value to keep only "
+            "high-impact Z-anchored swaps."
+        ),
+    )
     args = parser.parse_args()
 
     requested = {f.strip() for f in args.include.split(",") if f.strip()}
@@ -138,7 +220,17 @@ def main() -> None:
     print(f"Allowed sources: {sorted(expanded)}")
 
     hotspot_df = pd.read_csv(args.hotspot_csv)
-    selection = _select_z_anchored(hotspot_df, expanded)
+    pb_pass: set[tuple[str, str]] | None = None
+    if args.require_posebusters_passed is not None:
+        pb_pass = _load_posebusters_pass(args.require_posebusters_passed)
+        print(f"PoseBusters gate: {len(pb_pass)} valid (compound, boltz_model) pairs")
+    selection = _select_z_anchored(
+        hotspot_df,
+        expanded,
+        posebusters_pass=pb_pass,
+        min_z_improvement=args.min_z_improvement,
+        baseline_source=args.fallback,
+    )
 
     df = pd.read_parquet(args.data)
     expected_ids = sorted(df["structure"])

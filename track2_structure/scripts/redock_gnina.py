@@ -258,13 +258,15 @@ def _assemble_refined_pdb(
     )
 
 
-def _process_one(task: tuple[str, str, int]) -> dict[str, Any]:
-    sid, smiles, model_idx = task
+def _process_one(task: tuple[str, str, int, str]) -> dict[str, Any]:
+    sid, smiles, model_idx, out_subdir = task
     base = {"compound": sid, "src_model": model_idx}
     src_pdb = PRED_DIR.joinpath(sid, f"{sid}_model_{model_idx}.pdb")
     if not src_pdb.exists():
         return {**base, "error": "src_pdb_missing"}
-    out_dir = REDOCK_DIR.joinpath(sid)
+    out_dir = (
+        REDOCK_DIR.joinpath(sid, out_subdir) if out_subdir else REDOCK_DIR.joinpath(sid)
+    )
     protein_pdb = out_dir.joinpath("protein.pdb")
     ligand_sdf = out_dir.joinpath("ligand_input.sdf")
     refined_sdf_gz = out_dir.joinpath("ligand_refined.sdf.gz")
@@ -279,16 +281,24 @@ def _process_one(task: tuple[str, str, int]) -> dict[str, Any]:
 
 
 def _resolve_tasks(
-    df: pd.DataFrame, selection_csv: Path | None
-) -> list[tuple[str, str, int]]:
+    df: pd.DataFrame,
+    selection_csv: Path | None,
+    model_idx_override: int | None,
+    out_subdir: str,
+) -> list[tuple[str, str, int, str]]:
+    if model_idx_override is not None:
+        return [
+            (r.structure, r.smiles, model_idx_override, out_subdir)
+            for _, r in df.iterrows()
+        ]
     if selection_csv is None:
-        return [(r.structure, r.smiles, 0) for _, r in df.iterrows()]
+        return [(r.structure, r.smiles, 0, out_subdir) for _, r in df.iterrows()]
     sel = pd.read_csv(selection_csv)
     sel_map = dict(zip(sel["compound"], sel["selected_model"]))
-    out = []
-    for _, r in df.iterrows():
-        out.append((r.structure, r.smiles, int(sel_map.get(r.structure, 0))))
-    return out
+    return [
+        (r.structure, r.smiles, int(sel_map.get(r.structure, 0)), out_subdir)
+        for _, r in df.iterrows()
+    ]
 
 
 def main() -> None:
@@ -304,6 +314,21 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument(
+        "--model-idx",
+        type=int,
+        default=None,
+        help="If set, run gnina --minimize on this Boltz model index (0-4) for "
+        "every compound. Overrides --selection-csv.",
+    )
+    parser.add_argument(
+        "--out-subdir",
+        type=str,
+        default="",
+        help="If set, write per-compound outputs to "
+        "structures/.../redock_gnina/<id>/<out-subdir>/ instead of the "
+        "compound root. Useful when running multiple model indices.",
+    )
+    parser.add_argument(
         "--out-csv",
         type=Path,
         default=PROJECT_ROOT.joinpath("docs", "track2_redock_gnina_scores.csv"),
@@ -317,7 +342,7 @@ def main() -> None:
     if args.limit:
         df = df.head(args.limit)
 
-    tasks = _resolve_tasks(df, args.selection_csv)
+    tasks = _resolve_tasks(df, args.selection_csv, args.model_idx, args.out_subdir)
     print(f"gnina --minimize redock: {len(tasks)} compounds, workers={args.workers}")
 
     REDOCK_DIR.mkdir(parents=True, exist_ok=True)
