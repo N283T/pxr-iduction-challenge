@@ -35,6 +35,9 @@ from pathlib import Path
 from typing import Any
 
 warnings.filterwarnings("ignore")
+import os as _os  # noqa: E402
+
+_os.environ.setdefault("OE_LICENSE", _os.path.expanduser("~/.openeye/oe_license.txt"))
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT.joinpath("track2_structure", "src")))
@@ -189,6 +192,67 @@ def _extract_ligand_mol(pdb_path: Path, smiles: str):
     finally:
         lig_pdb.unlink(missing_ok=True)
     return m
+
+
+def _rdkit_to_oe(mol):
+    """Convert an RDKit Mol with a 3D conformer to an OpenEye OEMol.
+
+    Uses an SDF molblock as the interchange format so atom order, bond
+    orders, and 3D coords are preserved.
+    """
+    from openeye import oechem  # noqa: PLC0415
+    from rdkit import Chem  # noqa: PLC0415
+
+    block = Chem.MolToMolBlock(mol)
+    oem = oechem.OEMol()
+    ifs = oechem.oemolistream()
+    ifs.SetFormat(oechem.OEFormat_SDF)
+    ifs.openstring(block)
+    oechem.OEReadMolecule(ifs, oem)
+    ifs.close()
+    return oem
+
+
+def _rocs_scores(candidate_mol, template_mol) -> dict:
+    """Compute ShapeT/ColorT/Combo at current pose (in-place) AND under
+    best 3D realignment (ROCS-style). Returns dict with 6 fields.
+    """
+    from openeye import oechem, oeshape  # noqa: PLC0415
+
+    cand_oe = _rdkit_to_oe(candidate_mol)
+    tmpl_oe = _rdkit_to_oe(template_mol)
+
+    prep = oeshape.OEOverlapPrep()
+    prep.Prep(cand_oe)
+    prep.Prep(tmpl_oe)
+
+    # In-place (positional) overlap — does the candidate sit where the
+    # template sits?
+    ovr_func = oeshape.OEOverlapFunc()
+    ovr_func.SetupRef(tmpl_oe)
+    res_in = oeshape.OEOverlapResults()
+    ovr_func.Overlap(cand_oe, res_in)
+    in_shape = res_in.GetShapeTanimoto()
+    in_color = res_in.GetColorTanimoto()
+
+    # Best-overlay (ROCS-style realignment) — same molecule + pharmacophore
+    # arrangement, regardless of starting position?
+    overlay = oeshape.OEMultiRefOverlay()
+    overlay.SetupRef(tmpl_oe)
+    score = oeshape.OEBestOverlayScore()
+    cand_for_overlay = oechem.OEMol(cand_oe)
+    overlay.BestOverlay(score, cand_for_overlay, oeshape.OEHighestTanimotoCombo())
+    best_shape = score.GetTanimoto()
+    best_color = score.GetColorTanimoto()
+
+    return {
+        "rocs_inplace_shape": float(in_shape),
+        "rocs_inplace_color": float(in_color),
+        "rocs_inplace_combo": float(in_shape + in_color),
+        "rocs_best_shape": float(best_shape),
+        "rocs_best_color": float(best_color),
+        "rocs_best_combo": float(best_shape + best_color),
+    }
 
 
 def _mcs_rmsd(candidate_mol, template_mol, mcs_smarts: str) -> float:
@@ -412,6 +476,10 @@ def _process_one(qid: str, qsmi: str, templates_df: pd.DataFrame, min_mcs: int):
                 R_c, t_c = np.eye(3), np.zeros(3)
             cand_mol = _transform_ligand_in_pdb(pdb_path, qsmi, R_c, t_c)
             row["template_rmsd"] = _mcs_rmsd(cand_mol, template_mol, mcs_smarts)
+            try:
+                row.update(_rocs_scores(cand_mol, template_mol))
+            except Exception as exc:  # noqa: BLE001
+                row["rocs_error"] = f"{type(exc).__name__}: {exc}"
         except Exception as exc:  # noqa: BLE001
             row["error"] = f"{type(exc).__name__}: {exc}"
         rows.append(row)
