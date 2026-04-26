@@ -110,3 +110,4 @@ data/kermt_pretrain_embed.parquet
 # Track 2 holo ligand templates: derivable via build_holo_ligand_db.py
 structures/pxr_lbd/holo_ligands_aligned/
 structures/pxr_lbd/ideal_sdf_cache/
+structures/ftmap/
