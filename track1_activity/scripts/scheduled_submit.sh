@@ -1,11 +1,14 @@
 #!/bin/bash
-# Scheduled LB submission — polls api.py cooldown and submits once READY.
+# Scheduled LB submission — polls api.py cooldown for the chosen track
+# and submits once READY. Works for both Activity (CSV) and Structure
+# (ZIP) submissions; the cooldown query is now track-filtered so it
+# doesn't false-succeed when the OTHER track is READY.
 #
 # Designed to run unattended via nohup + disown so it survives terminal/session
 # closes. Logs to a timestamped file under logs/ for post-hoc audit.
 #
 # Usage:
-#   scheduled_submit.sh <csv_path> \
+#   scheduled_submit.sh <input_path> \
 #       --experiment <experiment_name> \
 #       [--notes <notes_text>] \
 #       [--track <track_name>] \
@@ -13,14 +16,17 @@
 #       [--safety <seconds>] \
 #       [--log <log_path>]
 #
+#   <input_path> is a CSV for Activity Prediction or a ZIP for Structure
+#   Prediction; api.py auto-detects from the file passed.
+#
 # Defaults:
-#   --track   "Activity Prediction"
+#   --track   "Activity Prediction"     (use "Structure Prediction" for Track 2)
 #   --poll    180   (check cooldown every 3 minutes)
 #   --safety  60    (sleep this long after cooldown READY before submitting,
 #                    in case of clock skew with LB server)
 #   --log     logs/scheduled_submit_<timestamp>.log
 #
-# Typical background invocation:
+# Typical background invocation (Track 1):
 #   nohup bash track1_activity/scripts/scheduled_submit.sh \
 #       track1_activity/submissions/ens_caruana_bag20_calibrated_best.csv \
 #       --experiment ens_caruana_bag20_calibrated_best \
@@ -28,10 +34,19 @@
 #       > /tmp/scheduled_submit_status.log 2>&1 &
 #   disown
 #
+# Track 2 example:
+#   nohup bash track1_activity/scripts/scheduled_submit.sh \
+#       track2_structure/submissions/track2_boltz2_zanchored_v2b_2026-04-26.zip \
+#       --track "Structure Prediction" \
+#       --experiment track2_zanchored_v2b \
+#       --notes "Z-anchored ..." \
+#       > /tmp/scheduled_submit_status.log 2>&1 &
+#   disown
+#
 # Exit codes:
 #   0  submission successful
 #   1  usage / argument error
-#   2  CSV not found
+#   2  input file not found
 #   3  submission failed (api.py exit non-zero)
 set -euo pipefail
 
@@ -73,7 +88,7 @@ if [[ -z "$CSV" ]] || [[ -z "$EXP" ]]; then
 fi
 
 if [[ ! -f "$CSV" ]]; then
-    echo "ERROR: CSV not found: $CSV" >&2
+    echo "ERROR: input file not found: $CSV" >&2
     exit 2
 fi
 
@@ -99,10 +114,20 @@ fi
     echo "  Repo:       $REPO"
     echo ""
 
+    # Map server-side track name to api.py cooldown short form.
+    # Without filtering by track, the cooldown command shows both tracks
+    # and READY/WAIT for either — the script would falsely succeed on
+    # Track 2 submission when only Track 1 was READY (and vice versa).
+    case "$TRACK" in
+        "Activity Prediction") COOLDOWN_TRACK="activity" ;;
+        "Structure Prediction") COOLDOWN_TRACK="structure" ;;
+        *) echo "Unknown track: $TRACK" >&2; exit 1 ;;
+    esac
+
     while true; do
         SET_PLUS_E=0
         set +e
-        OUTPUT="$(pixi run python track1_activity/scripts/api.py cooldown 2>&1)"
+        OUTPUT="$(pixi run python track1_activity/scripts/api.py cooldown --track "$COOLDOWN_TRACK" 2>&1)"
         RC=$?
         set -e
         if [[ $RC -ne 0 ]]; then
@@ -112,11 +137,11 @@ fi
             continue
         fi
         if echo "$OUTPUT" | grep -q "READY"; then
-            echo "$(date '+%H:%M:%S') cooldown READY"
+            echo "$(date '+%H:%M:%S') cooldown READY ($COOLDOWN_TRACK)"
             break
         fi
         REMAINING="$(echo "$OUTPUT" | grep 'Remaining' | head -1 || echo '?')"
-        echo "$(date '+%H:%M:%S') waiting ... $REMAINING"
+        echo "$(date '+%H:%M:%S') waiting [$COOLDOWN_TRACK] ... $REMAINING"
         sleep "$POLL"
     done
 
@@ -144,7 +169,8 @@ fi
 
     echo ""
     echo "=== Post-submit status (rc=$SUBMIT_RC) ==="
-    pixi run python track1_activity/scripts/api.py status --limit 3 || true
+    pixi run python track1_activity/scripts/api.py status \
+        --limit 3 --track "$COOLDOWN_TRACK" || true
 
     if [[ $SUBMIT_RC -ne 0 ]]; then
         echo "SUBMIT FAILED (rc=$SUBMIT_RC)"
