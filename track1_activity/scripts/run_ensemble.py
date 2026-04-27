@@ -156,12 +156,16 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # Sp 0.8424 -> 0.8504 (Δ +0.0080, ties sia 0.8506). See
     # 31_optuna_pretrain_swap.py + run_chemprop_pretrain_optuna.py.
     "tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens_umap_default",
-    # 2026-04-26 Phase 4 ADD: Trial 11 5-seed log2fc parquet — best Sp
-    # (0.8412) and lowest per-seed std (0.0030) of all top trials.
-    # Adds to caruana (10-pool) for further -0.005 OOF MAE / +0.005 Sp
-    # over Trial 10 alone (3-bin SWAP test). Same Optuna pipeline,
-    # different hparam neighborhood (also hidden=384, lr=2-5e-4).
-    "tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial11_seed5ens_umap_default",
+    # 2026-04-27: trial11 ADD removed after Phase 4 LB regression (id=38
+    # MAE +0.0031 / Sp -0.0057 vs id=32 baseline despite OOF Δ -0.0099 /
+    # +0.0080). Hypothesis: ADD 2 correlated cheme members concentrated
+    # chemprop-family weight 0.59 -> 0.85, biasing the ensemble in the
+    # wrong direction on the test distribution. Now testing the more
+    # conservative swap_default_t10 (single SWAP, no ADD, 9 pool members)
+    # as LB A/B vs id=38 to isolate which change was the culprit.
+    # bakeoff OOF MAE 0.3971 / Sp 0.8451 (vs Phase 4 0.3920 / 0.8504).
+    # See feedback_phase4_oof_lb_full_reverse.md.
+    # "tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial11_seed5ens_umap_default",
     # TabPFN on chemprop pretrain encoder fingerprint (256d).
     # Buterez 2024 strategy-3 (LF embedding as side feature).
     # OOF MAE 0.4373 / Spearman 0.8102 -- pool single-best.
