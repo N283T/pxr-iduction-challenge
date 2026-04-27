@@ -172,6 +172,18 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # Correlated r=0.962 with the log2fc_pred variant above (both
     # carry pretrain signal), caruana spreads weight between them.
     "tabpfn_chemprop_pretrain_embed_umap_default",
+    # 2026-04-27: ADD test for chemprop_pretrain_optuna_trial10_embed
+    # (384d frozen embedding from Optuna Trial 10 ckpt, same family as
+    # default chemprop_pretrain_embed but tuned hparams). bakeoff
+    # 33_chemprop_embed_swap.py: ADD t10 caruana_bag20 OOF MAE 0.3971 ->
+    # 0.3919 (Δ -0.0052, just above bag noise +-0.003), Sp 0.8451 ->
+    # 0.8504 (Δ +0.0053). Gate 2 r=0.925 with chemprop_pretrain_embed
+    # but caruana found use anyway. Risk: same family ADD pattern as
+    # Phase 4 trial10/11 log2fc_pred ADD (id=38 LB regress). Single
+    # ADD vs Phase 4's double ADD = milder concentration. LB A/B will
+    # tell. See run_chemprop_embed_extract.py +
+    # eval_chemprop_optuna_embed.py.
+    "tabpfn_chemprop_pretrain_optuna_trial10_embed_umap",
     # --- Boltz trunk embedding pool (2) ---
     # 1024-dim pooled trunk embeddings (s_prot_mean 384 + s_lig_mean 384 +
     # z_interface_mean/max 128+128). Two TabPFN variants retained: core
