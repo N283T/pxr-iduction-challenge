@@ -172,18 +172,19 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # Correlated r=0.962 with the log2fc_pred variant above (both
     # carry pretrain signal), caruana spreads weight between them.
     "tabpfn_chemprop_pretrain_embed_umap_default",
-    # 2026-04-27: ADD test for chemprop_pretrain_optuna_trial10_embed
-    # (384d frozen embedding from Optuna Trial 10 ckpt, same family as
-    # default chemprop_pretrain_embed but tuned hparams). bakeoff
-    # 33_chemprop_embed_swap.py: ADD t10 caruana_bag20 OOF MAE 0.3971 ->
-    # 0.3919 (Δ -0.0052, just above bag noise +-0.003), Sp 0.8451 ->
-    # 0.8504 (Δ +0.0053). Gate 2 r=0.925 with chemprop_pretrain_embed
-    # but caruana found use anyway. Risk: same family ADD pattern as
-    # Phase 4 trial10/11 log2fc_pred ADD (id=38 LB regress). Single
-    # ADD vs Phase 4's double ADD = milder concentration. LB A/B will
-    # tell. See run_chemprop_embed_extract.py +
-    # eval_chemprop_optuna_embed.py.
-    "tabpfn_chemprop_pretrain_optuna_trial10_embed_umap",
+    # 2026-04-27 NULL: chemprop_pretrain_optuna_trial10_embed ADD test
+    # (384d frozen embed from Optuna Trial 10 ckpt) failed at LB despite
+    # passing OOF gate. Bakeoff caruana_bag20 Δ MAE -0.0052 (just above
+    # bag noise +-0.003); single-run 10-pool was bag-noise tied. LB id=40
+    # MAE 0.4110 / Sp 0.8437 vs id=32 baseline 0.4080 / 0.8465 (Δ MAE
+    # +0.0030 / Sp -0.0028, rank 1 -> 3, gap to sia +0.0027 -> +0.0058).
+    # Pattern matches Phase 4 trial10/11 log2fc_pred ADD (id=38 same
+    # family-concentration reverse amp). Confirms gate 2 r > 0.85 rule
+    # really does block LB-meaningful adds even when caruana finds weight
+    # for the new member. Framework retained (33_chemprop_embed_swap.py +
+    # eval_chemprop_optuna_embed.py + chemprop_pretrain_optuna_trial{N}_
+    # embed feature pattern). See feedback_chemprop_optuna_embed_null.md.
+    # "tabpfn_chemprop_pretrain_optuna_trial10_embed_umap",
     # --- Boltz trunk embedding pool (2) ---
     # 1024-dim pooled trunk embeddings (s_prot_mean 384 + s_lig_mean 384 +
     # z_interface_mean/max 128+128). Two TabPFN variants retained: core
