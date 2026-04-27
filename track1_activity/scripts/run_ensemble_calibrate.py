@@ -245,10 +245,12 @@ def main() -> None:
 
     # Sanity: raw OOF MAE should match the ens_caruana_bag20 DB value closely
     # (will differ very slightly due to float accumulation order).
-    if not 0.40 <= raw_oof_metrics["MAE"] <= 0.45:
+    # Lower bound widened 2026-04-26 after Phase 4 Optuna deploy reached 0.392
+    # (below the historical 0.40 floor).
+    if not 0.36 <= raw_oof_metrics["MAE"] <= 0.45:
         raise RuntimeError(
             f"Raw OOF MAE {raw_oof_metrics['MAE']:.4f} outside expected "
-            f"range [0.40, 0.45]. Weights/OOF misalignment?"
+            f"range [0.36, 0.45]. Weights/OOF misalignment?"
         )
 
     # Build 5-fold UMAP splits matching ENSEMBLE_MODELS training CV

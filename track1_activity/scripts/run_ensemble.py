@@ -145,7 +145,27 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     #
     # Same SWAP semantics as 5-seed: structurally an upgrade of the same
     # encoder family, residual r ~0.99 with the prior 5-seed variant.
-    "tabpfn_cheme_2d_full_boltz_log2fc_pred_seed10ens_umap_default",
+    #
+    # 2026-04-26 Phase 4 (log2fc Optuna PR): SWAPPED for
+    # `tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens_umap_default`.
+    # Optuna re-tuned chemprop pretrain hparams (16-trial TPE +
+    # multi-seed validate) against downstream TabPFN OOF MAE.
+    # Trial 10 5-seed: hidden_dim=384, mp_dropout~0, lr=4.6e-4, w_33=0.98.
+    # Single-model OOF: MAE 0.4055 -> 0.3959 (Δ -0.0096), Sp 0.8380 -> 0.8425.
+    # Caruana_bag20 (with t11 ADD below): MAE 0.4019 -> 0.3920 (Δ -0.0099),
+    # Sp 0.8424 -> 0.8504 (Δ +0.0080, ties sia 0.8506). See
+    # 31_optuna_pretrain_swap.py + run_chemprop_pretrain_optuna.py.
+    "tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens_umap_default",
+    # 2026-04-27: trial11 ADD removed after Phase 4 LB regression (id=38
+    # MAE +0.0031 / Sp -0.0057 vs id=32 baseline despite OOF Δ -0.0099 /
+    # +0.0080). Hypothesis: ADD 2 correlated cheme members concentrated
+    # chemprop-family weight 0.59 -> 0.85, biasing the ensemble in the
+    # wrong direction on the test distribution. Now testing the more
+    # conservative swap_default_t10 (single SWAP, no ADD, 9 pool members)
+    # as LB A/B vs id=38 to isolate which change was the culprit.
+    # bakeoff OOF MAE 0.3971 / Sp 0.8451 (vs Phase 4 0.3920 / 0.8504).
+    # See feedback_phase4_oof_lb_full_reverse.md.
+    # "tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial11_seed5ens_umap_default",
     # TabPFN on chemprop pretrain encoder fingerprint (256d).
     # Buterez 2024 strategy-3 (LF embedding as side feature).
     # OOF MAE 0.4373 / Spearman 0.8102 -- pool single-best.
