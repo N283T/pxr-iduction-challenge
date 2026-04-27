@@ -14,10 +14,14 @@ compound_id.
 
 Usage:
     pixi run python track1_activity/scripts/run_chemprop_embed_extract.py
+    pixi run python track1_activity/scripts/run_chemprop_embed_extract.py \
+        --ckpt track1_activity/checkpoints/chemprop_pretrain_optuna/trial_010/pretrain.pt \
+        --out data/chemprop_pretrain_optuna_trial10_embed.parquet
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -36,11 +40,10 @@ from chemprop.nn.metrics import MSE  # noqa: E402
 from data import DB_PARAMS  # noqa: E402
 
 
-CKPT_PATH = REPO_ROOT.joinpath(
+DEFAULT_CKPT_PATH = REPO_ROOT.joinpath(
     "track1_activity", "checkpoints", "chemprop_pretrain", "pretrain.pt"
 )
-OUT_PATH = REPO_ROOT.joinpath("data", "chemprop_pretrain_embed.parquet")
-OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+DEFAULT_OUT_PATH = REPO_ROOT.joinpath("data", "chemprop_pretrain_embed.parquet")
 
 AGG_REGISTRY = {
     "mean": nn.MeanAggregation,
@@ -100,12 +103,29 @@ def load_target_compounds() -> pd.DataFrame:
 
 
 def main() -> None:
-    if not CKPT_PATH.exists():
-        raise FileNotFoundError(f"missing pretrain ckpt: {CKPT_PATH}")
-    ckpt = torch.load(CKPT_PATH, map_location="cpu", weights_only=False)
+    parser = argparse.ArgumentParser(
+        description="Extract chemprop pretrain MPNN embeddings"
+    )
+    parser.add_argument(
+        "--ckpt", type=Path, default=DEFAULT_CKPT_PATH, help="pretrain.pt path"
+    )
+    parser.add_argument(
+        "--out", type=Path, default=DEFAULT_OUT_PATH, help="output parquet path"
+    )
+    parser.add_argument("--batch-size", type=int, default=256)
+    args = parser.parse_args()
+
+    ckpt_path: Path = args.ckpt
+    out_path: Path = args.out
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not ckpt_path.exists():
+        raise FileNotFoundError(f"missing pretrain ckpt: {ckpt_path}")
+    ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
     params = ckpt["params"]
     hidden_dim = params["message_hidden_dim"]
-    print(f"Loaded pretrain ckpt, params: {params}")
+    print(f"Loaded pretrain ckpt: {ckpt_path}")
+    print(f"  params: {params}")
 
     df = load_target_compounds()
     n = len(df)
@@ -123,7 +143,9 @@ def main() -> None:
         for smi in df["smiles"]
     ]
     dataset = chemprop_data.MoleculeDataset(pts)
-    loader = chemprop_data.build_dataloader(dataset, batch_size=256, shuffle=False)
+    loader = chemprop_data.build_dataloader(
+        dataset, batch_size=args.batch_size, shuffle=False
+    )
 
     all_embeds: list[np.ndarray] = []
     with torch.no_grad():
@@ -144,9 +166,9 @@ def main() -> None:
     out_df = pd.DataFrame(emb, columns=cols)
     out_df.insert(0, "compound_id", df["compound_id"].values)
     out_df = out_df.set_index("compound_id")
-    out_df.to_parquet(OUT_PATH)
+    out_df.to_parquet(out_path)
 
-    print(f"Saved {out_df.shape} embeddings to {OUT_PATH}")
+    print(f"Saved {out_df.shape} embeddings to {out_path}")
     print("  mean abs =", float(np.mean(np.abs(emb))))
     print("  std per col =", float(np.mean(np.std(emb, axis=0))))
 
