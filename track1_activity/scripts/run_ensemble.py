@@ -483,6 +483,7 @@ def optimize_caruana(
     bag_frac: float = 0.5,
     n_bags: int = 20,
     seed: int = 42,
+    sample_weight: np.ndarray | None = None,
 ) -> np.ndarray:
     """Caruana 2004 forward stepwise selection with replacement,
     sorted initialization, and bagged selection.
@@ -495,6 +496,11 @@ def optimize_caruana(
     counts and bagging over library subsets, which naturally spreads
     weight across correlated-but-strong members.
 
+    When ``sample_weight`` is provided, MAE is replaced by importance-
+    weighted MAE (sum(w * |err|) / sum(w)) at every selection step.
+    This biases caruana to pick blends that perform well on test-like
+    train compounds, addressing the test-distribution shift on PXR.
+
     Returns a simplex-normalized weight vector over all input columns.
     Models not chosen in any bag receive weight 0.
     """
@@ -502,11 +508,22 @@ def optimize_caruana(
     N, M = oof.shape
     counts = np.zeros(M, dtype=np.int64)
 
+    if sample_weight is None:
+        sw = np.ones(N, dtype=np.float64)
+    else:
+        sw = np.asarray(sample_weight, dtype=np.float64)
+        if sw.shape != (N,):
+            raise ValueError(
+                f"sample_weight shape {sw.shape} != ({N},) (must match OOF rows)"
+            )
+    sw_total = sw.sum()
+    sw_col = sw[:, None]
+
     bag_size = max(init_top_n + 1, int(M * bag_frac))
     for _ in range(n_bags):
         members = rng.choice(M, size=bag_size, replace=False)
         bag_arr = oof[:, members]  # (N, bag_size)
-        bag_maes = np.mean(np.abs(bag_arr - y[:, None]), axis=0)
+        bag_maes = np.sum(sw_col * np.abs(bag_arr - y[:, None]), axis=0) / sw_total
         sort_idx = np.argsort(bag_maes)
         top = sort_idx[:init_top_n]
 
@@ -520,7 +537,9 @@ def optimize_caruana(
 
         for _ in range(n_iter):
             cand_pred = (current_sum[:, None] + bag_arr) / (current_count + 1)
-            cand_maes = np.mean(np.abs(cand_pred - y[:, None]), axis=0)
+            cand_maes = (
+                np.sum(sw_col * np.abs(cand_pred - y[:, None]), axis=0) / sw_total
+            )
             best = int(np.argmin(cand_maes))
             bag_counts[best] += 1
             current_sum = current_sum + bag_arr[:, best]
