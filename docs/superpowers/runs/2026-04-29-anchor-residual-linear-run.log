@@ -1,0 +1,51 @@
+  warn(
+  warn(
+Loading data ...
+  using ens_caruana_bag20 experiment id=2229, 9 members
+  reconstructed OOF: n=4140, mean=4.3342, std=0.9270
+  train=4140, test=513
+Computing Morgan fingerprints (train + test) ...
+  X_train_fp (4140, 2048), X_test_fp (513, 2048)
+Fitting global importance affine (base calibrator) ...
+  affine: y = 1.0917 * pred + -0.3753
+  base OOF: MAE=0.3962  Sp=0.8451
+Loading potent-46 anchors ...
+  potent-46 size: 46 (pec50: mean=6.26, min=6.00, max=6.86)
+Computing anchor features ...
+  feat_train (4140, 4), feat_test (513, 4)
+             nn_tanimoto: mean=0.219 q25=0.191 q75=0.242 min=0.055 max=1.000
+            anchor_pec50: mean=6.264 q25=6.125 q75=6.345 min=6.000 max=6.855
+               base_pred: mean=4.356 q25=3.612 q75=5.102 min=2.001 max=6.047
+       pred_minus_anchor: mean=-1.908 q25=-2.633 q75=-1.144 min=-4.844 max=-0.137
+  residual target stats: mean=-0.0353 std=0.5551 q25=-0.3220 q75=+0.2680
+Building UMAP 5-fold split (Morgan+Jaccard, k=50, seed=42) ...
+  built 5 folds
+Cross-validating residual model ...
+  fold 0: train=3309 val=831 residual-MAE=0.4201
+  fold 1: train=3310 val=830 residual-MAE=0.3777
+  fold 2: train=3311 val=829 residual-MAE=0.4103
+  fold 3: train=3322 val=818 residual-MAE=0.3581
+  fold 4: train=3308 val=832 residual-MAE=0.4165
+  per-fold residual MAE: mean=0.3965 std=0.0244
+  |residual_hat| OOF: mean=0.0485 q99=0.1049 max=0.1618
+  corrected OOF (alpha=0.4): MAE=0.3956  Sp=0.8449  Δ MAE=-0.0006  Δ Sp=-0.0002
+Fitting residual model on ALL train (for test prediction) ...
+  |residual_hat| test: mean=0.0523 q99=0.1295 max=0.1622
+  test base mean=4.7926 std=0.7666
+  test corrected mean=4.7961 std=0.7573
+Residual linear coefficients (full-train fit):
+             nn_tanimoto: +0.3537
+            anchor_pec50: -0.0211
+               base_pred: -0.0314
+       pred_minus_anchor: -0.0103
+               intercept: +0.1359
+
+GATE CHECK:
+  corrected OOF MAE <= base OOF MAE: True (0.3956 vs 0.3962)
+  corrected OOF Sp >= base OOF Sp - 0.005: True (0.8449 vs 0.8401)
+  max |residual_hat| <= 1.0: True (max=0.1618)
+  max |residual_hat| <= 0.5 (warn): True
+  q99 |residual_hat| <= 0.3 (warn): True
+  GATE PASS = True
+
+Wrote: /home/nagaet/pxr-iduction-challenge/track1_activity/submissions/ens_caruana_bag20_anchor_residual.csv
