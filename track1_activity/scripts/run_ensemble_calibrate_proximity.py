@@ -28,7 +28,7 @@ import pandas as pd
 import psycopg2
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from scipy.stats import spearmanr  # noqa: F401  (used in main() — Task 4)
+from scipy.stats import spearmanr
 from sklearn.linear_model import (
     LinearRegression,
     LogisticRegression,
@@ -36,7 +36,7 @@ from sklearn.linear_model import (
 
 REPO_ROOT = Path(__file__).resolve().parents[1].parent
 sys.path.insert(0, str(REPO_ROOT.joinpath("track1_activity", "src")))
-from data import (  # noqa: E402, F401  (load_* used in main() — Task 4)
+from data import (  # noqa: E402
     DB_PARAMS,
     load_test_smiles,
     load_train_smiles_target,
@@ -225,3 +225,193 @@ def fit_stratum_calibrator(
         f" -> y = {slope:.4f} * pred + {intercept:.4f}"
     )
     return slope, intercept, w
+
+
+def main() -> None:
+    print("Loading data ...")
+    train_df = load_train_smiles_target()
+    test_df = load_test_smiles()
+    oof_preds, test_preds, test_sub = load_caruana_oof_and_test()
+
+    y_train = train_df["pec50"].to_numpy(dtype=np.float64)
+    assert len(y_train) == len(oof_preds), (
+        f"y_train {len(y_train)} vs oof {len(oof_preds)}"
+    )
+    assert len(test_df) == len(test_preds), (
+        f"test_df {len(test_df)} vs test_preds {len(test_preds)}"
+    )
+    print(f"  train={len(train_df)}, test={len(test_df)}")
+    raw_train_mae = float(np.mean(np.abs(oof_preds - y_train)))
+    raw_train_sp = float(spearmanr(oof_preds, y_train).statistic)
+    print(f"  raw OOF MAE={raw_train_mae:.4f}  Spearman={raw_train_sp:.4f}")
+
+    print("Computing Morgan fingerprints (train + test) ...")
+    X_train_fp = morgan_matrix(train_df["smiles"].tolist())
+    X_test_fp = morgan_matrix(test_df["smiles"].tolist())
+    print(f"  X_train_fp {X_train_fp.shape}, X_test_fp {X_test_fp.shape}")
+
+    print("Loading potent-46 indices (train pec50>=6, sel>=1.5) ...")
+    potent_idx = load_potent46_indices()
+    print(f"  potent-46 size: {len(potent_idx)}")
+    if len(potent_idx) == 0:
+        raise RuntimeError("potent-46 set is empty — check thresholds / counter join")
+
+    potent_fps = X_train_fp[potent_idx]
+    train_global_idx = np.arange(len(train_df))
+    test_global_idx = np.full(
+        len(test_df), -1, dtype=np.int64
+    )  # never matches potent_idx (>=0)
+
+    print("Computing NN-Tanimoto to potent-46 ...")
+    prox_train = compute_nn_tanimoto(
+        X_train_fp,
+        potent_fps,
+        query_global_idx=train_global_idx,
+        anchor_global_idx=potent_idx,
+    )
+    prox_test = compute_nn_tanimoto(
+        X_test_fp,
+        potent_fps,
+        query_global_idx=test_global_idx,
+        anchor_global_idx=potent_idx,
+    )
+    print(
+        f"  prox_train: mean={prox_train.mean():.4f} median={np.median(prox_train):.4f} "
+        f"q25={np.quantile(prox_train, 0.25):.4f} q75={np.quantile(prox_train, 0.75):.4f}"
+    )
+    print(
+        f"  prox_test:  mean={prox_test.mean():.4f} median={np.median(prox_test):.4f} "
+        f"q25={np.quantile(prox_test, 0.25):.4f} q75={np.quantile(prox_test, 0.75):.4f}"
+    )
+
+    threshold = float(np.median(prox_test))
+    print(f"  threshold T = test median = {threshold:.4f}")
+    near_train = prox_train >= threshold
+    near_test = prox_test >= threshold
+    print(
+        f"  train near={near_train.sum()} far={(~near_train).sum()} | "
+        f"test near={near_test.sum()} far={(~near_test).sum()}"
+    )
+
+    if near_train.sum() < MIN_STRATUM_TRAIN or (~near_train).sum() < MIN_STRATUM_TRAIN:
+        print(
+            f"  GATE FAIL: train stratum size below MIN_STRATUM_TRAIN={MIN_STRATUM_TRAIN}"
+        )
+        raise SystemExit(1)
+
+    print("Fitting per-stratum calibrators ...")
+    slope_n, int_n, _ = fit_stratum_calibrator(
+        X_train_fp[near_train],
+        X_test_fp[near_test],
+        oof_preds[near_train],
+        y_train[near_train],
+        label="near",
+    )
+    slope_f, int_f, _ = fit_stratum_calibrator(
+        X_train_fp[~near_train],
+        X_test_fp[~near_test],
+        oof_preds[~near_train],
+        y_train[~near_train],
+        label="far",
+    )
+
+    # Apply per-stratum to OOF and test
+    oof_cal = np.empty_like(oof_preds)
+    oof_cal[near_train] = slope_n * oof_preds[near_train] + int_n
+    oof_cal[~near_train] = slope_f * oof_preds[~near_train] + int_f
+    test_cal = np.empty_like(test_preds)
+    test_cal[near_test] = slope_n * test_preds[near_test] + int_n
+    test_cal[~near_test] = slope_f * test_preds[~near_test] + int_f
+
+    # Per-stratum + global metrics
+    def _mae(a, b):
+        return float(np.mean(np.abs(a - b)))
+
+    def _sp(a, b):
+        return float(spearmanr(a, b).statistic)
+
+    near_mae_raw = _mae(oof_preds[near_train], y_train[near_train])
+    near_mae_cal = _mae(oof_cal[near_train], y_train[near_train])
+    far_mae_raw = _mae(oof_preds[~near_train], y_train[~near_train])
+    far_mae_cal = _mae(oof_cal[~near_train], y_train[~near_train])
+    global_mae_raw = _mae(oof_preds, y_train)
+    global_mae_cal = _mae(oof_cal, y_train)
+    global_sp_raw = _sp(oof_preds, y_train)
+    global_sp_cal = _sp(oof_cal, y_train)
+    print("Per-stratum OOF MAE:")
+    print(
+        f"  near: raw={near_mae_raw:.4f}  cal={near_mae_cal:.4f}  Δ={near_mae_cal - near_mae_raw:+.4f}"
+    )
+    print(
+        f"  far : raw={far_mae_raw:.4f}  cal={far_mae_cal:.4f}  Δ={far_mae_cal - far_mae_raw:+.4f}"
+    )
+    print(
+        f"  global: raw MAE={global_mae_raw:.4f}  cal MAE={global_mae_cal:.4f}  "
+        f"Δ MAE={global_mae_cal - global_mae_raw:+.4f}\n"
+        f"          raw Sp ={global_sp_raw:.4f}  cal Sp ={global_sp_cal:.4f}  "
+        f"Δ Sp ={global_sp_cal - global_sp_raw:+.4f}"
+    )
+
+    # Comparison with global importance baseline (re-fit here, no shelling out)
+    print("Re-fitting global importance baseline for direct comparison ...")
+    X_all = np.vstack([X_train_fp, X_test_fp])
+    y_all = np.concatenate(
+        [
+            np.zeros(len(X_train_fp), dtype=np.int32),
+            np.ones(len(X_test_fp), dtype=np.int32),
+        ]
+    )
+    clf_g = LogisticRegression(
+        max_iter=1000, solver="liblinear", C=1.0, random_state=42
+    )
+    clf_g.fit(X_all, y_all)
+    p_test_g = clf_g.predict_proba(X_train_fp)[:, 1]
+    w_g = ((p_test_g + 1e-6) / (1.0 - p_test_g + 1e-6)) * (
+        len(X_train_fp) / len(X_test_fp)
+    )
+    w_g = np.clip(w_g, WEIGHT_CLIP_LO, WEIGHT_CLIP_HI)
+    w_g = w_g * (len(w_g) / w_g.sum())
+    reg_g = LinearRegression()
+    reg_g.fit(oof_preds.reshape(-1, 1), y_train, sample_weight=w_g)
+    oof_g = float(reg_g.coef_[0]) * oof_preds + float(reg_g.intercept_)
+    g_mae = _mae(oof_g, y_train)
+    g_sp = _sp(oof_g, y_train)
+    print(
+        f"  global importance affine: y = {float(reg_g.coef_[0]):.4f} * pred + {float(reg_g.intercept_):.4f}\n"
+        f"  global importance OOF: MAE={g_mae:.4f}  Sp={g_sp:.4f}"
+    )
+
+    # Gate
+    mae_ok = global_mae_cal <= g_mae
+    sp_ok = global_sp_cal >= g_sp - 0.005
+    near_san = (near_mae_cal - near_mae_raw) <= 0.01
+    far_san = (far_mae_cal - far_mae_raw) <= 0.01
+    print("\nGATE CHECK:")
+    print(
+        f"  proximity OOF MAE <= global importance MAE: {mae_ok} ({global_mae_cal:.4f} vs {g_mae:.4f})"
+    )
+    print(
+        f"  proximity OOF Sp >= global importance Sp - 0.005: {sp_ok} ({global_sp_cal:.4f} vs {g_sp - 0.005:.4f})"
+    )
+    print(
+        f"  near stratum cal-vs-raw within +0.01: {near_san} (Δ={near_mae_cal - near_mae_raw:+.4f})"
+    )
+    print(
+        f"  far stratum cal-vs-raw within +0.01: {far_san} (Δ={far_mae_cal - far_mae_raw:+.4f})"
+    )
+    print(f"  GATE PASS = {mae_ok and sp_ok and near_san and far_san}")
+
+    # Always write the submission (gate informs LB decision, not file write)
+    out_sub = test_sub.copy()
+    test_col = [c for c in out_sub.columns if c.lower() == "pec50"][0]
+    out_sub[test_col] = test_cal
+    out_path = REPO_ROOT.joinpath(
+        "track1_activity", "submissions", "ens_caruana_bag20_calibrated_proximity.csv"
+    )
+    out_sub.to_csv(out_path, index=False)
+    print(f"\nWrote: {out_path}")
+    print(f"  test mean: {test_cal.mean():.4f}, std: {test_cal.std():.4f}")
+
+
+if __name__ == "__main__":
+    main()
