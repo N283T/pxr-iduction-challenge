@@ -33,7 +33,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import psycopg2
-from lightgbm import LGBMRegressor
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from scipy.stats import spearmanr
@@ -53,7 +52,7 @@ POTENT_PEC50_THRESHOLD = 6.0
 POTENT_SEL_THRESHOLD = 1.5
 WEIGHT_CLIP_LO = 1.0 / 3.0
 WEIGHT_CLIP_HI = 3.0
-ALPHA = 0.5
+ALPHA = 0.4  # mid-plateau of OOF MAE sweep (LinearRegression residual)
 N_SPLITS = 5
 N_CLUSTERS = 50
 SEED = 42
@@ -208,20 +207,18 @@ def fit_global_importance_affine(
     return float(reg.coef_[0]), float(reg.intercept_)
 
 
-def make_residual_model() -> LGBMRegressor:
-    return LGBMRegressor(
-        n_estimators=200,
-        max_depth=4,
-        learning_rate=0.05,
-        min_child_samples=30,
-        reg_lambda=1.0,
-        reg_alpha=0.5,
-        subsample=0.8,
-        colsample_bytree=0.9,
-        random_state=42,
-        verbosity=-1,
-        n_jobs=-1,
-    )
+def make_residual_model() -> LinearRegression:
+    """Linear residual model (chosen after LGBM overfit observed in v1).
+
+    LGBM with 4 anchor features overfits the per-fold noise: best alpha
+    only at 0.05-0.15 with -0.0001 MAE, then degrades quickly. Linear
+    finds a clean monotone alpha plateau (-0.0006 at 0.30-0.50) driven
+    almost entirely by the nn_tanimoto coefficient (+0.35; other coefs
+    < |0.04|), confirming the residual signal is "base under-predicts
+    for potent-46 analogs". Linear's restricted hypothesis space is the
+    right inductive bias here.
+    """
+    return LinearRegression()
 
 
 def main() -> None:
@@ -366,11 +363,11 @@ def main() -> None:
         f"  test corrected mean={test_corrected.mean():.4f} std={test_corrected.std():.4f}"
     )
 
-    # Feature importance (sanity)
-    importances = full_model.booster_.feature_importance(importance_type="gain")
-    print("Residual model feature importance (gain):")
-    for name, imp in zip(feat_names, importances):
-        print(f"    {name:>20}: {imp:.1f}")
+    # Linear coefficients (sanity)
+    print("Residual linear coefficients (full-train fit):")
+    for name, coef in zip(feat_names, full_model.coef_):
+        print(f"    {name:>20}: {coef:+.4f}")
+    print(f"    {'intercept':>20}: {full_model.intercept_:+.4f}")
 
     # Gate
     mae_ok = corrected_oof_mae <= base_oof_mae
