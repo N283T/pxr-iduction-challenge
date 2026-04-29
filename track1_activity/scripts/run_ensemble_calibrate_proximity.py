@@ -136,3 +136,47 @@ def load_caruana_oof_and_test() -> tuple[np.ndarray, np.ndarray, pd.DataFrame]:
     )
     _ = json
     return oof_preds, test_preds, test_sub
+
+
+def compute_nn_tanimoto(
+    query_fps: np.ndarray,
+    anchor_fps: np.ndarray,
+    query_global_idx: np.ndarray | None = None,
+    anchor_global_idx: np.ndarray | None = None,
+) -> np.ndarray:
+    """Max Tanimoto similarity from each query row to any anchor row.
+
+    Both inputs are uint8 (N, n_bits) bit matrices (bits in 0/1).
+    Tanimoto = popcount(A AND B) / popcount(A OR B).
+
+    If `query_global_idx` and `anchor_global_idx` are provided, any anchor
+    whose global index matches the query's global index is excluded from
+    that query's max (self-exclude). Pass None on either side to disable.
+    """
+    if anchor_fps.shape[0] == 0:
+        raise ValueError("anchor_fps is empty")
+
+    # popcount per row, precomputed
+    q_pop = query_fps.sum(axis=1).astype(np.int32)  # (Nq,)
+    a_pop = anchor_fps.sum(axis=1).astype(np.int32)  # (Na,)
+
+    # Intersection: matrix product of bit matrices (each cell = popcount(q AND a))
+    inter = query_fps.astype(np.int32) @ anchor_fps.T.astype(np.int32)  # (Nq, Na)
+    union = q_pop[:, None] + a_pop[None, :] - inter  # (Nq, Na)
+    # Avoid div-by-zero (both all-zero is impossible for valid mols, but guard)
+    tanimoto = np.where(union > 0, inter / np.maximum(union, 1), 0.0)
+
+    # Self-exclude: set tanimoto[i, j] = -inf where query_global_idx[i] == anchor_global_idx[j]
+    if query_global_idx is not None and anchor_global_idx is not None:
+        # broadcast comparison (Nq, Na)
+        mask = query_global_idx[:, None] == anchor_global_idx[None, :]
+        tanimoto = np.where(mask, -np.inf, tanimoto)
+
+    nn = tanimoto.max(axis=1)
+    # If self-exclude removed every anchor for some query (shouldn't happen
+    # unless anchors are a subset of size 1 == query), guard the -inf:
+    if np.any(np.isneginf(nn)):
+        raise RuntimeError(
+            "compute_nn_tanimoto: query has no anchor after self-exclude"
+        )
+    return nn.astype(np.float64)
