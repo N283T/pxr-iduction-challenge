@@ -48,6 +48,7 @@ POTENT_SEL_THRESHOLD = 1.5
 WEIGHT_CLIP_LO = 1.0 / 3.0
 WEIGHT_CLIP_HI = 3.0
 MIN_STRATUM_TRAIN = 200
+T_ANCHOR = 0.28  # chemical anchor for near-stratum (weak-analog Tanimoto floor)
 
 
 def morgan_matrix(
@@ -284,8 +285,8 @@ def main() -> None:
         f"q25={np.quantile(prox_test, 0.25):.4f} q75={np.quantile(prox_test, 0.75):.4f}"
     )
 
-    threshold = float(np.median(prox_test))
-    print(f"  threshold T = test median = {threshold:.4f}")
+    threshold = T_ANCHOR
+    print(f"  threshold T = chemical anchor = {threshold:.4f}")
     near_train = prox_train >= threshold
     near_test = prox_test >= threshold
     print(
@@ -293,67 +294,14 @@ def main() -> None:
         f"test near={near_test.sum()} far={(~near_test).sum()}"
     )
 
-    if near_train.sum() < MIN_STRATUM_TRAIN or (~near_train).sum() < MIN_STRATUM_TRAIN:
+    if near_train.sum() < MIN_STRATUM_TRAIN:
         print(
-            f"  GATE FAIL: train stratum size below MIN_STRATUM_TRAIN={MIN_STRATUM_TRAIN}"
+            f"  GATE FAIL: near-train stratum size {near_train.sum()} "
+            f"below MIN_STRATUM_TRAIN={MIN_STRATUM_TRAIN}"
         )
         raise SystemExit(1)
 
-    print("Fitting per-stratum calibrators ...")
-    slope_n, int_n, _ = fit_stratum_calibrator(
-        X_train_fp[near_train],
-        X_test_fp[near_test],
-        oof_preds[near_train],
-        y_train[near_train],
-        label="near",
-    )
-    slope_f, int_f, _ = fit_stratum_calibrator(
-        X_train_fp[~near_train],
-        X_test_fp[~near_test],
-        oof_preds[~near_train],
-        y_train[~near_train],
-        label="far",
-    )
-
-    # Apply per-stratum to OOF and test
-    oof_cal = np.empty_like(oof_preds)
-    oof_cal[near_train] = slope_n * oof_preds[near_train] + int_n
-    oof_cal[~near_train] = slope_f * oof_preds[~near_train] + int_f
-    test_cal = np.empty_like(test_preds)
-    test_cal[near_test] = slope_n * test_preds[near_test] + int_n
-    test_cal[~near_test] = slope_f * test_preds[~near_test] + int_f
-
-    # Per-stratum + global metrics
-    def _mae(a, b):
-        return float(np.mean(np.abs(a - b)))
-
-    def _sp(a, b):
-        return float(spearmanr(a, b).statistic)
-
-    near_mae_raw = _mae(oof_preds[near_train], y_train[near_train])
-    near_mae_cal = _mae(oof_cal[near_train], y_train[near_train])
-    far_mae_raw = _mae(oof_preds[~near_train], y_train[~near_train])
-    far_mae_cal = _mae(oof_cal[~near_train], y_train[~near_train])
-    global_mae_raw = _mae(oof_preds, y_train)
-    global_mae_cal = _mae(oof_cal, y_train)
-    global_sp_raw = _sp(oof_preds, y_train)
-    global_sp_cal = _sp(oof_cal, y_train)
-    print("Per-stratum OOF MAE:")
-    print(
-        f"  near: raw={near_mae_raw:.4f}  cal={near_mae_cal:.4f}  Δ={near_mae_cal - near_mae_raw:+.4f}"
-    )
-    print(
-        f"  far : raw={far_mae_raw:.4f}  cal={far_mae_cal:.4f}  Δ={far_mae_cal - far_mae_raw:+.4f}"
-    )
-    print(
-        f"  global: raw MAE={global_mae_raw:.4f}  cal MAE={global_mae_cal:.4f}  "
-        f"Δ MAE={global_mae_cal - global_mae_raw:+.4f}\n"
-        f"          raw Sp ={global_sp_raw:.4f}  cal Sp ={global_sp_cal:.4f}  "
-        f"Δ Sp ={global_sp_cal - global_sp_raw:+.4f}"
-    )
-
-    # Comparison with global importance baseline (re-fit here, no shelling out)
-    print("Re-fitting global importance baseline for direct comparison ...")
+    print("Fitting global importance affine (baseline + far-stratum fallback) ...")
     X_all = np.vstack([X_train_fp, X_test_fp])
     y_all = np.concatenate(
         [
@@ -373,19 +321,66 @@ def main() -> None:
     w_g = w_g * (len(w_g) / w_g.sum())
     reg_g = LinearRegression()
     reg_g.fit(oof_preds.reshape(-1, 1), y_train, sample_weight=w_g)
-    oof_g = float(reg_g.coef_[0]) * oof_preds + float(reg_g.intercept_)
+    slope_g = float(reg_g.coef_[0])
+    intercept_g = float(reg_g.intercept_)
+    print(f"  global affine: y = {slope_g:.4f} * pred + {intercept_g:.4f}")
+
+    print("Fitting near-stratum local calibrator ...")
+    slope_n, int_n, _ = fit_stratum_calibrator(
+        X_train_fp[near_train],
+        X_test_fp[near_test],
+        oof_preds[near_train],
+        y_train[near_train],
+        label="near",
+    )
+
+    # Apply: near rows -> near affine, far rows -> global affine
+    oof_cal = np.empty_like(oof_preds)
+    oof_cal[near_train] = slope_n * oof_preds[near_train] + int_n
+    oof_cal[~near_train] = slope_g * oof_preds[~near_train] + intercept_g
+    test_cal = np.empty_like(test_preds)
+    test_cal[near_test] = slope_n * test_preds[near_test] + int_n
+    test_cal[~near_test] = slope_g * test_preds[~near_test] + intercept_g
+
+    # Per-stratum + global metrics
+    def _mae(a, b):
+        return float(np.mean(np.abs(a - b)))
+
+    def _sp(a, b):
+        return float(spearmanr(a, b).statistic)
+
+    near_mae_raw = _mae(oof_preds[near_train], y_train[near_train])
+    near_mae_cal = _mae(oof_cal[near_train], y_train[near_train])
+    far_mae_raw = _mae(oof_preds[~near_train], y_train[~near_train])
+    far_mae_cal = _mae(oof_cal[~near_train], y_train[~near_train])
+    global_mae_raw = _mae(oof_preds, y_train)
+    global_mae_cal = _mae(oof_cal, y_train)
+    global_sp_raw = _sp(oof_preds, y_train)
+    global_sp_cal = _sp(oof_cal, y_train)
+    print("Per-stratum OOF MAE:")
+    print(
+        f"  near (local): raw={near_mae_raw:.4f}  cal={near_mae_cal:.4f}  Δ={near_mae_cal - near_mae_raw:+.4f}"
+    )
+    print(
+        f"  far  (global): raw={far_mae_raw:.4f}  cal={far_mae_cal:.4f}  Δ={far_mae_cal - far_mae_raw:+.4f}"
+    )
+    print(
+        f"  global: raw MAE={global_mae_raw:.4f}  cal MAE={global_mae_cal:.4f}  "
+        f"Δ MAE={global_mae_cal - global_mae_raw:+.4f}\n"
+        f"          raw Sp ={global_sp_raw:.4f}  cal Sp ={global_sp_cal:.4f}  "
+        f"Δ Sp ={global_sp_cal - global_sp_raw:+.4f}"
+    )
+
+    # Pure global importance baseline OOF (uses the same affine as the far branch)
+    oof_g = slope_g * oof_preds + intercept_g
     g_mae = _mae(oof_g, y_train)
     g_sp = _sp(oof_g, y_train)
-    print(
-        f"  global importance affine: y = {float(reg_g.coef_[0]):.4f} * pred + {float(reg_g.intercept_):.4f}\n"
-        f"  global importance OOF: MAE={g_mae:.4f}  Sp={g_sp:.4f}"
-    )
+    print(f"  global importance OOF: MAE={g_mae:.4f}  Sp={g_sp:.4f}")
 
     # Gate
     mae_ok = global_mae_cal <= g_mae
     sp_ok = global_sp_cal >= g_sp - 0.005
     near_san = (near_mae_cal - near_mae_raw) <= 0.01
-    far_san = (far_mae_cal - far_mae_raw) <= 0.01
     print("\nGATE CHECK:")
     print(
         f"  proximity OOF MAE <= global importance MAE: {mae_ok} ({global_mae_cal:.4f} vs {g_mae:.4f})"
@@ -396,10 +391,7 @@ def main() -> None:
     print(
         f"  near stratum cal-vs-raw within +0.01: {near_san} (Δ={near_mae_cal - near_mae_raw:+.4f})"
     )
-    print(
-        f"  far stratum cal-vs-raw within +0.01: {far_san} (Δ={far_mae_cal - far_mae_raw:+.4f})"
-    )
-    print(f"  GATE PASS = {mae_ok and sp_ok and near_san and far_san}")
+    print(f"  GATE PASS = {mae_ok and sp_ok and near_san}")
 
     # Always write the submission (gate informs LB decision, not file write)
     out_sub = test_sub.copy()
