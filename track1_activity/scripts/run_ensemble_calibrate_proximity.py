@@ -29,7 +29,7 @@ import psycopg2
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from scipy.stats import spearmanr  # noqa: F401  (used in main() — Task 4)
-from sklearn.linear_model import (  # noqa: F401  (used in main() — Task 4)
+from sklearn.linear_model import (
     LinearRegression,
     LogisticRegression,
 )
@@ -180,3 +180,48 @@ def compute_nn_tanimoto(
             "compute_nn_tanimoto: query has no anchor after self-exclude"
         )
     return nn.astype(np.float64)
+
+
+def fit_stratum_calibrator(
+    train_fps_stratum: np.ndarray,
+    test_fps_stratum: np.ndarray,
+    oof_stratum: np.ndarray,
+    y_stratum: np.ndarray,
+    label: str,
+) -> tuple[float, float, np.ndarray]:
+    """Fit per-stratum domain classifier + weighted affine.
+
+    Returns: (slope, intercept, sample_weights). Prints a one-line summary.
+    """
+    n_train = len(train_fps_stratum)
+    n_test = len(test_fps_stratum)
+    if n_train < 2:
+        raise RuntimeError(f"stratum '{label}': only {n_train} train rows, cannot fit")
+    if n_test < 1:
+        raise RuntimeError(f"stratum '{label}': zero test rows")
+
+    # Domain classifier (within stratum only)
+    X_all = np.vstack([train_fps_stratum, test_fps_stratum])
+    y_all = np.concatenate(
+        [np.zeros(n_train, dtype=np.int32), np.ones(n_test, dtype=np.int32)]
+    )
+    clf = LogisticRegression(max_iter=1000, solver="liblinear", C=1.0, random_state=42)
+    clf.fit(X_all, y_all)
+    p_test = clf.predict_proba(train_fps_stratum)[:, 1]
+    eps = 1e-6
+    w = (p_test + eps) / (1.0 - p_test + eps)
+    w = w * (n_train / n_test)
+    w = np.clip(w, WEIGHT_CLIP_LO, WEIGHT_CLIP_HI)
+    w = w * (n_train / w.sum())
+
+    reg = LinearRegression()
+    reg.fit(oof_stratum.reshape(-1, 1), y_stratum, sample_weight=w)
+    slope = float(reg.coef_[0])
+    intercept = float(reg.intercept_)
+    print(
+        f"  stratum '{label}': n_train={n_train} n_test={n_test} "
+        f"w[mean={w.mean():.3f} q25={np.quantile(w, 0.25):.3f} "
+        f"q75={np.quantile(w, 0.75):.3f} max={w.max():.3f}]"
+        f" -> y = {slope:.4f} * pred + {intercept:.4f}"
+    )
+    return slope, intercept, w
