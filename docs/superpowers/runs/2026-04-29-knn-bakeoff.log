@@ -1,0 +1,105 @@
+Loading train labels ...
+  train n=4140
+
+Loading 9-pool OOF (current production) ...
+  tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens_umap_default: mean=4.336 std=0.936
+  tabpfn_chemprop_pretrain_embed_umap_default: mean=4.339 std=0.944
+  tabpfn_pooled_boltz_umap_default: mean=4.348 std=0.899
+  tabpfn_pooled_boltz_allpairs_umap_default: mean=4.347 std=0.898
+  tabpfn_molformer_c3_pretrain_embed_umap: mean=4.316 std=0.940
+  tabpfn_kermt_pretrain_embed_umap_default: mean=4.340 std=0.928
+  tabpfn_attentivefp_pretrain_embed_umap_default: mean=4.339 std=0.909
+  tabpfn_gatedgcn_pretrain_embed_umap_default: mean=4.353 std=0.902
+  tabpfn_cheme_2d_full_boltz_log2fc_pred_seed10ens_top500_umap: mean=4.325 std=0.982
+
+Loading 2 new kNN members ...
+  knn_alltrain_umap: single OOF MAE=0.7461 Sp=0.4704
+  knn_potent46_umap: single OOF MAE=1.9626 Sp=0.0745
+
+Residual correlation of new members vs each base member:
+  knn_alltrain_umap:
+    r vs tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens_umap_default = +0.5781
+    r vs                  tabpfn_chemprop_pretrain_embed_umap_default = +0.5803
+    r vs                             tabpfn_pooled_boltz_umap_default = +0.5659
+    r vs                    tabpfn_pooled_boltz_allpairs_umap_default = +0.5695
+    r vs                      tabpfn_molformer_c3_pretrain_embed_umap = +0.5593
+    r vs                     tabpfn_kermt_pretrain_embed_umap_default = +0.5848
+    r vs               tabpfn_attentivefp_pretrain_embed_umap_default = +0.5557
+    r vs                  tabpfn_gatedgcn_pretrain_embed_umap_default = +0.5817
+    r vs tabpfn_cheme_2d_full_boltz_log2fc_pred_seed10ens_top500_umap = +0.5695
+  knn_potent46_umap:
+    r vs tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens_umap_default = +0.1015
+    r vs                  tabpfn_chemprop_pretrain_embed_umap_default = +0.0894
+    r vs                             tabpfn_pooled_boltz_umap_default = +0.1071
+    r vs                    tabpfn_pooled_boltz_allpairs_umap_default = +0.1112
+    r vs                      tabpfn_molformer_c3_pretrain_embed_umap = +0.1036
+    r vs                     tabpfn_kermt_pretrain_embed_umap_default = +0.1104
+    r vs               tabpfn_attentivefp_pretrain_embed_umap_default = +0.0903
+    r vs                  tabpfn_gatedgcn_pretrain_embed_umap_default = +0.1040
+    r vs tabpfn_cheme_2d_full_boltz_log2fc_pred_seed10ens_top500_umap = +0.0964
+
+=== Bakeoff: 4 caruana_bag20 variants (5-seed averaged weights) ===
+
+--- baseline_9pool (9 members) ---
+  caruana OOF MAE = 0.3958  Δ vs baseline = +0.0000
+  caruana OOF Sp  = 0.8466
+  weights (top-12 by magnitude):
+    0.3375  tabpfn_cheme_2d_full_boltz_log2fc_pred_seed10ens_top500_umap
+    0.3274  tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens_umap_default
+    0.1117  tabpfn_chemprop_pretrain_embed_umap_default
+    0.0755  tabpfn_kermt_pretrain_embed_umap_default
+    0.0404  tabpfn_pooled_boltz_allpairs_umap_default
+    0.0384  tabpfn_molformer_c3_pretrain_embed_umap
+    0.0317  tabpfn_pooled_boltz_umap_default
+    0.0218  tabpfn_gatedgcn_pretrain_embed_umap_default
+    0.0156  tabpfn_attentivefp_pretrain_embed_umap_default
+
+--- +knn_alltrain (10 members) ---
+  caruana OOF MAE = 0.3937  Δ vs baseline = -0.0021
+  caruana OOF Sp  = 0.8486
+  weights (top-12 by magnitude):
+    0.3989  tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens_umap_default
+    0.3560  tabpfn_cheme_2d_full_boltz_log2fc_pred_seed10ens_top500_umap
+    0.0739  tabpfn_chemprop_pretrain_embed_umap_default
+    0.0715  tabpfn_kermt_pretrain_embed_umap_default
+    0.0302  tabpfn_molformer_c3_pretrain_embed_umap
+    0.0267  tabpfn_pooled_boltz_umap_default
+    0.0241  tabpfn_pooled_boltz_allpairs_umap_default
+    0.0124  tabpfn_gatedgcn_pretrain_embed_umap_default
+    0.0063  tabpfn_attentivefp_pretrain_embed_umap_default
+    0.0000  knn_alltrain_umap <-- NEW
+  WARN: knn_alltrain_umap weight 0.0000 < 1% threshold
+
+--- +knn_potent46 (10 members) ---
+  caruana OOF MAE = 0.3937  Δ vs baseline = -0.0021
+  caruana OOF Sp  = 0.8486
+  weights (top-12 by magnitude):
+    0.3989  tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens_umap_default
+    0.3558  tabpfn_cheme_2d_full_boltz_log2fc_pred_seed10ens_top500_umap
+    0.0739  tabpfn_chemprop_pretrain_embed_umap_default
+    0.0715  tabpfn_kermt_pretrain_embed_umap_default
+    0.0302  tabpfn_molformer_c3_pretrain_embed_umap
+    0.0267  tabpfn_pooled_boltz_umap_default
+    0.0241  tabpfn_pooled_boltz_allpairs_umap_default
+    0.0124  tabpfn_gatedgcn_pretrain_embed_umap_default
+    0.0063  tabpfn_attentivefp_pretrain_embed_umap_default
+    0.0002  knn_potent46_umap <-- NEW
+  WARN: knn_potent46_umap weight 0.0002 < 1% threshold
+
+--- +both (11 members) ---
+  caruana OOF MAE = 0.3948  Δ vs baseline = -0.0010
+  caruana OOF Sp  = 0.8475
+  weights (top-12 by magnitude):
+    0.3521  tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens_umap_default
+    0.3491  tabpfn_cheme_2d_full_boltz_log2fc_pred_seed10ens_top500_umap
+    0.1208  tabpfn_chemprop_pretrain_embed_umap_default
+    0.0651  tabpfn_kermt_pretrain_embed_umap_default
+    0.0352  tabpfn_molformer_c3_pretrain_embed_umap
+    0.0278  tabpfn_pooled_boltz_umap_default
+    0.0277  tabpfn_pooled_boltz_allpairs_umap_default
+    0.0133  tabpfn_gatedgcn_pretrain_embed_umap_default
+    0.0083  tabpfn_attentivefp_pretrain_embed_umap_default
+    0.0004  knn_potent46_umap <-- NEW
+    0.0001  knn_alltrain_umap <-- NEW
+  WARN: knn_alltrain_umap weight 0.0001 < 1% threshold
+  WARN: knn_potent46_umap weight 0.0004 < 1% threshold
