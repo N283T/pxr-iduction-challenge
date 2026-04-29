@@ -1,7 +1,7 @@
 # potent-46 Proximity-Gated Calibrator
 
 Date: 2026-04-29
-Status: Approved (brainstorming)
+Status: v2 — asymmetric design (post-Codex re-consult after T=test-median early-exit)
 Owner: N283T
 
 ## Background
@@ -49,15 +49,22 @@ greater than -0.005 (preserve current Sp = 0.8470 baseline within bag noise).
   - For train compounds in potent-46, exclude self (avoid the self-match leak
     documented in `feedback_self_match_leak_in_similarity_features`)
   - For test compounds, no self-exclude needed
-- **threshold T**: median of `prox(test)` over the 513 test compounds. Fixed,
-  not OOF-tuned. (Avoids overfitting a small-sample optimum; Codex case for
-  "local version of importance calibrator" is the simplest faithful read.)
-- **strata**:
-  - `near` = `prox >= T`
-  - `far`  = `prox < T`
-  - By construction test splits ~50/50; train split depends on its own NN
-    distribution to potent-46 and may be unbalanced (potent-46 members concentrate
-    in near-train).
+- **threshold T = 0.28** (fixed chemical anchor, weak-analog Tanimoto floor;
+  derived from data sweep, see "Why T=0.28" below). Not OOF-tuned. v1 used
+  T = `median(prox(test))` = 0.4375, which produced only 18 train-near rows
+  and triggered the `MIN_STRATUM_TRAIN=200` early-exit. Post-Codex re-consult
+  confirmed test is "shifted re-sample of potent-46 region", not "extreme of
+  train distribution", so a chemical anchor is the right T-source, not a
+  test-side quantile.
+- **strata** (asymmetric — near gets local treatment, far falls back to global):
+  - `near` = `prox >= T`: per-stratum local importance calibrator (the
+    `fit_stratum_calibrator` from v1)
+  - `far`  = `prox < T`: applies the existing global importance calibrator
+    (fit on all train + all test, density-ratio weighted, slope-clipped). No
+    far-stratum-specific fit. Codex rationale: "test が非対称に作られている
+    ので、補正も非対称でよい".
+  - Counts at T=0.28: train near = 338, train far = 3802, test near = 322,
+    test far = 191.
 
 ## Method
 
@@ -76,28 +83,45 @@ greater than -0.005 (preserve current Sp = 0.8470 baseline within bag noise).
 3. Identify potent-46 set from DB query.
 4. Compute `prox(train)` and `prox(test)` against potent-46 (excluding self
    for any train compound that is itself a potent-46 member).
-5. T = median(prox(test)).
+5. T = 0.28 (fixed chemical anchor).
 6. Stratify train and test into `near` / `far`.
-7. For each stratum independently:
-   - Compute density-ratio sample weights via the existing Morgan-FP domain
-     classifier (LogisticRegression on the **same** stratum's train + test FPs).
-     Clip to [1/3, 3]. Renormalise to sum to N_stratum.
-   - Fit weighted `LinearRegression` on (oof_pred, y_train) with sample_weight.
-   - Apply (slope, intercept) to that stratum's test predictions.
-8. Report per-stratum + global OOF MAE / Spearman, deltas vs raw OOF and vs
-   the global importance calibrator.
-9. Write submission `ens_caruana_bag20_calibrated_proximity.csv`.
+7. **Near branch**: fit one weighted affine on `near-train` only.
+   - Density-ratio sample weights via LogisticRegression on near-train +
+     near-test FPs only (stratum-local domain classifier).
+   - Clip to [1/3, 3]. Renormalise.
+   - Fit `LinearRegression(oof_near, y_near, sample_weight=w_near)`.
+8. **Far branch (global fallback)**: fit the existing global importance
+   affine on ALL train + ALL test (the v1 `run_ensemble_calibrate_importance.py`
+   recipe, re-fit inline). Apply this single (slope, intercept) to far rows
+   on both train (for OOF) and test (for submission).
+9. Apply: test near rows → near affine; test far rows → global affine.
+10. Report per-stratum + global OOF MAE / Spearman, deltas vs raw OOF and vs
+    the pure-global-importance OOF (computed inline in main).
+11. Write submission `ens_caruana_bag20_calibrated_proximity.csv`.
+
+### Why T=0.28
+
+Train and test NN-Tanimoto distributions barely overlap:
+- train: q75=0.24, q90=0.27, q95=0.29, q98=0.33, q99=0.37
+- test:  median=0.44, q25=0.24
+
+T=0.28 is the data-driven sweet spot of Codex's two guidelines ("chemical
+anchor in 0.25-0.40 range" and "train near 200-600"):
+- T=0.25 → train near 863 (too large; "local" loses meaning)
+- **T=0.28 → train near 338, test near 322, test far 191** (sweet spot)
+- T=0.30 → train near 183 (just below MIN_STRATUM_TRAIN=200 floor)
+- T=0.33 → train near 87 (too few for stable LogReg + LinReg fit)
 
 ### Domain classifier scope (intentional choice)
 
-The domain classifier is fit **per stratum** (not globally then masked) so the
-sample weights reflect train-vs-test shift *within* that stratum's chemotype
-neighborhood. This is the local analogue of the global importance recipe.
+The **near** domain classifier is fit on near-train + near-test rows only
+(stratum-local). This reflects train-vs-test shift within the analog
+neighborhood, not the global library.
 
-Alternative considered: fit global classifier once, take per-stratum slices.
-Risk: the global classifier may not separate near-train / near-test well if
-they're chemically similar; per-stratum fit is the conservative read of
-"local importance calibrator".
+The **far** branch reuses the global importance classifier (fit on all
+train + all test). This is asymmetric by design: test is the "shifted
+re-sample" and the analog region warrants special handling, but the rest
+of test is well-served by the existing production calibrator.
 
 ### Self-exclude implementation
 
@@ -118,8 +142,10 @@ Compare against:
 Pass criteria for LB submission:
 - `proximity OOF MAE` <= `global importance OOF MAE` (no regress)
 - `proximity OOF Spearman` >= `global importance OOF Spearman - 0.005`
-- per-stratum sanity: neither stratum's calibrated MAE worse than raw by > 0.01
-- min stratum size: each train stratum >= 200 compounds (regress check)
+- near stratum sanity: near's calibrated MAE not worse than raw by > 0.01
+  (far is the global fallback; sanity already implicit in baseline parity)
+- min stratum size: train near >= 200 (regress check; far always large
+  since most train is far at T=0.28)
 
 If gate fails: report and abandon (this submission slot). Do not LB-submit.
 
@@ -139,11 +165,12 @@ Decision rule:
 
 - **NOT touching the 9-pool composition** — calibrator-only change keeps blast
   radius small.
-- **NOT tuning T via OOF** — fixed at test-median to avoid small-sample overfit
-  (513 test, single split point would be noisy).
-- **NOT > 2 bins** — defer to v2 if v1 shows directional signal.
-- **NOT continuous gating (sigmoid)** — defer to v2; binary first for
-  interpretability and clean LB read.
+- **NOT tuning T via OOF** — fixed at chemical anchor 0.28 to avoid
+  small-sample overfit and to preserve chemical interpretability.
+- **NOT > 2 bins** — defer to follow-up if v1 shows directional signal.
+- **NOT continuous gating (sigmoid)** — defer; binary first for interpretability.
+- **NOT a far-stratum-specific fit** — far falls back to the existing global
+  importance calibrator. Asymmetric by Codex's recommendation.
 - **NOT changing FP type or radius** — match existing importance calibrator
   exactly so the only delta is stratification.
 
@@ -155,9 +182,9 @@ Decision rule:
 3. **OOF -> LB reverse amplification** — calibrator changes have a documented
    history of OOF/LB sign flips (`feedback_oof_lb_reverse_amplification`).
    LB A/B is mandatory.
-4. **Threshold = test-median assumes test stratification matches train semantics** —
-   if near-test contains many never-seen chemotypes, near-train calibrator may
-   not generalise. Surface per-stratum train sizes in the report.
+4. **Train near (n=338) is small relative to test near (n=322)** — domain
+   classifier on 338 + 322 (= 660) rows could overfit. Mitigation: same
+   [1/3, 3] clip; LogReg `C=1.0` already provides L2.
 5. **Family share unaffected** — calibrator-only change, no pool composition
    delta, so the U-curve constraint (`project_family_share_lb_u_curve`) does
    not apply.
@@ -170,10 +197,10 @@ Decision rule:
   (gitignored)
 - Console report:
   - potent-46 size
-  - threshold T
+  - threshold T (constant 0.28)
   - train near/far counts, test near/far counts
-  - per-stratum slope, intercept
-  - per-stratum OOF MAE / Spearman (raw and calibrated)
+  - near slope/intercept, global affine slope/intercept (used for far)
+  - per-stratum OOF MAE (raw and calibrated)
   - global OOF MAE / Spearman vs raw, vs global importance baseline
   - explicit gate pass/fail summary
 
