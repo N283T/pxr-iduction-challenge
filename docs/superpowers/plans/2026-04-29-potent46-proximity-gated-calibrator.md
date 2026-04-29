@@ -679,6 +679,276 @@ list). Do NOT auto-submit.
 
 ---
 
+---
+
+## Task 6: v2 pivot — asymmetric design (T=0.28, far → global fallback)
+
+After Task 5 ran, the OOF gate failed at the `MIN_STRATUM_TRAIN` floor: T=test_median=0.4375 produced only 18 train-near rows because train and test NN-Tanimoto distributions barely overlap (train median 0.22 vs test median 0.44). Codex re-consult recommended pivoting to a chemical anchor + asymmetric design (near gets local calibrator, far falls back to existing global importance).
+
+Spec was updated in commit 7c4a8c4. This task implements the script change.
+
+**Files:**
+- Modify: `track1_activity/scripts/run_ensemble_calibrate_proximity.py` (constants + main() body only; helpers untouched)
+
+- [ ] **Step 1: Add `T_ANCHOR = 0.28` to the module constants block**
+
+Find the constants block (currently `POTENT_PEC50_THRESHOLD`, `POTENT_SEL_THRESHOLD`, `WEIGHT_CLIP_LO`, `WEIGHT_CLIP_HI`, `MIN_STRATUM_TRAIN`). Add one new constant after `MIN_STRATUM_TRAIN`:
+
+```python
+T_ANCHOR = 0.28  # chemical anchor for near-stratum (weak-analog Tanimoto floor)
+```
+
+- [ ] **Step 2: Replace the threshold + near-far gate logic in main()**
+
+Find the existing block (in main(), right after the `prox_test` print):
+
+```python
+    threshold = float(np.median(prox_test))
+    print(f"  threshold T = test median = {threshold:.4f}")
+    near_train = prox_train >= threshold
+    near_test = prox_test >= threshold
+    print(
+        f"  train near={near_train.sum()} far={(~near_train).sum()} | "
+        f"test near={near_test.sum()} far={(~near_test).sum()}"
+    )
+
+    if near_train.sum() < MIN_STRATUM_TRAIN or (~near_train).sum() < MIN_STRATUM_TRAIN:
+        print(
+            f"  GATE FAIL: train stratum size below MIN_STRATUM_TRAIN={MIN_STRATUM_TRAIN}"
+        )
+        raise SystemExit(1)
+```
+
+Replace with:
+
+```python
+    threshold = T_ANCHOR
+    print(f"  threshold T = chemical anchor = {threshold:.4f}")
+    near_train = prox_train >= threshold
+    near_test = prox_test >= threshold
+    print(
+        f"  train near={near_train.sum()} far={(~near_train).sum()} | "
+        f"test near={near_test.sum()} far={(~near_test).sum()}"
+    )
+
+    if near_train.sum() < MIN_STRATUM_TRAIN:
+        print(
+            f"  GATE FAIL: near-train stratum size {near_train.sum()} "
+            f"below MIN_STRATUM_TRAIN={MIN_STRATUM_TRAIN}"
+        )
+        raise SystemExit(1)
+```
+
+- [ ] **Step 3: Remove the per-stratum far calibrator fit (replace with global affine usage)**
+
+Find the existing block:
+
+```python
+    print("Fitting per-stratum calibrators ...")
+    slope_n, int_n, _ = fit_stratum_calibrator(
+        X_train_fp[near_train], X_test_fp[near_test],
+        oof_preds[near_train], y_train[near_train], label="near",
+    )
+    slope_f, int_f, _ = fit_stratum_calibrator(
+        X_train_fp[~near_train], X_test_fp[~near_test],
+        oof_preds[~near_train], y_train[~near_train], label="far",
+    )
+
+    # Apply per-stratum to OOF and test
+    oof_cal = np.empty_like(oof_preds)
+    oof_cal[near_train] = slope_n * oof_preds[near_train] + int_n
+    oof_cal[~near_train] = slope_f * oof_preds[~near_train] + int_f
+    test_cal = np.empty_like(test_preds)
+    test_cal[near_test] = slope_n * test_preds[near_test] + int_n
+    test_cal[~near_test] = slope_f * test_preds[~near_test] + int_f
+```
+
+Replace with:
+
+```python
+    print("Fitting global importance affine (baseline + far-stratum fallback) ...")
+    X_all = np.vstack([X_train_fp, X_test_fp])
+    y_all = np.concatenate(
+        [np.zeros(len(X_train_fp), dtype=np.int32),
+         np.ones(len(X_test_fp), dtype=np.int32)]
+    )
+    clf_g = LogisticRegression(max_iter=1000, solver="liblinear", C=1.0, random_state=42)
+    clf_g.fit(X_all, y_all)
+    p_test_g = clf_g.predict_proba(X_train_fp)[:, 1]
+    w_g = ((p_test_g + 1e-6) / (1.0 - p_test_g + 1e-6)) * (len(X_train_fp) / len(X_test_fp))
+    w_g = np.clip(w_g, WEIGHT_CLIP_LO, WEIGHT_CLIP_HI)
+    w_g = w_g * (len(w_g) / w_g.sum())
+    reg_g = LinearRegression()
+    reg_g.fit(oof_preds.reshape(-1, 1), y_train, sample_weight=w_g)
+    slope_g = float(reg_g.coef_[0])
+    intercept_g = float(reg_g.intercept_)
+    print(f"  global affine: y = {slope_g:.4f} * pred + {intercept_g:.4f}")
+
+    print("Fitting near-stratum local calibrator ...")
+    slope_n, int_n, _ = fit_stratum_calibrator(
+        X_train_fp[near_train], X_test_fp[near_test],
+        oof_preds[near_train], y_train[near_train], label="near",
+    )
+
+    # Apply: near rows -> near affine, far rows -> global affine
+    oof_cal = np.empty_like(oof_preds)
+    oof_cal[near_train] = slope_n * oof_preds[near_train] + int_n
+    oof_cal[~near_train] = slope_g * oof_preds[~near_train] + intercept_g
+    test_cal = np.empty_like(test_preds)
+    test_cal[near_test] = slope_n * test_preds[near_test] + int_n
+    test_cal[~near_test] = slope_g * test_preds[~near_test] + intercept_g
+```
+
+- [ ] **Step 4: Replace the global importance baseline re-fit and the gate block**
+
+Find the existing block (which currently re-fits the global importance affine for comparison and computes the gate):
+
+```python
+    # Comparison with global importance baseline (re-fit here, no shelling out)
+    print("Re-fitting global importance baseline for direct comparison ...")
+    X_all = np.vstack([X_train_fp, X_test_fp])
+    y_all = np.concatenate(
+        [np.zeros(len(X_train_fp), dtype=np.int32),
+         np.ones(len(X_test_fp), dtype=np.int32)]
+    )
+    clf_g = LogisticRegression(max_iter=1000, solver="liblinear", C=1.0, random_state=42)
+    clf_g.fit(X_all, y_all)
+    p_test_g = clf_g.predict_proba(X_train_fp)[:, 1]
+    w_g = ((p_test_g + 1e-6) / (1.0 - p_test_g + 1e-6)) * (len(X_train_fp) / len(X_test_fp))
+    w_g = np.clip(w_g, WEIGHT_CLIP_LO, WEIGHT_CLIP_HI)
+    w_g = w_g * (len(w_g) / w_g.sum())
+    reg_g = LinearRegression()
+    reg_g.fit(oof_preds.reshape(-1, 1), y_train, sample_weight=w_g)
+    oof_g = float(reg_g.coef_[0]) * oof_preds + float(reg_g.intercept_)
+    g_mae = _mae(oof_g, y_train)
+    g_sp = _sp(oof_g, y_train)
+    print(
+        f"  global importance affine: y = {float(reg_g.coef_[0]):.4f} * pred + {float(reg_g.intercept_):.4f}\n"
+        f"  global importance OOF: MAE={g_mae:.4f}  Sp={g_sp:.4f}"
+    )
+
+    # Gate
+    mae_ok = global_mae_cal <= g_mae
+    sp_ok = global_sp_cal >= g_sp - 0.005
+    near_san = (near_mae_cal - near_mae_raw) <= 0.01
+    far_san = (far_mae_cal - far_mae_raw) <= 0.01
+    print("\nGATE CHECK:")
+    print(f"  proximity OOF MAE <= global importance MAE: {mae_ok} ({global_mae_cal:.4f} vs {g_mae:.4f})")
+    print(f"  proximity OOF Sp >= global importance Sp - 0.005: {sp_ok} ({global_sp_cal:.4f} vs {g_sp - 0.005:.4f})")
+    print(f"  near stratum cal-vs-raw within +0.01: {near_san} (Δ={near_mae_cal - near_mae_raw:+.4f})")
+    print(f"  far stratum cal-vs-raw within +0.01: {far_san} (Δ={far_mae_cal - far_mae_raw:+.4f})")
+    print(f"  GATE PASS = {mae_ok and sp_ok and near_san and far_san}")
+```
+
+Replace with (no re-fit; reuse `slope_g`/`intercept_g` from Step 3; drop `far_san`):
+
+```python
+    # Pure global importance baseline OOF (uses the same affine as the far branch)
+    oof_g = slope_g * oof_preds + intercept_g
+    g_mae = _mae(oof_g, y_train)
+    g_sp = _sp(oof_g, y_train)
+    print(f"  global importance OOF: MAE={g_mae:.4f}  Sp={g_sp:.4f}")
+
+    # Gate
+    mae_ok = global_mae_cal <= g_mae
+    sp_ok = global_sp_cal >= g_sp - 0.005
+    near_san = (near_mae_cal - near_mae_raw) <= 0.01
+    print("\nGATE CHECK:")
+    print(f"  proximity OOF MAE <= global importance MAE: {mae_ok} ({global_mae_cal:.4f} vs {g_mae:.4f})")
+    print(f"  proximity OOF Sp >= global importance Sp - 0.005: {sp_ok} ({global_sp_cal:.4f} vs {g_sp - 0.005:.4f})")
+    print(f"  near stratum cal-vs-raw within +0.01: {near_san} (Δ={near_mae_cal - near_mae_raw:+.4f})")
+    print(f"  GATE PASS = {mae_ok and sp_ok and near_san}")
+```
+
+- [ ] **Step 5: Update the per-stratum metrics print (drop far raw vs cal line since far IS global)**
+
+Find:
+
+```python
+    near_mae_raw = _mae(oof_preds[near_train], y_train[near_train])
+    near_mae_cal = _mae(oof_cal[near_train], y_train[near_train])
+    far_mae_raw = _mae(oof_preds[~near_train], y_train[~near_train])
+    far_mae_cal = _mae(oof_cal[~near_train], y_train[~near_train])
+    global_mae_raw = _mae(oof_preds, y_train)
+    global_mae_cal = _mae(oof_cal, y_train)
+    global_sp_raw = _sp(oof_preds, y_train)
+    global_sp_cal = _sp(oof_cal, y_train)
+    print("Per-stratum OOF MAE:")
+    print(f"  near: raw={near_mae_raw:.4f}  cal={near_mae_cal:.4f}  Δ={near_mae_cal - near_mae_raw:+.4f}")
+    print(f"  far : raw={far_mae_raw:.4f}  cal={far_mae_cal:.4f}  Δ={far_mae_cal - far_mae_raw:+.4f}")
+```
+
+Replace with:
+
+```python
+    near_mae_raw = _mae(oof_preds[near_train], y_train[near_train])
+    near_mae_cal = _mae(oof_cal[near_train], y_train[near_train])
+    far_mae_raw = _mae(oof_preds[~near_train], y_train[~near_train])
+    far_mae_cal = _mae(oof_cal[~near_train], y_train[~near_train])
+    global_mae_raw = _mae(oof_preds, y_train)
+    global_mae_cal = _mae(oof_cal, y_train)
+    global_sp_raw = _sp(oof_preds, y_train)
+    global_sp_cal = _sp(oof_cal, y_train)
+    print("Per-stratum OOF MAE:")
+    print(f"  near (local): raw={near_mae_raw:.4f}  cal={near_mae_cal:.4f}  Δ={near_mae_cal - near_mae_raw:+.4f}")
+    print(f"  far  (global): raw={far_mae_raw:.4f}  cal={far_mae_cal:.4f}  Δ={far_mae_cal - far_mae_raw:+.4f}")
+```
+
+(Same logic — far is still printed for visibility; just the labels clarify "local" vs "global".)
+
+- [ ] **Step 6: Format and verify imports stay clean**
+
+```bash
+pixi run ruff format track1_activity/scripts/run_ensemble_calibrate_proximity.py
+pixi run ruff check --fix track1_activity/scripts/run_ensemble_calibrate_proximity.py
+```
+
+Smoke import:
+```bash
+pixi run python -c "import importlib.util; spec = importlib.util.spec_from_file_location('m', 'track1_activity/scripts/run_ensemble_calibrate_proximity.py'); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); print('T_ANCHOR =', m.T_ANCHOR)"
+```
+
+Expected: `T_ANCHOR = 0.28`.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add track1_activity/scripts/run_ensemble_calibrate_proximity.py
+git commit -m "feat(calibrate): pivot to v2 asymmetric design (T=0.28, far global fallback)
+
+- T_ANCHOR = 0.28 fixed chemical anchor (was: test median, produced 18 train near)
+- Near branch: per-stratum local calibrator (unchanged fit_stratum_calibrator)
+- Far branch: global importance affine (re-fit inline once; was: per-stratum far fit)
+- Gate drops far_san check (far IS the global baseline by construction)
+- Min stratum gate now applies only to near (far always large at T=0.28)
+
+Per Codex re-consult after T=test-median early-exit (run log captured at
+docs/superpowers/runs/2026-04-29-proximity-calib-run.log)."
+```
+
+- [ ] **Step 8: Re-run end-to-end (Plan Task 5 redux)**
+
+```bash
+pixi run python track1_activity/scripts/run_ensemble_calibrate_proximity.py 2>&1 | tee /tmp/proximity_calib_v2_run.log
+cp /tmp/proximity_calib_v2_run.log docs/superpowers/runs/2026-04-29-proximity-calib-v2-run.log
+git add docs/superpowers/runs/2026-04-29-proximity-calib-v2-run.log
+git commit -m "chore: capture proximity calibrator v2 run log"
+```
+
+Expected log highlights:
+- `threshold T = chemical anchor = 0.2800`
+- `train near=338 far=3802 | test near=322 far=191`
+- `global affine: y = ~1.10 * pred + ~-0.42`
+- `Fitting near-stratum local calibrator: stratum 'near': n_train=338 n_test=322 ...`
+- `near (local): raw=...  cal=...`  far (global): raw=...  cal=...`
+- `proximity OOF MAE <= global importance MAE: <bool>`
+- `GATE PASS = <bool>`
+- `Wrote: .../ens_caruana_bag20_calibrated_proximity.csv`
+
+If GATE PASS = True, the script writes the submission CSV and the user can decide on LB A/B.
+
+---
+
 ## Self-Review Notes
 
 Spec coverage check:
