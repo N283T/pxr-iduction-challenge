@@ -1,0 +1,16 @@
+Loading data ...
+  using ens_caruana_bag20 experiment id=2229
+  9 member weights in hyperparameters
+  reconstructed OOF: n=4140, mean=4.3342, std=0.9270
+  train=4140, test=513
+  raw OOF MAE=0.3971  Spearman=0.8451
+Computing Morgan fingerprints (train + test) ...
+  X_train_fp (4140, 2048), X_test_fp (513, 2048)
+Loading potent-46 indices (train pec50>=6, sel>=1.5) ...
+  potent-46 size: 46
+Computing NN-Tanimoto to potent-46 ...
+  prox_train: mean=0.2194 median=0.2152 q25=0.1910 q75=0.2424
+  prox_test:  mean=0.3953 median=0.4375 q25=0.2375 q75=0.5205
+  threshold T = test median = 0.4375
+  train near=18 far=4122 | test near=258 far=255
+  GATE FAIL: train stratum size below MIN_STRATUM_TRAIN=200
