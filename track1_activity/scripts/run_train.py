@@ -1371,6 +1371,65 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    if feature_name == "2d_full_boltz_plus_shape":
+        # 2d_full_boltz (1801) + 3d_shape_pure (87) = 1888 features.
+        # Augments 2d_full_boltz with shape-pure 3D descriptors. 2026-04-30:
+        # OOF MAE 0.4804 vs 2d_full_boltz baseline 0.4824 (Δ -0.0020 = bag
+        # noise). Residual r=0.9926 vs baseline -- 87 shape features are
+        # essentially noise relative to 1801 2D backbone. Gate 2 fails for
+        # all 9 pool members (r > 0.85). NULL but framework retained.
+        X_2d_tr, X_2d_te = load_features("2d_full_boltz", train_df, test_df)
+        X_sh_tr, X_sh_te = load_features("3d_shape_pure", train_df, test_df)
+        X_train = np.concatenate([X_2d_tr, X_sh_tr], axis=1).astype(np.float32)
+        X_test = np.concatenate([X_2d_te, X_sh_te], axis=1).astype(np.float32)
+        print(
+            f"  2d_full_boltz_plus_shape: 2d_full_boltz {X_2d_tr.shape[1]} + "
+            f"3d_shape_pure {X_sh_tr.shape[1]} = {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
+    if feature_name == "3d_shape_pure":
+        # Pure 3D shape: USR (12) + USRCAT (60) + ElectroShape (15) = 87 features.
+        # Subset of 3d_ligand (1212) restricted to shape-only information.
+        # 2026-04-30: OOF MAE 0.6285 (vs pool weakest 0.4843 +0.144 fail
+        # gate 1). Residual r 0.73-0.79 vs pool members (gate 2 PASS) but
+        # gate 1 fail blocks consideration. NULL.
+        with psycopg2.connect(**DB_PARAMS) as conn:
+            vec_df = pd.read_sql(
+                "SELECT compound_id, usr, usrcat FROM compound_boltz2_desc3d_vector",
+                conn,
+            ).set_index("compound_id")
+            skfp_df = pd.read_sql(
+                "SELECT compound_id, electroshape FROM compound_boltz2_skfp3d",
+                conn,
+            ).set_index("compound_id")
+
+        def _fill_vec(series, dim):
+            out = []
+            for v in series:
+                if v is None or (isinstance(v, float) and np.isnan(v)):
+                    out.append(np.zeros(dim, dtype=np.float32))
+                else:
+                    a = np.asarray(v, dtype=np.float64)
+                    a = np.where(np.isnan(a) | np.isinf(a), 0.0, a)
+                    out.append(a.astype(np.float32))
+            return np.stack(out, axis=0)
+
+        def _build(ids):
+            v = vec_df.reindex(ids)
+            usr = _fill_vec(v["usr"], 12)
+            usrcat = _fill_vec(v["usrcat"], 60)
+            es = _fill_vec(skfp_df.reindex(ids)["electroshape"], 15)
+            return np.concatenate([usr, usrcat, es], axis=1)
+
+        X_train = _build(train_ids)
+        X_test = _build(test_ids)
+        print(
+            f"  3d_shape_pure: usr 12 + usrcat 60 + electroshape 15 = "
+            f"{X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
     if feature_name == "2d_full_boltz":
         # Mordred (1531) + pose-Jazzy (6, from compound_boltz2_jazzy) +
         # RDKit_desc_full (217) + Boltz-2 Tier-0 (17 cols + 2 derived = 19) +
@@ -2142,6 +2201,8 @@ def main():
             "cconcat_2d_full_boltz_log2fc_pred",
             "cheme_cconcat_2d_full_boltz_log2fc_pred",
             "3d_ligand",
+            "3d_shape_pure",
+            "2d_full_boltz_plus_shape",
             "jazzy",
             "boltz2_tabular_tier0",
             "boltz2_mordred3d",
