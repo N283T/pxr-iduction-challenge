@@ -1,0 +1,77 @@
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/sklearn/utils/validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/sklearn/utils/validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/sklearn/utils/validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/sklearn/utils/validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/sklearn/utils/validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/sklearn/utils/validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/umap/umap_.py:1887: UserWarning: gradient function is not yet implemented for jaccard distance metric; inverse_transform will be unavailable
+  warn(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/umap/umap_.py:1952: UserWarning: n_jobs value 1 overridden to 1 by setting random_state. Use no seed for parallelism.
+  warn(
+Loading common state ...
+  computing Morgan FPs ...
+  loading 9-pool baseline OOF + test ...
+
+=== Adversarial classifier comparison ===
+  LogReg   AUC (5-fold) = 0.9401
+  LightGBM AUC (5-fold) = 0.9564  (delta = +0.0163)
+  p(test|train) median: LR=0.005  LGB=0.002
+  p(test|train) max:    LR=0.944  LGB=0.690
+  Spearman(LR scores, LGB scores) = 0.8226
+
+  fitting global importance affine (LogReg-based, prod recipe) ...
+    affine: y = 1.0917 * pred + -0.3753
+  potent-46 size: 46
+  building UMAP 5-fold split ...
+
+=== Computing metrics per case ===
+
+                   base9pool  raw=0.3971  cal=0.3962  iw_lr=0.4006  iw_lgb=0.4062  top25=0.3671  top25_sp=0.8346  bot25=0.4211
+            id42_family_meta  raw=0.4079  cal=0.4059  iw_lr=0.4131  iw_lgb=0.4183  top25=0.3785  top25_sp=0.8229  bot25=0.4318
+                 id43_hybrid  raw=0.4019  cal=0.4003  iw_lr=0.4062  iw_lgb=0.4116  top25=0.3723  top25_sp=0.8294  bot25=0.4257
+        id44_anchor_residual  raw=0.3956  cal=0.4069  iw_lr=0.4063  iw_lgb=0.4105  top25=0.3734  top25_sp=0.8337  bot25=0.4309
+        id45_admet_no_log2fc  raw=0.3985  cal=0.3967  iw_lr=0.4020  iw_lgb=0.4076  top25=0.3682  top25_sp=0.8335  bot25=0.4215
+
+=== Delta to base9pool ===
+                case  d_M2_cal_lr  d_M4_iw_cal_lr  d_M10_iw_cal_lgb  d_M12_top25_cal_mae  d_M13_top25_cal_sp  d_M14_bot25_cal_mae
+           base9pool      +0.0000         +0.0000           +0.0000              +0.0000             +0.0000              +0.0000
+    id42_family_meta      +0.0097         +0.0126           +0.0120              +0.0115             -0.0117              +0.0107
+         id43_hybrid      +0.0042         +0.0057           +0.0053              +0.0053             -0.0052              +0.0046
+id44_anchor_residual      +0.0108         +0.0057           +0.0043              +0.0064             -0.0009              +0.0098
+id45_admet_no_log2fc      +0.0005         +0.0014           +0.0014              +0.0012             -0.0011              +0.0004
+
+=== LB correlation (Spearman) for 4 LB-known cases ===
+
+  N submitted = 4
+
+  LB MAE ordering (lower = better):
+                case  LB_MAE  LB_Sp
+         id43_hybrid  0.4075 0.8470
+id44_anchor_residual  0.4090 0.8448
+    id42_family_meta  0.4091 0.8476
+id45_admet_no_log2fc  0.4094 0.8429
+
+  Correlation with LB MAE:
+                            M1_raw  Spearman = +0.0000
+                         M2_cal_lr  Spearman = -0.4000
+                      M3_iw_raw_lr  Spearman = +0.0000
+                      M4_iw_cal_lr  Spearman = -0.2000
+                     M9_iw_raw_lgb  Spearman = +0.0000
+                    M10_iw_cal_lgb  Spearman = -0.4000
+                 M12_top25_cal_mae  Spearman = -0.2000
+                 M14_bot25_cal_mae  Spearman = -0.2000
+                       d_M2_cal_lr  Spearman = -0.4000
+                    d_M4_iw_cal_lr  Spearman = -0.2000
+                  d_M10_iw_cal_lgb  Spearman = -0.4000
+               d_M12_top25_cal_mae  Spearman = -0.2000
+
+  Correlation with LB Sp (higher = better):
+                 M13_top25_cal_sp  Spearman = -0.8000
+
+Full table written to /home/nagaet/pxr-iduction-challenge/docs/superpowers/runs/2026-04-30-lb-proxy-battery-v2-table.csv
