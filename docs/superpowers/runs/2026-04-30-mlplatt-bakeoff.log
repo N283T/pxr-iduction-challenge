@@ -1,0 +1,61 @@
+Loading data ...
+  Morgan FPs ...
+Loading 9-pool ...
+  importance affine: y = 1.0917 * pred + -0.3753
+  base (importance affine) cal OOF MAE=0.3962  Sp=0.8451
+
+Building context features ...
+  UMAP + KMeans 50 clusters ...
+    train cluster distribution: [ 91  95  83 149 120  69  70 111 140 128] ...
+    potent-46 size=46  nn_train mean=0.219  nn_test mean=0.395
+
+=== MLPlatt OOF bake-off ===
+
+  base (importance affine): cal MAE=0.3962  Sp=0.8451
+
+  --- variant: none ---
+    ctx_dim = 0
+      ep 0: loss=4.2498  mae=4.2498  mono=0.000000
+      ep 20: loss=2.3959  mae=2.3959  mono=0.000000
+      ep 40: loss=0.5402  mae=0.5402  mono=0.000000
+      ep 60: loss=0.4755  mae=0.4755  mono=0.000000
+      ep 80: loss=0.4413  mae=0.4413  mono=0.000000
+      ep 100: loss=0.4328  mae=0.4328  mono=0.000000
+      ep 120: loss=0.4243  mae=0.4243  mono=0.000000
+      ep 140: loss=0.4032  mae=0.4032  mono=0.000000
+      ep 160: loss=0.3941  mae=0.3941  mono=0.000000
+      ep 180: loss=0.3938  mae=0.3938  mono=0.000000
+      ep 199: loss=0.3938  mae=0.3938  mono=0.000000
+    cal MAE=0.4056  ΔM2=+0.0095  Sp=0.8419  ΔSp=-0.0032  rho_with_base=0.9976  inversions=146,391
+    gate: M2 fail
+  --- variant: scaffold_cluster ---
+    ctx_dim = 50
+    cal MAE=0.4434  ΔM2=+0.0473  Sp=0.7985  ΔSp=-0.0466  rho_with_base=0.9446  inversions=731,430
+    gate: M2 fail
+  --- variant: potency_bin ---
+    ctx_dim = 4
+    cal MAE=0.4126  ΔM2=+0.0165  Sp=0.8391  ΔSp=-0.0060  rho_with_base=0.9944  inversions=250,730
+    gate: M2 fail
+  --- variant: nn_potent46 ---
+    ctx_dim = 1
+    cal MAE=0.4027  ΔM2=+0.0065  Sp=0.8425  ΔSp=-0.0025  rho_with_base=0.9982  inversions=134,467
+    gate: M2 fail
+  --- variant: combo ---
+    ctx_dim = 55
+    cal MAE=0.4292  ΔM2=+0.0330  Sp=0.8362  ΔSp=-0.0089  rho_with_base=0.9911  inversions=315,159
+    gate: M2 fail
+
+=== Summary ===
+
+         variant  ctx_dim  oof_mae   d_m2  oof_sp    d_sp  rho_with_base  inversions  all_pass
+            none        0   0.4056 0.0095  0.8419 -0.0032         0.9976      146391     False
+scaffold_cluster       50   0.4434 0.0473  0.7985 -0.0466         0.9446      731430     False
+     potency_bin        4   0.4126 0.0165  0.8391 -0.0060         0.9944      250730     False
+     nn_potent46        1   0.4027 0.0065  0.8425 -0.0025         0.9982      134467     False
+           combo       55   0.4292 0.0330  0.8362 -0.0089         0.9911      315159     False
+
+=== Submission CSV generation ===
+
+  saved ens_caruana_bag20_mlplatt_combo.csv  test mean=4.820 std=0.752  (gate=False)
+
+  No variants pass the strict gate. Defer.
