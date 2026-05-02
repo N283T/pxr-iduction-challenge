@@ -1,0 +1,6 @@
+desc_idx,description,spearman_rho,pearson_r,fit_mae,n
+0,"PXR (Pregnane X Receptor) activation EC50: agonist potency at the human pregnane X receptor (NR1I2), measured by reporter assay in HepG2 cells.",0.18761571397613153,0.20468491,0.8973871048727422,500
+1,Activation of human pregnane X receptor (PXR / NR1I2) reporter assay.,0.15191639857336137,0.1778753,0.89909765386902,500
+2,Activator of pregnane X receptor PXR.,0.21056917567476066,0.23101285,0.8892045943880358,500
+3,qHTS Assay for Activators of the Pregnane X Receptor signaling pathway.,-0.19858586610616577,-0.23988533,0.8841770771142505,500
+4,Compounds that activate the PXR nuclear receptor in cell-based reporter assays for ADMET screening.,-0.19033645954750839,-0.2105478,0.8905077251963698,500

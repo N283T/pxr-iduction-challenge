@@ -332,6 +332,34 @@ def load_features(feature_name: str, train_df, test_df):
 
         return X_train, X_test
 
+    if feature_name == "clamp_embed":
+        # CLAMP (Seidl et al. ICML 2023) compound encoder, 768-d output.
+        # Pretrained on PubChem18 + ChEMBL27 bioassay contrastive pairs;
+        # behavioral leak check (docs/clamp_leak_check.csv) confirms no
+        # PXR pEC50 label leak (best fit_MAE=0.884 with PXR text query).
+        clamp_path = REPO_ROOT.joinpath("data", "clamp_embed.parquet")
+        if not clamp_path.exists():
+            raise SystemExit(
+                f"Missing {clamp_path}. Run "
+                f"track1_activity/scripts/clamp/01_extract_clamp_embed.py "
+                f"inside the CLAMP venv."
+            )
+        clamp_df = pd.read_parquet(clamp_path).set_index("compound_id")
+        clamp_mat = np.stack(clamp_df["embedding"].to_numpy()).astype(np.float32)
+        clamp_idx = clamp_df.index.to_numpy()
+        clamp_lookup = {int(cid): clamp_mat[i] for i, cid in enumerate(clamp_idx)}
+        missing_tr = [cid for cid in train_ids if cid not in clamp_lookup]
+        missing_te = [cid for cid in test_ids if cid not in clamp_lookup]
+        if missing_tr or missing_te:
+            raise ValueError(
+                f"CLAMP embed missing rows: train={len(missing_tr)}, "
+                f"test={len(missing_te)}"
+            )
+        X_train = np.stack([clamp_lookup[cid] for cid in train_ids])
+        X_test = np.stack([clamp_lookup[cid] for cid in test_ids])
+        print(f"  clamp_embed: {X_train.shape[1]} dims (CLAMP encode_smiles)")
+        return X_train, X_test
+
     if feature_name == "pooled_boltz_allpairs":
         # Same shape as `pooled_boltz` (1024 features) but the z pool
         # spans ALL protein x ligand pairs (434 PXR residues x L ligand
@@ -2206,6 +2234,7 @@ def main():
             "jazzy",
             "boltz2_tabular_tier0",
             "boltz2_mordred3d",
+            "clamp_embed",
         ]
         + list(FP_REGISTRY.keys())
         + list(EMBEDDING_TABLES.keys())
