@@ -307,6 +307,14 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # allow-list, keep single-model experiment (id=1332) + feature
     # handler in run_train.py + Phase A/B/C bakeoff scripts. mordred3d
     # counterpart (id=1353) also stays in DB.
+    # 2026-05-04 Phase 3 (Codex priority #1) Uni-Mol v2 log2fc seed5ens:
+    # 5-seed pretrain ensemble (seeds 42-46), gate 1 single OOF MAE 0.4844
+    # (Δ -0.004 vs seed=42 0.4885), gate 2 FAIL (min r 0.8994 to pool;
+    # threshold 0.85), gate 3 ADD test caruana weight=0.0000 (not picked).
+    # OOF Δ -0.005 attributed to bag noise (memory
+    # feedback_multi_seed_weight_threshold: multi-seed needs wt >= 0.2 to
+    # propagate). Family share 0.90 in LB regress zone. NOT added to pool.
+    # Single-experiment id=2250 + feature handler in run_train.py kept.
 )
 
 
