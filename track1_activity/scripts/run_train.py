@@ -780,6 +780,142 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    import re as _re_layer
+
+    _layer_match = _re_layer.match(r"^unimol_v2_log2fc_layer(\d+)_embed$", feature_name)
+    if _layer_match is not None:
+        # DR top recommendation: intermediate layers may outperform final
+        # layer by 5-8% MAE on regression tasks. Hooked from PR #114
+        # log2fc-FT model_0.pth, layer index in [0..11] (84M = 12 layers,
+        # final = 11). 768d CLS token output per layer.
+        layer_idx = _layer_match.group(1)
+        embed_path = REPO_ROOT.joinpath(
+            "data", f"unimol_v2_log2fc_layer{layer_idx}_embed.parquet"
+        )
+        if not embed_path.exists():
+            raise SystemExit(f"Missing {embed_path}")
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(f"  unimol_v2_log2fc_layer{layer_idx}_embed: {X_train.shape[1]} dims")
+        return X_train, X_test
+
+    if feature_name == "drugclip_fold0_embed":
+        # DrugCLIP molecule encoder (Seidl/Jia et al., Science 2026), fold 0
+        # checkpoint of 6-fold ensemble. Pretrain: contrastive on protein-
+        # ligand pairs from PDBbind/ChEMBL via Uni-Mol v1 base. Output: 768d
+        # CLS-equivalent representation in the protein-ligand-aware latent
+        # space. ETKDG conformer input via LMDB. Other 5 folds blocked by
+        # encode_mols_multi_folds LMDB-already-open bug; using fold 0 alone
+        # as preliminary signal.
+        embed_path = REPO_ROOT.joinpath("data", "drugclip_fold0_embed.parquet")
+        if not embed_path.exists():
+            raise SystemExit(f"Missing {embed_path}")
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(
+            f"  drugclip_fold0_embed: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
+    if feature_name == "unimol_v2_log2fc_filtered_embed":
+        # Phase A (Codex 2026-05-02): log2fc FT on stereo-filtered subset
+        # (heavy_atoms <= 56, rotbonds <= 10, max_ring <= 12, both heads
+        # non-null = 9370 rows, vs PR #114 9444 rows). Tests "noisy ETKDG
+        # conformers hurt FT" hypothesis. Pretrain Pearson 0.314 vs PR
+        # #114's 0.09 = 3.5x stronger learning. Embed drift vs baseline:
+        # cos 0.954 (moderate). 2304d concat (CLS + atom mean + atom max).
+        embed_path = REPO_ROOT.joinpath(
+            "data", "unimol_v2_log2fc_filtered_embed.parquet"
+        )
+        if not embed_path.exists():
+            raise SystemExit(f"Missing {embed_path}")
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(
+            f"  unimol_v2_log2fc_filtered_embed: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
+    if feature_name == "unimol_v2_log2fc_real_embed":
+        # PR #114 log2fc-finetuned Uni-Mol v2 weights, properly loaded via
+        # 10_extract_repr_v2.sh (forces load_pretrained_weights). Replaces
+        # the original PR #114 unimol_v2_pretrain_embed.parquet which was
+        # silently the BASE public Uni-Mol v2 weights (UNIMOL_WEIGHT_DIR
+        # env var only changes download dir, not the loaded ckpt). 2304d
+        # concat (CLS + atom mean + atom max).
+        embed_path = REPO_ROOT.joinpath("data", "unimol_v2_log2fc_real_embed.parquet")
+        if not embed_path.exists():
+            raise SystemExit(f"Missing {embed_path}")
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(
+            f"  unimol_v2_log2fc_real_embed: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
+    if feature_name == "unimol_v2_log2fc_seed5ens_embed":
+        # 5-seed pretrain ensemble (seeds 42, 43, 44, 45, 46) of Uni-Mol v2
+        # log2fc-finetuned weights. Per Codex 2026-05-02 priority #1 +
+        # `reference_multi_seed_pretrain_recipe`: variance reduction without
+        # bias change. Same encoder/hparams as PR #114 (model_size=84m,
+        # epochs=30, batch=16, kfold=2, pretrain_labeled_clean.csv 9444
+        # rows), only differs by seed. 2304d concat (CLS + atom mean + max).
+        # Built by: track1_activity/scripts/unimol/16_build_seed5ens.py
+        embed_path = REPO_ROOT.joinpath(
+            "data", "unimol_v2_log2fc_seed5ens_embed.parquet"
+        )
+        if not embed_path.exists():
+            raise SystemExit(f"Missing {embed_path}")
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(
+            f"  unimol_v2_log2fc_seed5ens_embed: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
+    if feature_name == "unimol_v2_pec50_ft_embed":
+        # 2304d concat (CLS + atom mean + atom max) from Uni-Mol v2 84m
+        # fine-tuned on direct pec50 (4140 train_activity rows, 15 epochs,
+        # batch=16, kfold=2). Codex 2026-05-02 Phase 2.
+        # CAVEAT: per PR #114 closeout, UniMolRepr.get_repr() may
+        # auto-download public Uni-Mol v2 weights and ignore the
+        # finetuned .pth files (different serialization format). If
+        # this OOF MAE matches base unimol_v2_pretrain_embed (~0.4885),
+        # the finetune did NOT take effect — fix before drawing
+        # conclusions about Phase 2 feasibility.
+        embed_path = REPO_ROOT.joinpath("data", "unimol_v2_pec50_ft_embed.parquet")
+        if not embed_path.exists():
+            raise SystemExit(f"Missing {embed_path}. Run the unimol pec50_ft pipeline.")
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(
+            f"  unimol_v2_pec50_ft_embed: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
     if feature_name == "unimol_v2_pretrain_embed":
         # 768d CLS representation from Uni-Mol v2 (84M). Extracted via
         # unimol_tools.UniMolRepr.get_repr() on all 13,136 std_smiles;
@@ -2192,6 +2328,15 @@ def main():
             "attentivefp_pretrain_embed",
             "gatedgcn_pretrain_embed",
             "unimol_v2_pretrain_embed",
+            "unimol_v2_pec50_ft_embed",
+            "unimol_v2_log2fc_real_embed",
+            "unimol_v2_log2fc_seed5ens_embed",
+            "unimol_v2_log2fc_filtered_embed",
+            "drugclip_fold0_embed",
+            "unimol_v2_log2fc_layer04_embed",
+            "unimol_v2_log2fc_layer06_embed",
+            "unimol_v2_log2fc_layer08_embed",
+            "unimol_v2_log2fc_layer10_embed",
             "boltz_trunk_pretrain_embed_a",
             "boltz_trunk_pretrain_embed_b",
             "boltz_trunk_pretrain_embed_b_first",
