@@ -1,0 +1,42 @@
+{
+  "date": "2026-05-04",
+  "checks": [
+    {
+      "name": "L5a_compound_id_overlap",
+      "passed": true,
+      "value": 0
+    },
+    {
+      "name": "L5b_std_smiles_overlap",
+      "passed": true,
+      "value": 0
+    },
+    {
+      "name": "L1_descriptor_source",
+      "passed": true,
+      "value": [
+        "compound_id",
+        "descriptors"
+      ]
+    },
+    {
+      "name": "L6a_descriptor_count",
+      "passed": true,
+      "value": 217
+    },
+    {
+      "name": "L6b_nan_drop_set",
+      "passed": true,
+      "value": [
+        1657,
+        8624
+      ]
+    },
+    {
+      "name": "L6c_no_inf",
+      "passed": true,
+      "value": 0
+    }
+  ],
+  "all_passed": true
+}

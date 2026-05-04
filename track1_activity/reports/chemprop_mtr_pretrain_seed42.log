@@ -1,0 +1,56 @@
+Seed set to 42
+/home/nagaet/pxr-iduction-challenge/track1_activity/scripts/run_chemprop_mtr_pretrain.py:91: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  desc_df = pd.read_sql(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/numpy/_core/_methods.py:190: RuntimeWarning: overflow encountered in square
+  x = um.square(x, out=x)
+Using bfloat16 Automatic Mixed Precision (AMP)
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/trainer/connectors/logger_connector/logger_connector.py:76: Starting from v1.9.0, `tensorboardX` has been removed as a dependency of the `lightning.pytorch` package, due to potential conflicts with other packages in the ML ecosystem. For this reason, `logger=True` will use `CSVLogger` as the default logger, unless the `tensorboard` or `tensorboardX` packages are found. Please `pip install lightning[extra]` or one of them to enable TensorBoard support by default
+💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Loading `train_dataloader` to estimate number of stepping batches.
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/trainer/connectors/data_connector.py:434: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=31` in the `DataLoader` to improve performance.
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/utilities/model_summary/model_summary.py:242: Precision bf16-mixed is not supported by the model summary.  Estimated model size in MB will not be accurate. Using 32 bits instead.
+Audit passed.
+Loaded 13134 compounds × 217 descriptors
+┏━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━┳━━━━━━━┓
+┃   ┃ Name            ┃ Type               ┃ Params ┃ Mode  ┃ FLOPs ┃
+┡━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━╇━━━━━━━┩
+│ 0 │ message_passing │ BondMessagePassing │  171 K │ train │     0 │
+│ 1 │ agg             │ NormAggregation    │      0 │ train │     0 │
+│ 2 │ bn              │ BatchNorm1d        │    512 │ train │     0 │
+│ 3 │ predictor       │ RegressionFFN      │  121 K │ train │     0 │
+│ 4 │ X_d_transform   │ Identity           │      0 │ train │     0 │
+│ 5 │ metrics         │ ModuleList         │      0 │ train │     0 │
+└───┴─────────────────┴────────────────────┴────────┴───────┴───────┘
+Trainable params: 293 K                                                         
+Non-trainable params: 0                                                         
+Total params: 293 K                                                             
+Total estimated model params size (MB): 1                                       
+Modules in train mode: 24                                                       
+Modules in eval mode: 0                                                         
+Total FLOPs: 0                                                                  
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/lightning/pytorch/trainer/connectors/data_connector.py:434: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=31` in the `DataLoader` to improve performance.
+`Trainer.fit` stopped: `max_epochs=50` reached.
+Epoch 49/49 ━━━━━━━━━━━━━━━━ 93/93 0:00:03 • 0:00:00 27.31it/s v_num: 3.000     
+                                                               train_loss_step: 
+                                                               0.255 val_loss:  
+                                                               0.149            
+                                                               train_loss_epoch:
+                                                               0.206            
+Traceback (most recent call last):
+  File "/home/nagaet/pxr-iduction-challenge/track1_activity/scripts/run_chemprop_mtr_pretrain.py", line 285, in <module>
+    main()
+  File "/home/nagaet/pxr-iduction-challenge/track1_activity/scripts/run_chemprop_mtr_pretrain.py", line 260, in main
+    ckpt = torch.load(best_path, map_location="cpu")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/torch/serialization.py", line 1548, in load
+    raise pickle.UnpicklingError(_get_wo_message(str(e))) from None
+_pickle.UnpicklingError: Weights only load failed. This file can still be loaded, to do so you have two options, [1mdo those steps only if you trust the source of the checkpoint[0m. 
+	(1) In PyTorch 2.6, we changed the default value of the `weights_only` argument in `torch.load` from `False` to `True`. Re-running `torch.load` with `weights_only` set to `False` will likely succeed, but it can result in arbitrary code execution. Do it only if you got the file from a trusted source.
+	(2) Alternatively, to load with `weights_only=True` please check the recommended steps in the following error message.
+	WeightsUnpickler error: Unsupported global: GLOBAL lightning.fabric.utilities.data.AttributeDict was not an allowed global by default. Please use `torch.serialization.add_safe_globals([lightning.fabric.utilities.data.AttributeDict])` or the `torch.serialization.safe_globals([lightning.fabric.utilities.data.AttributeDict])` context manager to allowlist this global if you trust this class/function.
+
+Check the documentation of torch.load to learn more about types accepted by default with weights_only https://pytorch.org/docs/stable/generated/torch.load.html.

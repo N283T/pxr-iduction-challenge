@@ -1,0 +1,36 @@
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/umap/umap_.py:1887: UserWarning: gradient function is not yet implemented for jaccard distance metric; inverse_transform will be unavailable
+  warn(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/umap/umap_.py:1952: UserWarning: n_jobs value 1 overridden to 1 by setting random_state. Use no seed for parallelism.
+  warn(
+Model: tabpfn, Feature: molformer_c3_mtr_embed, Split: umap, Trials: 20
+Loading data...
+  molformer_c3_mtr_embed: 768 dims (train 4140 / test 513)
+  X_train: (4140, 768), X_test: (513, 768)
+  NOTE: TabPFN with 768 features — GPU strongly recommended. Consider rdkit_desc_full (217d) or chemeleon (300d).
+  Experiment: tabpfn_molformer_c3_mtr_embed_umap
+  [Fold 0] Tuning (20 trials, gap_λ=0.0)...
+  [Fold 0] RAE=0.6132  MAE=0.5559  R2=0.5138  Spearman=0.6733  Kendall=0.4910
+  [Fold 1] Tuning (20 trials, gap_λ=0.0)...
+  [Fold 1] RAE=0.5238  MAE=0.5204  R2=0.6404  Spearman=0.7259  Kendall=0.5301
+  [Fold 2] Tuning (20 trials, gap_λ=0.0)...
+  [Fold 2] RAE=0.6329  MAE=0.5375  R2=0.5033  Spearman=0.6877  Kendall=0.4995
+  [Fold 3] Tuning (20 trials, gap_λ=0.0)...
+  [Fold 3] RAE=0.6366  MAE=0.4963  R2=0.4946  Spearman=0.6582  Kendall=0.4828
+  [Fold 4] Tuning (20 trials, gap_λ=0.0)...
+  [Fold 4] RAE=0.5475  MAE=0.5499  R2=0.6139  Spearman=0.7265  Kendall=0.5300
+
+  Overall OOF (covered subset):
+  RAE=0.5848  MAE=0.5321  R2=0.5634  Spearman=0.6961  Kendall=0.5087
+
+  Mean ± Std across folds:
+    RAE: 0.5908 ± 0.0463
+    MAE: 0.5320 ± 0.0216
+    R2: 0.5532 ± 0.0613
+    Spearman_R: 0.6943 ± 0.0276
+    Kendall_Tau: 0.5067 ± 0.0198
+
+  Final model: n_estimators=13, params from fold 1 (RAE=0.5238)
+  Test preds: mean=4.788, std=0.572
+  Recorded experiment 'tabpfn_molformer_c3_mtr_embed_umap' (id=2282)
+
+  Done: tabpfn_molformer_c3_mtr_embed_umap -> RAE=0.5848
