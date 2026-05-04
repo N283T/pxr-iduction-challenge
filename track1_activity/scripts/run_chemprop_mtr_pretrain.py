@@ -87,15 +87,14 @@ def load_descriptor_targets() -> tuple[list[str], np.ndarray, list[int], list[st
     smiles, target_matrix and compound_ids are aligned by index.
     NAN_DROP_IDS are excluded.
     """
-    conn = psycopg2.connect(**DB_PARAMS)
-    desc_df = pd.read_sql(
-        "SELECT cd.compound_id, c.std_smiles, cd.descriptors "
-        "FROM compound_descriptors_full cd "
-        "JOIN compounds c ON c.id = cd.compound_id "
-        "ORDER BY cd.compound_id",
-        conn,
-    )
-    conn.close()
+    with psycopg2.connect(**DB_PARAMS) as conn:
+        desc_df = pd.read_sql(
+            "SELECT cd.compound_id, c.std_smiles, cd.descriptors "
+            "FROM compound_descriptors_full cd "
+            "JOIN compounds c ON c.id = cd.compound_id "
+            "ORDER BY cd.compound_id",
+            conn,
+        )
 
     desc_df = desc_df[~desc_df["compound_id"].isin(NAN_DROP_IDS)].reset_index(drop=True)
     expanded = pd.json_normalize(desc_df["descriptors"]).apply(
@@ -227,11 +226,21 @@ def main() -> None:
     if not args.smoke:
         out_dir.mkdir(parents=True, exist_ok=True)
 
-    callbacks = [
-        pl.callbacks.EarlyStopping(
-            monitor="val_loss", patience=params["patience"], mode="min"
+    early_stop_cb = pl.callbacks.EarlyStopping(
+        monitor="val_loss", patience=params["patience"], mode="min"
+    )
+    if not args.smoke:
+        best_cb = pl.callbacks.ModelCheckpoint(
+            dirpath=str(out_dir),
+            filename="best_val",
+            monitor="val_loss",
+            mode="min",
+            save_top_k=1,
         )
-    ]
+        callbacks = [early_stop_cb, best_cb]
+    else:
+        callbacks = [early_stop_cb]
+
     trainer = pl.Trainer(
         max_epochs=params["max_epochs"],
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
@@ -239,7 +248,7 @@ def main() -> None:
         precision="bf16-mixed",
         callbacks=callbacks,
         log_every_n_steps=20,
-        enable_checkpointing=False,
+        enable_checkpointing=not args.smoke,
     )
     trainer.fit(model, train_loader, val_loader)
 
@@ -247,8 +256,13 @@ def main() -> None:
         print("Smoke run completed; no checkpoint written.")
         return
 
-    torch.save(model.state_dict(), out_dir.joinpath("pretrain.pt"))
+    best_path = best_cb.best_model_path
+    ckpt = torch.load(best_path, map_location="cpu")
+    torch.save(ckpt["state_dict"], out_dir.joinpath("pretrain.pt"))
+    Path(best_path).unlink()
+
     out_dir.joinpath("scaler.json").write_text(json.dumps(scaler, indent=2))
+    best_val = best_cb.best_model_score
     out_dir.joinpath("meta.json").write_text(
         json.dumps(
             {
@@ -256,7 +270,10 @@ def main() -> None:
                 "n_compounds": len(smiles),
                 "descriptor_names": desc_names,
                 "params": params,
-                "best_val_loss": float(trainer.callback_metrics.get("val_loss", -1)),
+                "best_val_loss": float(
+                    best_val.item() if hasattr(best_val, "item") else best_val
+                ),
+                "final_val_loss": float(trainer.callback_metrics.get("val_loss", -1)),
             },
             indent=2,
         )
