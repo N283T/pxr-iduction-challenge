@@ -72,7 +72,7 @@ def check_descriptor_source(conn) -> dict:
 def check_descriptor_count(conn) -> dict:
     df = pd.read_sql(
         "SELECT descriptors FROM compound_descriptors_full LIMIT 1",
-        psycopg2.connect(**DB_PARAMS),
+        conn,
     )
     expanded = pd.json_normalize(df["descriptors"])
     n = len(expanded.columns)
@@ -86,7 +86,7 @@ def check_descriptor_count(conn) -> dict:
 def check_nan_drop_set(conn) -> dict:
     df = pd.read_sql(
         "SELECT compound_id, descriptors FROM compound_descriptors_full",
-        psycopg2.connect(**DB_PARAMS),
+        conn,
     )
     expanded = pd.json_normalize(df["descriptors"]).apply(
         pd.to_numeric, errors="coerce"
@@ -103,7 +103,7 @@ def check_nan_drop_set(conn) -> dict:
 def check_no_inf(conn) -> dict:
     df = pd.read_sql(
         "SELECT descriptors FROM compound_descriptors_full",
-        psycopg2.connect(**DB_PARAMS),
+        conn,
     )
     expanded = pd.json_normalize(df["descriptors"]).apply(
         pd.to_numeric, errors="coerce"
@@ -118,16 +118,15 @@ def check_no_inf(conn) -> dict:
 
 def main() -> int:
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
-    conn = psycopg2.connect(**DB_PARAMS)
-    checks = [
-        check_id_overlap(conn),
-        check_smiles_overlap(conn),
-        check_descriptor_source(conn),
-        check_descriptor_count(conn),
-        check_nan_drop_set(conn),
-        check_no_inf(conn),
-    ]
-    conn.close()
+    with psycopg2.connect(**DB_PARAMS) as conn:
+        checks = [
+            check_id_overlap(conn),
+            check_smiles_overlap(conn),
+            check_descriptor_source(conn),
+            check_descriptor_count(conn),
+            check_nan_drop_set(conn),
+            check_no_inf(conn),
+        ]
 
     report = {
         "date": str(date.today()),
