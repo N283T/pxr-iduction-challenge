@@ -257,7 +257,10 @@ def main() -> None:
         return
 
     best_path = best_cb.best_model_path
-    ckpt = torch.load(best_path, map_location="cpu")
+    # weights_only=False: Lightning checkpoints contain AttributeDict which is
+    # not in PyTorch 2.6+ default safe-globals allowlist.  We trust our own
+    # checkpoint here.
+    ckpt = torch.load(best_path, map_location="cpu", weights_only=False)
     torch.save(ckpt["state_dict"], out_dir.joinpath("pretrain.pt"))
     Path(best_path).unlink()
 

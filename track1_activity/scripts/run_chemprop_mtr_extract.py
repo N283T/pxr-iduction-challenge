@@ -97,7 +97,10 @@ def main() -> None:
     chunks: list[np.ndarray] = []
     with torch.no_grad():
         for batch in loader:
-            bmg = batch.bmg.to("cuda")
+            # BatchMolGraph.to(device) moves tensors in-place and returns None --
+            # do NOT reassign the return value (chemprop 2.x behaviour).
+            bmg = batch.bmg
+            bmg.to("cuda")
             # fingerprint() = message_passing -> aggregation -> batch_norm
             # Returns graph embedding of shape (batch_size, message_hidden_dim)
             # before the FFN prediction head.
