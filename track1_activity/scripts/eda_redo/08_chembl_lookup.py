@@ -61,7 +61,7 @@ def main() -> None:
         print(f"[08] resolved in ChEMBL: {len(meta)}  / {len(keys)}")
 
         # 2. Any activity on human PXR (NR1I2, UniProt O75469)? ChEMBL target chembl_id
-        #    for PXR is CHEMBL2034. Pull any reported activity for the drop cpds
+        #    for human PXR/NR1I2 is CHEMBL3401. Pull any reported activity for the drop cpds
         #    against this target.
         pxr_q = text(
             """
@@ -84,12 +84,12 @@ def main() -> None:
             JOIN assays a              ON a.assay_id = act.assay_id
             JOIN target_dictionary t   ON t.tid = a.tid
             WHERE s.standard_inchi_key = ANY(:keys)
-              AND t.chembl_id = 'CHEMBL2034'
+              AND t.chembl_id = 'CHEMBL3401'
             """
         )
         pxr = pd.read_sql(pxr_q, conn, params={"keys": keys})
         print(
-            f"[08] ChEMBL rows recording activity on PXR (CHEMBL2034): {len(pxr)}"
+            f"[08] ChEMBL rows recording activity on PXR (CHEMBL3401): {len(pxr)}"
             f"  for {pxr['inchikey'].nunique() if len(pxr) else 0} unique compounds"
         )
 

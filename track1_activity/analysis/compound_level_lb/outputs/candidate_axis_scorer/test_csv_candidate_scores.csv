@@ -1,0 +1,2 @@
+candidate,path,exists,single_mae,single_sp,mean_delta,mean_abs_delta,p90_abs_delta,max_abs_delta,pearson,spearman,candidate_mean,candidate_std,decision,reasons
+tabpfn_drugclip_fold0_embed_umap_default,track1_activity/submissions/tabpfn_drugclip_fold0_embed_umap_default.csv,True,0.5416,0.6947,-0.04714876324503665,0.3576870514635291,0.7468869482521108,1.7151291192269595,0.8012991574276253,0.8107464673356545,4.749469136452242,0.5685522326056204,close,weak_single

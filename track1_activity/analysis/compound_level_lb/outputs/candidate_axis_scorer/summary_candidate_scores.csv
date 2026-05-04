@@ -1,0 +1,47 @@
+source,candidate,single_mae,single_sp,decision,reasons
+track1_activity/submissions/krovex_multiseed/summary.csv,chemprop_proj32_concat_seed44 / chemprop_proj32,0.4888722598552704,0.772015099342414,close,weak_single
+track1_activity/submissions/krovex_grid/summary.csv,chemprop_proj32_kron,0.4905729293823242,0.7516653313002604,close,weak_single
+track1_activity/submissions/krovex_dimsweep/summary.csv,chemprop_proj32_kron,0.4905729293823242,0.7516653313002604,close,weak_single
+track1_activity/submissions/krovex_multiseed/summary.csv,chemprop_proj32_kron_seed42 / chemprop_proj32,0.4905729293823242,0.7516653313002604,close,weak_single
+track1_activity/submissions/krovex_dimsweep/summary.csv,chemprop_proj128_concat,0.4922789931297302,0.7677834415546397,close,weak_single
+track1_activity/submissions/krovex_multiseed/summary.csv,chemprop_raw_concat_seed44 / chemprop_raw,0.4922815561294555,0.7724742411978861,close,weak_single
+track1_activity/submissions/krovex_dimsweep/summary.csv,chemprop_proj64_concat,0.4931450188159942,0.7663131545376837,close,weak_single
+track1_activity/submissions/krovex_multiseed/summary.csv,chemprop_raw_concat_seed43 / chemprop_raw,0.494165688753128,0.7743734898140419,close,weak_single
+track1_activity/submissions/krovex_dimsweep/summary.csv,chemprop_proj128_kron,0.4947803318500519,0.7509519132767875,close,weak_single
+track1_activity/submissions/krovex_grid/summary.csv,chemprop_proj32_concat,0.4963407814502716,0.7727553214301656,close,weak_single
+track1_activity/submissions/krovex_dimsweep/summary.csv,chemprop_proj32_concat,0.4963407814502716,0.7727553214301656,close,weak_single
+track1_activity/submissions/krovex_multiseed/summary.csv,chemprop_proj32_concat_seed42 / chemprop_proj32,0.4963407814502716,0.7727553214301656,close,weak_single
+track1_activity/submissions/krovex_grid/summary.csv,chemprop256_concat,0.4991561770439148,0.7661037731759636,close,weak_single
+track1_activity/submissions/krovex_grid/summary.csv,chemprop256_kron,0.5053627490997314,0.7391367185103853,close,weak_single
+track1_activity/submissions/krovex_foundation/summary.csv,molformer_kron_seed44,0.5248534679412842,0.7033584719832714,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phaseD2_summary.csv,atom_gcn + bond_gcn + b1_kan,0.5252423286437988,0.7065791193479585,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phaseD3_summary.csv,hier(atom+motif+super) + b1_kan,0.5270325541496277,0.7055851518500281,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phaseC_aggregate.csv,kan_only / b1,0.5282067457834879,0.7075971222521681,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phase_b1_a5_summary.csv,kan_only / b1,0.5290245413780212,0.7070351979020257,close,weak_single
+track1_activity/submissions/krovex_foundation/summary.csv,chemberta_77m_mlm_kron_seed42,0.5293769836425781,0.708989934678741,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phaseD1_summary.csv,atom_gcn + b1_kan,0.5300884246826172,0.7046513332935398,close,weak_single
+track1_activity/submissions/krovex_foundation/summary.csv,molformer_kron_seed43,0.5305026173591614,0.708977891404077,close,weak_single
+track1_activity/submissions/krovex_grid/summary.csv,cheme300_kron,0.5320545434951782,0.704256295601629,close,weak_single
+track1_activity/submissions/krovex_foundation/summary.csv,molformer_kron_seed42,0.5342925786972046,0.7100828884010828,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phase_b2_a5_summary.csv,fused_alpha / b2,0.5348116159439087,0.7061882624888833,close,weak_single
+track1_activity/submissions/krovex_foundation/summary.csv,chemberta_77m_mlm_kron_seed44,0.5365473628044128,0.7083988108914441,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phase_b2_a5_summary.csv,kan_only / b2,0.5376965999603271,0.7011802891594731,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phase_b1_a5_summary.csv,fused_alpha / b1,0.5407501459121704,0.7026946413511413,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phaseC_aggregate.csv,fused_alpha / b2,0.5416025718053182,0.7016970632490933,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phaseA5_summary.csv,kan_only,0.5430375337600708,0.6931767367474561,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phaseA5_summary.csv,fused_alpha,0.5442480444908142,0.6928592118822374,close,weak_single
+track1_activity/submissions/krovex_gcn64/summary.csv,concat,0.5459654927253723,0.7000813313465615,close,weak_single
+track1_activity/submissions/krovex_gcn64/summary.csv,kron,0.546096682548523,0.7062599389817619,close,weak_single
+track1_activity/submissions/krovex_gcn64/summary.csv,concat,0.5486851930618286,0.6905826370220106,close,weak_single
+track1_activity/submissions/krovex_gcn64/summary.csv,concat,0.5522253513336182,0.6973778791040403,close,weak_single
+track1_activity/submissions/krovex_gcn64/summary.csv,kron,0.5540059804916382,0.6912013758419948,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phaseA_summary.csv,kan_only,0.5614421963691711,0.6811931835937023,close,weak_single
+track1_activity/submissions/krovex/summary.csv,kron,0.5627130270004272,0.6912527117316073,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phaseA_summary.csv,fused_alpha,0.5629060864448547,0.6723702420774579,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phase_b1_a5_summary.csv,mlp_only / b1,0.5677422881126404,0.6950029668188248,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phase_b2_a5_summary.csv,mlp_only / b2,0.5704272389411926,0.6907887036794919,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phaseA5_summary.csv,mlp_only,0.5764005780220032,0.6930507836019706,close,weak_single
+track1_activity/submissions/krovex/summary.csv,concat,0.5819004774093628,0.68370899537539,close,weak_single
+track1_activity/submissions/krovex/summary.csv,z_only,0.5877049565315247,0.6947817661582824,close,weak_single
+track1_activity/submissions/krovex/summary.csv,hg_only,0.7934815883636475,0.3613729826403374,close,weak_single
+track1_activity/submissions/umsgfnet_fp_kan/phaseA_summary.csv,mlp_only,1.0310615301132202,0.5527155734588008,close,weak_single
