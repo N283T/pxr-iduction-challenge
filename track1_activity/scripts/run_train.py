@@ -1057,6 +1057,58 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    if feature_name == "chemprop_mtr_embed":
+        # 256d per-compound fingerprints from MPNN.fingerprint() of the
+        # ChemProp MTR pretrain checkpoint (models/chemprop_mtr_seed42/).
+        # Sultan 2025 MTR-DA recipe: pretrain on 217 RDKit descriptors as
+        # multi-task regression targets (no log2_fc, no pEC50 in loss).
+        # Frozen encoder extracted by run_chemprop_mtr_extract.py.
+        # SWAP candidate for chemprop_pretrain_embed.
+        # Default seed=42; parquet columns: chemprop_mtr_0..255.
+        embed_path = REPO_ROOT.joinpath("data", "chemprop_mtr_embedding_seed42.parquet")
+        if not embed_path.exists():
+            raise SystemExit(
+                f"Missing {embed_path}. Run "
+                f"track1_activity/scripts/run_chemprop_mtr_extract.py --seed 42"
+            )
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(
+            f"  chemprop_mtr_embed: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
+    if feature_name == "molformer_c3_mtr_embed":
+        # 768d per-compound [CLS] embeddings from MoLFormer-c3-1.1B after
+        # MTR domain-adaptation via LoRA (models/molformer_c3_mtr_seed42/).
+        # Sultan 2025 MTR-DA recipe: 217 RDKit descriptors as multi-task
+        # regression targets (no log2_fc, no pEC50 in loss).
+        # Frozen encoder extracted by run_molformer_mtr_extract.py.
+        # SWAP candidate for molformer_c3_pretrain_embed.
+        # Default seed=42; parquet columns: molformer_c3_mtr_0..767.
+        embed_path = REPO_ROOT.joinpath(
+            "data", "molformer_c3_mtr_embedding_seed42.parquet"
+        )
+        if not embed_path.exists():
+            raise SystemExit(
+                f"Missing {embed_path}. Run "
+                f"track1_activity/scripts/run_molformer_mtr_extract.py --seed 42"
+            )
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(
+            f"  molformer_c3_mtr_embed: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
     _kermt_seed_match = re.match(r"^kermt_pretrain_embed_seed(\d+)ens$", feature_name)
     if feature_name == "kermt_pretrain_embed" or _kermt_seed_match is not None:
         # 3200d per-compound graph embedding from KERMT (GROVER_base)
@@ -2323,6 +2375,8 @@ def main():
             "chemprop_pretrain_optuna_trial11_embed",
             "molformer_c3_pretrain_embed",
             "chemberta_5m_mtr_pretrain_embed",
+            "chemprop_mtr_embed",
+            "molformer_c3_mtr_embed",
             "kermt_pretrain_embed",
             "kermt_pretrain_embed_seed5ens",
             "attentivefp_pretrain_embed",
