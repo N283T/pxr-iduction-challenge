@@ -58,7 +58,13 @@ def main() -> None:
             "Run run_chemprop_mtr_pretrain.py first."
         )
 
-    meta = json.loads(ckpt_dir.joinpath("meta.json").read_text())
+    meta_path = ckpt_dir.joinpath("meta.json")
+    if not meta_path.exists():
+        raise FileNotFoundError(
+            f"meta.json not found in {ckpt_dir}. "
+            "Was run_chemprop_mtr_pretrain.py completed successfully?"
+        )
+    meta = json.loads(meta_path.read_text())
     n_tasks = len(meta["descriptor_names"])
     embed_dim = meta["params"]["message_hidden_dim"]
     print(f"Checkpoint: seed={args.seed}, n_tasks={n_tasks}, embed_dim={embed_dim}")
@@ -68,6 +74,11 @@ def main() -> None:
     state_dict = torch.load(
         ckpt_dir.joinpath("pretrain.pt"), map_location="cpu", weights_only=True
     )
+    if isinstance(state_dict, dict) and "state_dict" in state_dict:
+        raise ValueError(
+            "pretrain.pt looks like a Lightning checkpoint (contains 'state_dict' key). "
+            "Expected a raw MTR state_dict produced by run_chemprop_mtr_pretrain.py."
+        )
     model.load_state_dict(state_dict)
     model.eval().cuda()
 
@@ -97,6 +108,9 @@ def main() -> None:
     embeddings = np.concatenate(chunks, axis=0)
     print(f"Embedding shape: {embeddings.shape}")
 
+    assert embeddings.shape == (len(compounds), embed_dim), (
+        f"Expected ({len(compounds)}, {embed_dim}), got {embeddings.shape}"
+    )
     assert not np.isnan(embeddings).any(), "NaN detected in embeddings"
     assert not np.isinf(embeddings).any(), "Inf detected in embeddings"
 
