@@ -1,0 +1,42 @@
+/home/nagaet/pxr-iduction-challenge/track1_activity/scripts/run_chemprop_mtr_pretrain.py:91: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  desc_df = pd.read_sql(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/numpy/_core/_methods.py:190: RuntimeWarning: overflow encountered in square
+  x = um.square(x, out=x)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Audit passed.
+Loaded 13134 compounds × 217 descriptors
+  split: train=11821, val=1313
+Loading weights:   0%|          | 0/207 [00:00<?, ?it/s]Loading weights:  56%|█████▌    | 115/207 [00:00<00:00, 1139.68it/s]Loading weights: 100%|██████████| 207/207 [00:00<00:00, 1640.93it/s]
+[1mMolformerModel LOAD REPORT[0m from: DeepChem/MoLFormer-c3-1.1B
+Key                                | Status     |  | 
+-----------------------------------+------------+--+-
+lm_head.transform.dense.weight     | UNEXPECTED |  | 
+lm_head.transform.LayerNorm.weight | UNEXPECTED |  | 
+lm_head.decoder.weight             | UNEXPECTED |  | 
+lm_head.transform.dense.bias       | UNEXPECTED |  | 
+lm_head.transform.LayerNorm.bias   | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+`use_return_dict` is deprecated! Use `return_dict` instead!
+  epoch 000: train=0.9726  val=0.8531
+  epoch 001: train=0.8058  val=0.6515
+  epoch 002: train=0.6776  val=0.5718
+  epoch 003: train=0.6139  val=0.5203
+  epoch 004: train=0.5773  val=0.4930
+  epoch 005: train=0.5543  val=0.4729
+  epoch 006: train=0.5367  val=0.4579
+  epoch 007: train=0.5231  val=0.4472
+  epoch 008: train=0.5115  val=0.4377
+  epoch 009: train=0.5034  val=0.4284
+  epoch 010: train=0.4956  val=0.4212
+  epoch 011: train=0.4901  val=0.4171
+  epoch 012: train=0.4849  val=0.4121
+  epoch 013: train=0.4801  val=0.4076
+  epoch 014: train=0.4769  val=0.4044
+  epoch 015: train=0.4741  val=0.4022
+  epoch 016: train=0.4714  val=0.4004
+  epoch 017: train=0.4698  val=0.3991
+  epoch 018: train=0.4685  val=0.3982
+  epoch 019: train=0.4675  val=0.3985
+Saved /home/nagaet/pxr-iduction-challenge/models/molformer_c3_mtr_seed42  best_val=0.3982

@@ -1,0 +1,34 @@
+======================================================================
+MTR Gate Evaluation Report
+  Timestamp : 2026-05-04T16:20:31
+  Candidate : tabpfn_chemprop_mtr_embed_umap (id=2281)
+  Swap tgt  : tabpfn_chemprop_pretrain_embed_umap_default
+
+--- Gate G1: single-member OOF MAE ---
+  OOF MAE   : 0.5136
+  Threshold : <= 0.485
+  G1        : FAIL
+
+--- Gate G2: residual Pearson r vs non-swap-target pool ---
+  Member                                                                         residual_r
+  -----------------------------------------------------------------------------  ----------
+  tabpfn_cheme_2d_full_boltz_log2fc_pred_seed10ens_top500_umap                   0.7501
+  tabpfn_kermt_pretrain_embed_umap_default                                       0.8100
+  tabpfn_molformer_c3_pretrain_embed_umap                                        0.8136
+  tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens_umap_default    0.8315
+  tabpfn_gatedgcn_pretrain_embed_umap_default                                    0.8437
+  tabpfn_pooled_boltz_umap_default                                               0.8513
+  tabpfn_pooled_boltz_allpairs_umap_default                                      0.8572
+  tabpfn_attentivefp_pretrain_embed_umap_default                                 0.8607
+
+  max residual r : 0.8607
+  Threshold      : <= 0.85
+  G2             : FAIL
+
+--- Summary ---
+  G1 : FAIL
+  G2 : FAIL
+  Overall : FAIL — stop, do not submit
+======================================================================
+
+Report written to /home/nagaet/pxr-iduction-challenge/track1_activity/reports/mtr_gates_tabpfn_chemprop_mtr_embed_umap.txt

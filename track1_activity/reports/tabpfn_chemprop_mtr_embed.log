@@ -1,0 +1,35 @@
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/umap/umap_.py:1887: UserWarning: gradient function is not yet implemented for jaccard distance metric; inverse_transform will be unavailable
+  warn(
+/home/nagaet/pxr-iduction-challenge/.pixi/envs/default/lib/python3.12/site-packages/umap/umap_.py:1952: UserWarning: n_jobs value 1 overridden to 1 by setting random_state. Use no seed for parallelism.
+  warn(
+Model: tabpfn, Feature: chemprop_mtr_embed, Split: umap, Trials: 20
+Loading data...
+  chemprop_mtr_embed: 256 dims (train 4140 / test 513)
+  X_train: (4140, 256), X_test: (513, 256)
+  Experiment: tabpfn_chemprop_mtr_embed_umap
+  [Fold 0] Tuning (20 trials, gap_λ=0.0)...
+  [Fold 0] RAE=0.6220  MAE=0.5638  R2=0.5003  Spearman=0.6703  Kendall=0.4904
+  [Fold 1] Tuning (20 trials, gap_λ=0.0)...
+  [Fold 1] RAE=0.4971  MAE=0.4939  R2=0.6761  Spearman=0.7481  Kendall=0.5516
+  [Fold 2] Tuning (20 trials, gap_λ=0.0)...
+  [Fold 2] RAE=0.6116  MAE=0.5195  R2=0.5120  Spearman=0.7034  Kendall=0.5185
+  [Fold 3] Tuning (20 trials, gap_λ=0.0)...
+  [Fold 3] RAE=0.6027  MAE=0.4699  R2=0.5265  Spearman=0.6710  Kendall=0.4970
+  [Fold 4] Tuning (20 trials, gap_λ=0.0)...
+  [Fold 4] RAE=0.5190  MAE=0.5212  R2=0.6293  Spearman=0.7555  Kendall=0.5586
+
+  Overall OOF (covered subset):
+  RAE=0.5646  MAE=0.5138  R2=0.5787  Spearman=0.7128  Kendall=0.5261
+
+  Mean ± Std across folds:
+    RAE: 0.5705 ± 0.0518
+    MAE: 0.5136 ± 0.0313
+    R2: 0.5688 ± 0.0706
+    Spearman_R: 0.7096 ± 0.0365
+    Kendall_Tau: 0.5232 ± 0.0277
+
+  Final model: n_estimators=22, params from fold 1 (RAE=0.4971)
+  Test preds: mean=4.826, std=0.597
+  Recorded experiment 'tabpfn_chemprop_mtr_embed_umap' (id=2281)
+
+  Done: tabpfn_chemprop_mtr_embed_umap -> RAE=0.5646
