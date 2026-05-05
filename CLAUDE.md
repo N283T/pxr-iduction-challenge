@@ -11,7 +11,7 @@ Two tracks:
 
 Current status: **1st place** (MAE=0.4084, RAE=0.5132 on leaderboard, 2026-04-25).
 Gap to rank 2 (sia 0.4095) is +0.0011 MAE — razor-thin lead, treat ±0.002 LB swings as noise.
-Research log: issue #100. See latest snapshot in `docs/leaderboard_<date>.csv`.
+Research log: issue #100. See latest snapshot in `docs/leaderboards/activity/leaderboard_<date>.csv`.
 
 ## Environment
 
@@ -113,7 +113,10 @@ db/
   pgdata/                            # PostgreSQL data dir (gitignored)
 docs/
   track1_eda_report.md               # EDA findings + feature importance + distribution analysis
-  leaderboard_<date>.csv             # Leaderboard snapshots (latest 2026-04-21)
+  leaderboards/activity/leaderboard_<date>.csv
+                                     # Track 1 leaderboard snapshots
+  leaderboards/structure/leaderboard_structure_<date>.csv
+                                     # Track 2 leaderboard snapshots
   literature_qsar_ml.md              # PXR QSAR/ML literature review
   literature_wet_lab.md              # PXR wet-lab/biology literature review
   superpowers/specs/                 # Approved feature design docs (YYYY-MM-DD-<topic>-design.md)

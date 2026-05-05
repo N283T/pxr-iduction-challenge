@@ -10,12 +10,12 @@ Two tracks:
 - **Track 2 (Structure)**: Predict protein-ligand 3D structures for 78 compounds. Primary metric: LDDT-PLI.
 
 Current status: Track 1 is in the public leaderboard upper tier, but exact
-rank changes frequently. Check the latest `docs/leaderboard_<date>.csv` and
+rank changes frequently. Check the latest `docs/leaderboards/activity/leaderboard_<date>.csv` and
 `lb_submissions` rows before quoting a rank or gap. Best recent local LB row
 as of 2026-05-05: `ens_meta_axis_reverse_id50_g10` (id=51, MAE=0.407326,
 RAE=0.511758, Spearman=0.847006). Treat ±0.002 LB swings as noise unless
 supported by a large OOF move or repeated directional evidence.
-Research log: issue #100. See latest snapshot in `docs/leaderboard_<date>.csv`.
+Research log: issue #100. See latest snapshot in `docs/leaderboards/activity/leaderboard_<date>.csv`.
 
 ## Environment
 
@@ -117,7 +117,10 @@ db/
   pgdata/                            # PostgreSQL data dir (gitignored)
 docs/
   track1_eda_report.md               # EDA findings + feature importance + distribution analysis
-  leaderboard_<date>.csv             # Leaderboard snapshots (latest 2026-05-05)
+  leaderboards/activity/leaderboard_<date>.csv
+                                     # Track 1 leaderboard snapshots (latest 2026-05-05)
+  leaderboards/structure/leaderboard_structure_<date>.csv
+                                     # Track 2 leaderboard snapshots
   literature_qsar_ml.md              # PXR QSAR/ML literature review
   literature_wet_lab.md              # PXR wet-lab/biology literature review
   superpowers/specs/                 # Approved feature design docs (YYYY-MM-DD-<topic>-design.md)
