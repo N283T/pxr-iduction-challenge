@@ -31,7 +31,7 @@ move, or delete them as part of repository cleanup.
 | `eda_cv_prep/` | CV split, OOF/LB gap, and 3D feature preparation diagnostics. |
 | `eda_redo/` | Rebuilt EDA and CHeMBL lookup scripts from the April analysis pass. |
 | `multitask_aux/` | Auxiliary target selection diagnostics. |
-| `unimol/` | Uni-Mol v2 experiments; mostly closed/null as of PR #160. |
+| `unimol/` | Uni-Mol v2 experiments; active hold / promising revisit candidate despite earlier null pool attempts. |
 | `clamp/` | CLAMP raw encoder experiment; closed/null as of PR #159. |
 | `gator/` | GatorAffinity experiments; closed negative control for protein-ligand directions. |
 | `drugclip/` | DrugCLIP external-data feature extraction scripts. |
