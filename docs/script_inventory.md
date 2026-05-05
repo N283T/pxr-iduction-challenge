@@ -50,14 +50,14 @@ it is ignored and local-only.
 | `eda_redo/` | Historical but useful | April EDA rebuild and CHeMBL lookup scripts. Keep while issue #100 is the research log. |
 | `archive/` | Legacy scripts | Early baselines and superseded ensemble scripts. Safe place for old top-level scripts that are no longer entry points. |
 
-## Closed Or Mostly Historical Axes
+## Closed, External, Or Active-Hold Axes
 
 These directories/scripts should generally stay out of the main workflow unless
 the axis is explicitly reopened:
 
 | Path | Reason to keep | Cleanup stance |
 |---|---|---|
-| `track1_activity/scripts/unimol/` | Documents Uni-Mol v2 null result and feature framework from PR #114/#160. | Keep as a self-contained closed axis. Do not delete unless the corresponding docs are migrated. |
+| `track1_activity/scripts/unimol/` | Documents Uni-Mol v2 experiments from PR #114/#160, including null pool attempts plus seed/layer follow-ups that may still be worth revisiting. | Keep as a self-contained active-hold axis. Do not delete or treat as closed without a separate Track 1 modeling review. |
 | `track1_activity/scripts/clamp/` | Documents CLAMP raw encoder null result from PR #159. | Keep as a small closed axis. |
 | `track1_activity/scripts/gator/` | Documents GatorAffinity Phase A/B attempts and failure mode. | Keep as a closed protein-ligand axis; useful negative control for future Boltz-like ideas. |
 | `track1_activity/scripts/drugclip/` | External-data DrugCLIP feature extraction and scoring references. | Keep but avoid using in no-external-data submissions. |
