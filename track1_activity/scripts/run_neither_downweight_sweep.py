@@ -1,7 +1,7 @@
 #!/usr/bin/env -S pixi run python
 """Sample-weight sweep for the 'neither' subset of train_activity.
 
-Background (see docs/aux_revisit_observation.md):
+Background (see https://github.com/N283T/pxr-iduction-challenge/issues/170):
     train splits into compounds that went through Octant's full assay flow
     ('both' subset, n=2,342, pec50 mean 4.85) and a separate diversity
     library that did not ('neither' subset, n=1,248, pec50 mean 3.33). The
@@ -164,8 +164,10 @@ def main() -> None:
         print(f"  fold {i}: train={len(tr)}, val={len(va)}")
 
     print("\nWeight sweep:")
-    print(f"{'weight':>8} {'OOF RAE':>10} {'OOF MAE':>10} {'OOF R2':>9} "
-          f"{'both RAE':>10} {'neither RAE':>13}")
+    print(
+        f"{'weight':>8} {'OOF RAE':>10} {'OOF MAE':>10} {'OOF R2':>9} "
+        f"{'both RAE':>10} {'neither RAE':>13}"
+    )
     print("-" * 64)
     results = []
     for w in WEIGHTS_TO_TRY:
@@ -179,16 +181,20 @@ def main() -> None:
             "neither_rae": m["neither"]["RAE"],
         }
         results.append(row)
-        print(f"{w:>8.2f} {row['oof_rae']:>10.4f} {row['oof_mae']:>10.4f} "
-              f"{row['oof_r2']:>9.4f} {row['both_rae']:>10.4f} "
-              f"{row['neither_rae']:>13.4f}")
+        print(
+            f"{w:>8.2f} {row['oof_rae']:>10.4f} {row['oof_mae']:>10.4f} "
+            f"{row['oof_r2']:>9.4f} {row['both_rae']:>10.4f} "
+            f"{row['neither_rae']:>13.4f}"
+        )
 
     print("\nBaseline (weight=1.0) is the reference. Lower is better.")
     base = next(r for r in results if r["weight"] == 1.0)
     print("\nDelta vs baseline:")
     for r in results:
         delta = r["oof_rae"] - base["oof_rae"]
-        marker = " <-- best" if r["oof_rae"] == min(x["oof_rae"] for x in results) else ""
+        marker = (
+            " <-- best" if r["oof_rae"] == min(x["oof_rae"] for x in results) else ""
+        )
         print(f"  weight={r['weight']:.2f}: ΔRAE={delta:+.4f}{marker}")
 
 

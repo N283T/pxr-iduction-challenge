@@ -112,14 +112,13 @@ db/
   load_data.py                       # Data loader script
   pgdata/                            # PostgreSQL data dir (gitignored)
 docs/
-  track1_eda_report.md               # EDA findings + feature importance + distribution analysis
+  README.md                          # Documentation map + archived issue links
+  deepresearch/                      # Deep Research reports and literature surveys
   leaderboards/activity/leaderboard_<date>.csv
                                      # Track 1 leaderboard snapshots
   leaderboards/structure/leaderboard_structure_<date>.csv
                                      # Track 2 leaderboard snapshots
   track2/                            # Track 2 specs, scoring CSVs, and model selection logs
-  literature_qsar_ml.md              # PXR QSAR/ML literature review
-  literature_wet_lab.md              # PXR wet-lab/biology literature review
   superpowers/specs/                 # Approved feature design docs (YYYY-MM-DD-<topic>-design.md)
   superpowers/plans/                 # Implementation plans (YYYY-MM-DD-<topic>.md)
 track1_activity/

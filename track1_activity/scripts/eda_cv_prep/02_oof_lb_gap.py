@@ -89,15 +89,16 @@ def main() -> None:
         f"std={df['ratio_rae'].std(ddof=0):.4f}"
     )
     print(
-        f"MAE gap: mean={df['gap_mae'].mean():.4f}, "
-        f"std={df['gap_mae'].std(ddof=0):.4f}"
+        f"MAE gap: mean={df['gap_mae'].mean():.4f}, std={df['gap_mae'].std(ddof=0):.4f}"
     )
 
     # Historical reference points from ensemble_cleanup.md:
     #   ens_v7_vanilla: OOF RAE 0.5304, LB RAE 0.62  (rank 14-17)
     # Adding those as context (not merged with the df above since there is
     # no DB row, and we do not want to silently mutate a dataset).
-    print("\nHistorical reference from docs/ensemble_cleanup.md:")
+    print(
+        "\nHistorical reference from https://github.com/N283T/pxr-iduction-challenge/issues/172:"
+    )
     print("  ens_v7_vanilla: OOF RAE 0.5304 / LB RAE ~0.62  -> gap ~0.09")
     print("  (not in lb_submissions because submitted pre-api.py)")
 

@@ -6,7 +6,7 @@ Verifies:
   3. Union of all val indices covers exactly the analog pool.
   4. No compound appears in val more than once.
   5. Val y-dispersion is tighter than train y-dispersion (the
-     motivating property from `docs/track1_cv_prep.md`).
+     motivating property from `https://github.com/N283T/pxr-iduction-challenge/issues/181`).
 """
 
 from __future__ import annotations
@@ -113,8 +113,8 @@ def main() -> None:
         f"(train: {results['train_abs_dev_from_median'].mean():.4f})"
     )
     print(
-        f"For reference, LB y-dispersion is ~0.797 "
-        f"(from docs/track1_cv_prep.md), train-wide is ~0.910."
+        "For reference, LB y-dispersion is ~0.797 "
+        "(from https://github.com/N283T/pxr-iduction-challenge/issues/181), train-wide is ~0.910."
     )
 
     # Also report threshold sensitivity

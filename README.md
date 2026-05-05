@@ -151,12 +151,12 @@ db/
   compute_*.py               # Feature precomputation (mordred, jazzy, embeddings, etc.)
   boltz2_*_schema.sql        # Boltz-2 prediction outputs (pose, posebusters)
 docs/
+  README.md                  # Documentation map + archived issue links
+  deepresearch/              # Deep Research reports and literature surveys
+  leaderboards/              # Track 1 / Track 2 leaderboard snapshots
+  track2/                    # Track 2 specs, scoring CSVs, and model selection logs
   superpowers/specs/         # Approved feature design docs
   superpowers/plans/         # Implementation plans
-  track1_eda_report.md       # EDA + feature importance
-  literature_qsar_ml.md      # QSAR/ML literature review
-  literature_wet_lab.md      # Wet-lab / biology context
-  leaderboard_YYYY-MM-DD.csv # LB snapshots
 track1_activity/
   src/
     data.py                  # DB loading (SQLAlchemy, deterministic ORDER BY)
