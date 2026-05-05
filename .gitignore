@@ -105,6 +105,8 @@ __marimo__/
 # OS
 .DS_Store
 .claude/
+
+# Local submission clients can contain personal tokens or account-specific state.
 track1_activity/scripts/submit.py
 track1_activity/scripts/api.py
 track1_activity/mordred_feature_importance.json
