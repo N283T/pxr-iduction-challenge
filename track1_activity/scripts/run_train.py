@@ -392,6 +392,41 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    if feature_name == "repooled_trunk_region_zstats":
+        # Raw s/z NPZ re-pool from compound_boltz2_trunk_fast source paths.
+        # Coverage is 13,134 compounds (4652 rcycle=3 + 8482 rcycle=1);
+        # train/test use the rcycle=3 full-run rows when available. Unlike
+        # structure/contact features, this uses trunk tensors only, so no
+        # pose/confidence/affinity fields are mixed into the rcycle=1 set.
+        repooled_path = REPO_ROOT.joinpath(
+            "data", "boltz_affhead", "repooled_trunk_region_zstats.parquet"
+        )
+        if not repooled_path.exists():
+            raise SystemExit(
+                f"Missing {repooled_path}. Run "
+                "track1_activity/scripts/boltz_affhead/38_repool_trunk_npz.py"
+            )
+        repooled_df = pd.read_parquet(repooled_path).set_index("compound_id")
+        feature_cols = [c for c in repooled_df.columns if c != "recycling_steps"]
+
+        def _repooled_matrix(ids):
+            X = repooled_df.reindex(index=ids)[feature_cols].to_numpy(
+                dtype=np.float32
+            )
+            X = X.copy()
+            col_mean = np.nanmean(X, axis=0)
+            col_mean = np.where(np.isfinite(col_mean), col_mean, 0.0)
+            X[~np.isfinite(X)] = np.broadcast_to(col_mean, X.shape)[~np.isfinite(X)]
+            return X
+
+        X_train = _repooled_matrix(train_ids)
+        X_test = _repooled_matrix(test_ids)
+        print(
+            f"  repooled_trunk_region_zstats: {X_train.shape[1]} dims "
+            "(raw NPZ region z mean/std/q10/q90 + compact s summaries)"
+        )
+        return X_train, X_test
+
     _seed_match = re.match(r"^2d_full_boltz_log2fc_pred_seed(\d+)ens$", feature_name)
     _optuna_match = re.match(
         r"^2d_full_boltz_log2fc_pred_optuna_trial(\d+)_seed5ens$", feature_name
@@ -2370,6 +2405,7 @@ def main():
             "2d_full_boltz",
             "pooled_boltz",
             "pooled_boltz_allpairs",
+            "repooled_trunk_region_zstats",
             "chemprop_pretrain_embed",
             "chemprop_pretrain_optuna_trial10_embed",
             "chemprop_pretrain_optuna_trial11_embed",

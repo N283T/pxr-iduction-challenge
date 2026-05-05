@@ -51,6 +51,9 @@ structures/omega/
 data/unimol/
 data/unimol_v2_pretrain_embed.parquet
 models/unimol_v2_log2fc/
+models/unimol_v2_log2fc_seed*/
+models/chemprop_mtr_seed*/
+models/molformer_c3_mtr_seed*/
 
 # Boltz-2 affinity-head retarget (issue #74) pooled embeddings parquet
 data/boltz_affhead/
