@@ -1,7 +1,7 @@
 """Experimental LGBM A/B on counter_assay-based label denoising.
 
 Revisits the "69 doubly-suspicious compound" filter from
-docs/auxiliary_data_analysis.md (Issue #37, never A/B tested) and related
+https://github.com/N283T/pxr-iduction-challenge/issues/171 (Issue #37, never A/B tested) and related
 filters. All runs are rdkit_desc_full + LGBM default, UMAP 5-fold, seed=42.
 
 Not for pool addition -- purely a diagnostic to check whether any

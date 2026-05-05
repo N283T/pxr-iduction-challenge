@@ -2,7 +2,7 @@
 
 - **Status**: Approved (2026-04-20)
 - **Author**: Claude Code session, brainstormed with user
-- **Related**: Deep research report `docs/papers/pxr_challenge_research/deep-research-report-2026-04-19.md` section 337 (FMGCL-style relative-distance auxiliary for rank-aware regression). Follow-up to the PEFT MoLFormer pivot -- now exploring graph-family levers.
+- **Related**: Deep research report `docs/deepresearch/pxr_challenge_regression_report_2026-04-19.md` section 337 (FMGCL-style relative-distance auxiliary for rank-aware regression). Follow-up to the PEFT MoLFormer pivot -- now exploring graph-family levers.
 - **Strategy**: Approach (C) -- add as a second chemprop pool member; evaluate OOF + LB; decide swap/drop in a follow-up PR.
 
 ## Goal

@@ -1,6 +1,6 @@
 """Analog distance distribution: test compounds vs train subsets.
 
-Hypothesis (from CLAUDE.md + docs/aux_revisit_observation.md):
+Hypothesis (from CLAUDE.md + https://github.com/N283T/pxr-iduction-challenge/issues/170):
   Test compounds = 46 potent drug-like inducers (pEC50>=6 AND sel>=1.5)
   plus their Enamine/FDA analogs.
 
@@ -204,7 +204,7 @@ def main() -> None:
         bins=bins,
         alpha=0.7,
         density=True,
-        label=f"vs potent-46",
+        label="vs potent-46",
         color="#2ca02c",
     )
     ax.set_xlabel("NN Tanimoto similarity (Morgan r=2, 2048 bits)")
@@ -213,9 +213,7 @@ def main() -> None:
     ax.legend(loc="upper right", fontsize=9)
 
     ax = axes[1]
-    ax.scatter(
-        nn_nonpotent, nn_potent, s=5, alpha=0.4, color="#555555"
-    )
+    ax.scatter(nn_nonpotent, nn_potent, s=5, alpha=0.4, color="#555555")
     diag = np.linspace(0, 1, 50)
     ax.plot(diag, diag, "k--", lw=1, alpha=0.5)
     ax.set_xlabel("NN Tanimoto to non-potent train")
@@ -235,12 +233,10 @@ def main() -> None:
     # and show count.
     fig, ax = plt.subplots(figsize=(7, 4))
     ax.hist(nn_potent[~np.isnan(nn_potent)], bins=bins, color="#2ca02c", alpha=0.85)
-    ax.axvline(
-        np.nanmedian(nn_potent), color="black", lw=1, ls="--", label="median"
-    )
+    ax.axvline(np.nanmedian(nn_potent), color="black", lw=1, ls="--", label="median")
     ax.set_xlabel("NN Tanimoto to potent-46 train")
     ax.set_ylabel("# test compounds")
-    ax.set_title(f"How close is each test compound to the 46 potent train seeds?")
+    ax.set_title("How close is each test compound to the 46 potent train seeds?")
     ax.legend()
     plt.tight_layout()
     fig2_path = FIG_DIR.joinpath("eda_cv_prep_01_test_vs_potent46_hist.png")

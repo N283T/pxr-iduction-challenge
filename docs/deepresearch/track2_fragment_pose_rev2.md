@@ -1,7 +1,7 @@
 # Track 2: フラグメント結合姿勢予測 — 発見指向サーベイ (rev2)
 
 > **プロベナンス**: ChatGPT Deep Research レポート (2026-04-26 取得、prompt rev2:
-> discovery-focused)。 rev1 (`literature_track2_fragment_pose.md`, PR #131) が
+> discovery-focused)。 rev1 (`docs/deepresearch/track2_fragment_pose_rev1.md`, PR #131) が
 > AlphaFold3 / Boltz / DiffDock / Vina / gnina の比較に偏っていた反省から、
 > 「AI/ML 研究者が見落としがちな手法」 を炙り出すよう FBDD コミュニティ・
 > 結晶学・QM/MM・水分子ネットワーク・multi-state refinement 等を明示的に
@@ -45,7 +45,7 @@
 >
 > ## 関連リンク
 >
-> - rev1: `docs/literature_track2_fragment_pose.md` (PR #131)
+> - rev1: `docs/deepresearch/track2_fragment_pose_rev1.md` (PR #131)
 > - 提出仕様: `docs/track2/submission_spec.md` (PR #125)
 > - Track 2 進捗: issue #129
 > - 現在の LB position: rank 7 / LDDT-PLI 0.4655 (id=33, 2026-04-26 10:10 JST)

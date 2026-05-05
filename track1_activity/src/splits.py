@@ -163,7 +163,7 @@ def analog_aware_split_indices(
     ---------
     The Octant pipeline constructs the test set from (a) 46 potent
     drug-like inducers in train (pEC50 >= 6 AND selectivity >= 1.5) and
-    (b) Enamine/FDA analogs of those seeds. EDA in `docs/track1_cv_prep.md`
+    (b) Enamine/FDA analogs of those seeds. EDA in `https://github.com/N283T/pxr-iduction-challenge/issues/181`
     confirms 48.9% of test compounds have their NN inside the potent-46
     subset (a ~45x enrichment over the 1.1% base rate) and that the LB
     RAE gap (+0.096) is mostly a narrower test pEC50 dispersion, not
@@ -238,7 +238,6 @@ def analog_aware_split_indices(
         np.nan_to_num(sel_arr, nan=-np.inf) >= potent_sel_threshold
     )
     potent_idx = np.where(potent_mask)[0]
-    non_potent_idx = np.where(~potent_mask)[0]
 
     if len(potent_idx) == 0:
         raise ValueError(

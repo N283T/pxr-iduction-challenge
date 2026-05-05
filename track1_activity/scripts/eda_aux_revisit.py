@@ -8,7 +8,7 @@ single_concentration. Test compounds were ordered separately during analog
 expansion and never went through the primary screen / counter screen.
 
 This script does observation only (no model training, no DB writes). Outputs
-plots + printed tables consumed by docs/aux_revisit_observation.md.
+plots + printed tables consumed by https://github.com/N283T/pxr-iduction-challenge/issues/170.
 
 Three parts:
     Part 1: Counter-selectivity distribution and Octant's >=1.5 logunit rule
@@ -87,7 +87,10 @@ def part1_counter_selectivity(train: pd.DataFrame, counter: pd.DataFrame) -> dic
         merged.groupby("pec50_bin", observed=True)
         .agg(
             n=("delta", "size"),
-            n_selective=("delta", lambda s: int((s >= OCTANT_SELECTIVITY_THRESHOLD).sum())),
+            n_selective=(
+                "delta",
+                lambda s: int((s >= OCTANT_SELECTIVITY_THRESHOLD).sum()),
+            ),
             mean_delta=("delta", "mean"),
         )
         .assign(selective_rate=lambda d: d["n_selective"] / d["n"])
@@ -95,18 +98,29 @@ def part1_counter_selectivity(train: pd.DataFrame, counter: pd.DataFrame) -> dic
 
     # Plot 1a: histogram of delta
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
-    axes[0].hist(merged["delta"].dropna(), bins=60, color="steelblue", edgecolor="white")
-    axes[0].axvline(OCTANT_SELECTIVITY_THRESHOLD, color="red", ls="--",
-                    label=f"Octant threshold = {OCTANT_SELECTIVITY_THRESHOLD}")
+    axes[0].hist(
+        merged["delta"].dropna(), bins=60, color="steelblue", edgecolor="white"
+    )
+    axes[0].axvline(
+        OCTANT_SELECTIVITY_THRESHOLD,
+        color="red",
+        ls="--",
+        label=f"Octant threshold = {OCTANT_SELECTIVITY_THRESHOLD}",
+    )
     axes[0].set_xlabel("Δ = pec50 (PXR) − pec50 (counter)")
     axes[0].set_ylabel("count")
     axes[0].set_title(f"Counter-selectivity distribution (n={n})")
     axes[0].legend()
 
     # Plot 1b: scatter pec50 vs delta
-    sc = axes[1].scatter(merged["pec50"], merged["delta"],
-                          c=merged["counter_pec50"], cmap="viridis",
-                          s=10, alpha=0.6)
+    sc = axes[1].scatter(
+        merged["pec50"],
+        merged["delta"],
+        c=merged["counter_pec50"],
+        cmap="viridis",
+        s=10,
+        alpha=0.6,
+    )
     axes[1].axhline(OCTANT_SELECTIVITY_THRESHOLD, color="red", ls="--")
     axes[1].set_xlabel("PXR pec50")
     axes[1].set_ylabel("Δ (selectivity)")
@@ -132,7 +146,9 @@ def part1_counter_selectivity(train: pd.DataFrame, counter: pd.DataFrame) -> dic
 # ---------------------------------------------------------------------------
 
 
-def part2_singleconc_consistency(train: pd.DataFrame, single_primary: pd.DataFrame) -> dict:
+def part2_singleconc_consistency(
+    train: pd.DataFrame, single_primary: pd.DataFrame
+) -> dict:
     merged = train.merge(single_primary, on="compound_id", how="inner")
     n = len(merged)
     if n == 0:
@@ -156,7 +172,9 @@ def part2_singleconc_consistency(train: pd.DataFrame, single_primary: pd.DataFra
     n_q90 = int((merged["abs_resid"] >= q90).sum())
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
-    axes[0].scatter(merged["log2fc"], merged["pec50"], s=10, alpha=0.5, color="steelblue")
+    axes[0].scatter(
+        merged["log2fc"], merged["pec50"], s=10, alpha=0.5, color="steelblue"
+    )
     xs = np.linspace(merged["log2fc"].min(), merged["log2fc"].max(), 50)
     axes[0].plot(xs, np.polyval(coef, xs), "r-", label=f"linear fit (r={r:.3f})")
     axes[0].set_xlabel(f"log2fc @ {PRIMARY_CONC_M:.2e} M (single-conc)")
@@ -194,8 +212,9 @@ def part2_singleconc_consistency(train: pd.DataFrame, single_primary: pd.DataFra
 # ---------------------------------------------------------------------------
 
 
-def part3_subsets(train: pd.DataFrame, counter: pd.DataFrame,
-                   single_primary: pd.DataFrame) -> dict:
+def part3_subsets(
+    train: pd.DataFrame, counter: pd.DataFrame, single_primary: pd.DataFrame
+) -> dict:
     has_counter = set(counter["compound_id"])
     has_single = set(single_primary["compound_id"])
     df = train.copy()
@@ -204,8 +223,12 @@ def part3_subsets(train: pd.DataFrame, counter: pd.DataFrame,
 
     summary = (
         df.groupby(["has_counter", "has_single"])
-        .agg(n=("pec50", "size"), pec50_mean=("pec50", "mean"),
-             pec50_std=("pec50", "std"), pec50_median=("pec50", "median"))
+        .agg(
+            n=("pec50", "size"),
+            pec50_mean=("pec50", "mean"),
+            pec50_std=("pec50", "std"),
+            pec50_median=("pec50", "median"),
+        )
         .reset_index()
     )
 
@@ -218,7 +241,9 @@ def part3_subsets(train: pd.DataFrame, counter: pd.DataFrame,
         data.append(grp["pec50"].values)
     ax.boxplot(data, tick_labels=labels)
     ax.set_ylabel("pec50")
-    ax.set_title("Train pec50 by aux-data availability (test = counter=False, single=False)")
+    ax.set_title(
+        "Train pec50 by aux-data availability (test = counter=False, single=False)"
+    )
     plt.tight_layout()
     out = FIG_DIR.joinpath("aux_revisit_part3_subsets.png")
     plt.savefig(out, dpi=110)
@@ -241,8 +266,10 @@ def main() -> None:
     print("\n=== Part 1: counter-selectivity ===")
     p1 = part1_counter_selectivity(tabs["train"], tabs["counter"])
     print(f"  n_train_with_counter: {p1['n_train_with_counter']}")
-    print(f"  n_selective (Δ>={OCTANT_SELECTIVITY_THRESHOLD}): "
-          f"{p1['n_selective']} ({p1['frac_selective']:.1%})")
+    print(
+        f"  n_selective (Δ>={OCTANT_SELECTIVITY_THRESHOLD}): "
+        f"{p1['n_selective']} ({p1['frac_selective']:.1%})"
+    )
     print("  selective rate by pec50 bin:")
     print(p1["rate_table"].to_string())
     print(f"  -> {p1['fig']}")
@@ -253,9 +280,13 @@ def main() -> None:
         print("  no overlap")
     else:
         print(f"  n: {p2['n']}, pearson r: {p2['pearson_r']:.4f}")
-        print(f"  linear: pec50 = {p2['linear_coef'][0]:.3f}*log2fc + {p2['linear_coef'][1]:.3f}")
-        print(f"  |resid| q90={p2['resid_q90']:.3f}, q95={p2['resid_q95']:.3f}, "
-              f"n_above_q90={p2['n_above_q90']}")
+        print(
+            f"  linear: pec50 = {p2['linear_coef'][0]:.3f}*log2fc + {p2['linear_coef'][1]:.3f}"
+        )
+        print(
+            f"  |resid| q90={p2['resid_q90']:.3f}, q95={p2['resid_q95']:.3f}, "
+            f"n_above_q90={p2['n_above_q90']}"
+        )
         print("  top-20 noisy compounds:")
         print(p2["noisy_top20"].to_string(index=False))
         print(f"  -> {p2['fig']}")

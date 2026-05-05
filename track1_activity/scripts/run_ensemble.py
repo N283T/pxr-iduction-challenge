@@ -28,7 +28,7 @@ Key design choices that differ from the archived scripts:
    ``ens_{strategy}.csv`` / DB name ``ens_{strategy}``. Previous
    ens_v7_* and ens_v8_* rows remain in the DB with an
    ``archived_ensemble_v7`` / ``archived_ensemble_v8`` ``model_type``
-   prefix (see ``docs/ensemble_cleanup.md``) and are no longer
+   prefix (see ``https://github.com/N283T/pxr-iduction-challenge/issues/172``) and are no longer
    generated.
 
 All OOF RAE numbers annotated inline below are snapshots as of
