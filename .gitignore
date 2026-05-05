@@ -18,19 +18,28 @@ db/pgdata/
 
 # Data files (re-downloadable via download_data.py / eda_redo_*.py)
 data/*.parquet
+data/**/*.parquet
+data/**/*.h5
+data/**/*.db
+data/*.bak_*
+data/**/*_meta.json
 data/eda_redo/
 data/eda_cv_prep/
 data/chembl/
+data/drugclip_embed_smoke/
+data/optuna_chemprop_pretrain/
 
 # Submission files (generated artifacts)
-track1_activity/submissions/*.csv
-track1_activity/submissions/*.parquet
+track1_activity/submissions/
 track2_structure/submissions/
 
 # Boltz-2 pipeline artifacts (re-creatable from DB + AFDB MSA)
 structures/boltz2/msa/
 structures/boltz2/inputs/
+structures/boltz2/inputs_fast/
+structures/boltz2/inputs_fast_smoke/
 structures/boltz2/outputs/
+structures/boltz2/outputs_fast/
 structures/boltz2/ligands/
 structures/boltz2/manifest*.csv
 structures/boltz2/postprocess*.csv
@@ -72,6 +81,7 @@ track1_activity/checkpoints/chemprop_pretrain/*.pt
 track1_activity/checkpoints/chemprop_pretrain/*.ckpt
 
 logs/
+track1_activity/reports/*.log
 
 # Raw LiteParse output for external papers (regenerable; md
 # summaries are checked in separately under docs/papers/)
@@ -114,3 +124,4 @@ data/kermt_pretrain_embed.parquet
 structures/pxr_lbd/holo_ligands_aligned/
 structures/pxr_lbd/ideal_sdf_cache/
 structures/ftmap/
+docs/track2_compound_grids/
