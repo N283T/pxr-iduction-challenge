@@ -77,7 +77,7 @@ def main() -> int:
     parser.add_argument("--db-name", default="pxr_challenge")
     parser.add_argument(
         "--out",
-        default="docs/clamp_leak_check.csv",
+        default="track1_activity/reports/clamp_leak_check.csv",
     )
     parser.add_argument(
         "--repo-root",

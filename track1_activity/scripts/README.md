@@ -1,7 +1,8 @@
 # Track 1 Scripts
 
 This directory mixes current pipeline entry points with historical experiment
-scripts. See `docs/script_inventory.md` before moving or deleting files.
+scripts. Archive or document old experiment axes before moving or deleting
+files.
 
 ## Current Workflow
 

@@ -335,7 +335,7 @@ def load_features(feature_name: str, train_df, test_df):
     if feature_name == "clamp_embed":
         # CLAMP (Seidl et al. ICML 2023) compound encoder, 768-d output.
         # Pretrained on PubChem18 + ChEMBL27 bioassay contrastive pairs;
-        # behavioral leak check (docs/clamp_leak_check.csv) confirms no
+        # behavioral leak check confirms no
         # PXR pEC50 label leak (best fit_MAE=0.884 with PXR text query).
         clamp_path = REPO_ROOT.joinpath("data", "clamp_embed.parquet")
         if not clamp_path.exists():
@@ -410,9 +410,7 @@ def load_features(feature_name: str, train_df, test_df):
         feature_cols = [c for c in repooled_df.columns if c != "recycling_steps"]
 
         def _repooled_matrix(ids):
-            X = repooled_df.reindex(index=ids)[feature_cols].to_numpy(
-                dtype=np.float32
-            )
+            X = repooled_df.reindex(index=ids)[feature_cols].to_numpy(dtype=np.float32)
             X = X.copy()
             col_mean = np.nanmean(X, axis=0)
             col_mean = np.where(np.isfinite(col_mean), col_mean, 0.0)
