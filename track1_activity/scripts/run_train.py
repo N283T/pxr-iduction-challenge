@@ -427,6 +427,44 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    if feature_name in {"boltz2_contact", "cheme_2d_full_boltz_log2fc_contact"}:
+        # Residue-level contact-shell features from Boltz-2 poses. Unlike
+        # ProLIF IFP, this keeps simple distance/count summaries by residue
+        # and coarse ligand atom class.
+        contact_path = REPO_ROOT.joinpath("data", "boltz2_contact_features.parquet")
+        if not contact_path.exists():
+            raise SystemExit(
+                f"Missing {contact_path}. Run "
+                "track1_activity/scripts/build_boltz2_contact_features.py"
+            )
+        contact_df = pd.read_parquet(contact_path).reindex(train_ids + test_ids)
+        dist_cols = [c for c in contact_df.columns if c.endswith("_min_dist")]
+        count_cols = [c for c in contact_df.columns if c not in dist_cols]
+        if count_cols:
+            contact_df[count_cols] = contact_df[count_cols].fillna(0)
+        if dist_cols:
+            contact_df[dist_cols] = contact_df[dist_cols].fillna(9.0)
+        X_contact = contact_df.to_numpy(dtype=np.float32)
+        X_contact = np.nan_to_num(X_contact, nan=0.0, posinf=9.0, neginf=0.0)
+        X_contact_tr = X_contact[: len(train_ids)]
+        X_contact_te = X_contact[len(train_ids) :]
+        if feature_name == "boltz2_contact":
+            print(
+                f"  boltz2_contact: {X_contact_tr.shape[1]} residue contact dims "
+                f"(train {X_contact_tr.shape[0]} / test {X_contact_te.shape[0]})"
+            )
+            return X_contact_tr, X_contact_te
+        X_base_tr, X_base_te = load_features(
+            "cheme_2d_full_boltz_log2fc_pred", train_df, test_df
+        )
+        X_train = np.concatenate([X_base_tr, X_contact_tr], axis=1).astype(np.float32)
+        X_test = np.concatenate([X_base_te, X_contact_te], axis=1).astype(np.float32)
+        print(
+            f"  cheme_2d_full_boltz_log2fc_contact: {X_base_tr.shape[1]} base + "
+            f"{X_contact_tr.shape[1]} contact dims = {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
     _seed_match = re.match(r"^2d_full_boltz_log2fc_pred_seed(\d+)ens$", feature_name)
     _optuna_match = re.match(
         r"^2d_full_boltz_log2fc_pred_optuna_trial(\d+)_seed5ens$", feature_name
@@ -1008,6 +1046,93 @@ def load_features(feature_name: str, train_df, test_df):
         print(
             f"  chemprop_pretrain_embed: {X_train.shape[1]} dims "
             f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
+    if feature_name in {
+        "chemprop_assay_shape_embed",
+        "chemprop_assay_shape_drlatent_embed",
+        "chemprop_counter_emax_embed",
+        "chemprop_drlatent_embed",
+    }:
+        # 256d per-compound fingerprints from the assay-shape auxiliary
+        # ChemProp pretrain checkpoint. Default pretrain excludes PXR pEC50
+        # and PXR-counter deltas to avoid direct target-label distillation.
+        # See run_chemprop_assay_shape_pretrain.py and
+        # run_chemprop_assay_shape_embed_extract.py.
+        if feature_name == "chemprop_drlatent_embed":
+            embed_path = REPO_ROOT.joinpath("data", "chemprop_drlatent_embed.parquet")
+        elif feature_name == "chemprop_assay_shape_drlatent_embed":
+            embed_path = REPO_ROOT.joinpath(
+                "data", "chemprop_assay_shape_drlatent_embed.parquet"
+            )
+        elif feature_name == "chemprop_counter_emax_embed":
+            embed_path = REPO_ROOT.joinpath(
+                "data", "chemprop_counter_emax_embed.parquet"
+            )
+        else:
+            embed_path = REPO_ROOT.joinpath(
+                "data", "chemprop_assay_shape_embed.parquet"
+            )
+        if not embed_path.exists():
+            raise SystemExit(
+                f"Missing {embed_path}. Run "
+                "track1_activity/scripts/run_chemprop_assay_shape_embed_extract.py"
+            )
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(
+            f"  {feature_name}: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
+    if feature_name in {
+        "dose_response_latent",
+        "2d_full_boltz_drlatent",
+        "cheme_2d_full_boltz_log2fc_drlatent",
+    }:
+        # Cross-fit chemistry-predicted latent variables from internal assay
+        # shape labels. The latent builder excludes pEC50 and writes OOF
+        # train rows plus full-fit test rows.
+        latent_path = REPO_ROOT.joinpath("data", "dose_response_latent.parquet")
+        if not latent_path.exists():
+            raise SystemExit(
+                f"Missing {latent_path}. Run "
+                "track1_activity/scripts/build_dose_response_latent.py"
+            )
+        latent_df = pd.read_parquet(latent_path).set_index("compound_id")
+        latent_cols = [c for c in latent_df.columns if c.startswith("drlatent_")]
+        if not latent_cols:
+            raise ValueError(f"No drlatent_* columns found in {latent_path}")
+        X_lat_tr = latent_df.reindex(index=train_ids)[latent_cols].to_numpy(
+            dtype=np.float32
+        )
+        X_lat_te = latent_df.reindex(index=test_ids)[latent_cols].to_numpy(
+            dtype=np.float32
+        )
+        X_lat_tr = np.nan_to_num(X_lat_tr, nan=0.0, posinf=0.0, neginf=0.0)
+        X_lat_te = np.nan_to_num(X_lat_te, nan=0.0, posinf=0.0, neginf=0.0)
+        if feature_name == "dose_response_latent":
+            print(
+                f"  dose_response_latent: {X_lat_tr.shape[1]} dims "
+                f"(train OOF / test full-fit)"
+            )
+            return X_lat_tr, X_lat_te
+        base_name = (
+            "2d_full_boltz"
+            if feature_name == "2d_full_boltz_drlatent"
+            else "cheme_2d_full_boltz_log2fc_pred"
+        )
+        X_base_tr, X_base_te = load_features(base_name, train_df, test_df)
+        X_train = np.concatenate([X_base_tr, X_lat_tr], axis=1).astype(np.float32)
+        X_test = np.concatenate([X_base_te, X_lat_te], axis=1).astype(np.float32)
+        print(
+            f"  {feature_name}: {X_base_tr.shape[1]} base + "
+            f"{X_lat_tr.shape[1]} dose-response latent = {X_train.shape[1]} dims"
         )
         return X_train, X_test
 
@@ -2406,7 +2531,13 @@ def main():
             "pooled_boltz",
             "pooled_boltz_allpairs",
             "repooled_trunk_region_zstats",
+            "boltz2_contact",
             "chemprop_pretrain_embed",
+            "chemprop_assay_shape_embed",
+            "chemprop_assay_shape_drlatent_embed",
+            "chemprop_counter_emax_embed",
+            "chemprop_drlatent_embed",
+            "dose_response_latent",
             "chemprop_pretrain_optuna_trial10_embed",
             "chemprop_pretrain_optuna_trial11_embed",
             "molformer_c3_pretrain_embed",
@@ -2463,6 +2594,9 @@ def main():
             "cheme_2d_full_boltz_log2fc_emax_pred",
             "cconcat_2d_full_boltz_log2fc_pred",
             "cheme_cconcat_2d_full_boltz_log2fc_pred",
+            "2d_full_boltz_drlatent",
+            "cheme_2d_full_boltz_log2fc_drlatent",
+            "cheme_2d_full_boltz_log2fc_contact",
             "3d_ligand",
             "3d_shape_pure",
             "2d_full_boltz_plus_shape",
