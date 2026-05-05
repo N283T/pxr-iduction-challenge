@@ -46,7 +46,7 @@
 > ## 関連リンク
 >
 > - rev1: `docs/literature_track2_fragment_pose.md` (PR #131)
-> - 提出仕様: `docs/track2_submission_spec.md` (PR #125)
+> - 提出仕様: `docs/track2/submission_spec.md` (PR #125)
 > - Track 2 進捗: issue #129
 > - 現在の LB position: rank 7 / LDDT-PLI 0.4655 (id=33, 2026-04-26 10:10 JST)
 

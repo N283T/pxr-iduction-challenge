@@ -32,7 +32,7 @@ This scorer:
        - "Hotspot enrichment" = how many of the top-4 sites the pose
          centroid is within 5 Å of (0-4)
 
-Output: ``docs/track2_ftmap_hotspot_scores.csv`` with one row per
+Output: ``docs/track2/track2_ftmap_hotspot_scores.csv`` with one row per
 (query, source) — joins to the existing ``track2_template_rmsd_scores.csv``
 on ``compound`` + ``source``.
 """
@@ -70,7 +70,7 @@ TEMPLATE_DIR = PROJECT_ROOT.joinpath("structures", "boltz2_track2", "redock_temp
 POSIT_DIR = PROJECT_ROOT.joinpath("structures", "boltz2_track2", "redock_posit")
 FTMAP_PDB = PROJECT_ROOT.joinpath("structures", "ftmap", "pxr_apo_ftmap.pdb")
 DEFAULT_DATA = PROJECT_ROOT.joinpath("data", "structure_test.parquet")
-OUT_CSV = PROJECT_ROOT.joinpath("docs", "track2_ftmap_hotspot_scores.csv")
+OUT_CSV = PROJECT_ROOT.joinpath("docs", "track2", "track2_ftmap_hotspot_scores.csv")
 
 
 # ---------------------------------------------------------------------------

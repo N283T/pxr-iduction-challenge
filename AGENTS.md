@@ -121,6 +121,7 @@ docs/
                                      # Track 1 leaderboard snapshots (latest 2026-05-05)
   leaderboards/structure/leaderboard_structure_<date>.csv
                                      # Track 2 leaderboard snapshots
+  track2/                            # Track 2 specs, scoring CSVs, and model selection logs
   literature_qsar_ml.md              # PXR QSAR/ML literature review
   literature_wet_lab.md              # PXR wet-lab/biology literature review
   superpowers/specs/                 # Approved feature design docs (YYYY-MM-DD-<topic>-design.md)
