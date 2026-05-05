@@ -54,7 +54,7 @@ PREDICTIONS_DIR = PROJECT_ROOT.joinpath(
 STAGING_DIR = PROJECT_ROOT.joinpath("track2_structure", "submissions", "_staging")
 SUBMISSIONS_DIR = PROJECT_ROOT.joinpath("track2_structure", "submissions")
 DEFAULT_DATA = PROJECT_ROOT.joinpath("data", "structure_test.parquet")
-SELECTION_LOG_DIR = PROJECT_ROOT.joinpath("docs", "track2_model_selection")
+SELECTION_LOG_DIR = PROJECT_ROOT.joinpath("docs", "track2", "model_selection")
 
 
 # ---------------------------------------------------------------------------

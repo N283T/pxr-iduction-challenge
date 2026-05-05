@@ -15,7 +15,7 @@ re-rank pose selection by validity rather than confidence.
 Usage:
     pixi run python track2_structure/scripts/check_posebusters.py
     pixi run python track2_structure/scripts/check_posebusters.py \\
-        --workers 8 --all-models --out docs/track2_posebusters_all.csv
+        --workers 8 --all-models --out docs/track2/track2_posebusters_all.csv
 """
 
 from __future__ import annotations
@@ -184,7 +184,7 @@ def main() -> None:
     parser.add_argument(
         "--out",
         type=Path,
-        default=PROJECT_ROOT.joinpath("docs", "track2_posebusters.csv"),
+        default=PROJECT_ROOT.joinpath("docs", "track2", "track2_posebusters.csv"),
         help="Output CSV.",
     )
     args = parser.parse_args()

@@ -9,7 +9,7 @@ v* zips.
 
 Per-query workflow:
   1. Look up best holo template from
-     ``docs/track2_redock_template_scores.csv`` (already computed by
+     ``docs/track2/track2_redock_template_scores.csv`` (already computed by
      ``redock_template_transfer.py``).
   2. Prepare an OE receptor for that template's per-PDB CIF (chain that
      owns the selected ligand instance). Cached across queries that
@@ -60,11 +60,13 @@ PRED_DIR = PROJECT_ROOT.joinpath(
     "predictions",
 )
 PXR_LBD_DIR = PROJECT_ROOT.joinpath("structures", "pxr_lbd")
-TEMPLATE_DB_CSV = PROJECT_ROOT.joinpath("docs", "track2_holo_ligand_db.csv")
-TEMPLATE_SCORES_CSV = PROJECT_ROOT.joinpath("docs", "track2_redock_template_scores.csv")
+TEMPLATE_DB_CSV = PROJECT_ROOT.joinpath("docs", "track2", "track2_holo_ligand_db.csv")
+TEMPLATE_SCORES_CSV = PROJECT_ROOT.joinpath(
+    "docs", "track2", "track2_redock_template_scores.csv"
+)
 DEFAULT_DATA = PROJECT_ROOT.joinpath("data", "structure_test.parquet")
 OUT_DIR = PROJECT_ROOT.joinpath("structures", "boltz2_track2", "redock_posit")
-SCORES_CSV = PROJECT_ROOT.joinpath("docs", "track2_redock_posit_scores.csv")
+SCORES_CSV = PROJECT_ROOT.joinpath("docs", "track2", "track2_redock_posit_scores.csv")
 
 
 # ---------------------------------------------------------------------------

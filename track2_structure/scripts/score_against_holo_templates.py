@@ -22,7 +22,7 @@ to `model_0`. gnina-refined and template-transferred poses are already
 based on `model_0`'s protein, so they need no realignment.
 
 Output:
-  docs/track2_template_rmsd_scores.csv with one row per (query, source)
+  docs/track2/track2_template_rmsd_scores.csv with one row per (query, source)
   pair, plus a per-query "best source" derived column.
 """
 
@@ -58,9 +58,9 @@ PRED_DIR = PROJECT_ROOT.joinpath(
 GNINA_DIR = PROJECT_ROOT.joinpath("structures", "boltz2_track2", "redock_gnina")
 TEMPLATE_DIR = PROJECT_ROOT.joinpath("structures", "boltz2_track2", "redock_template")
 HOLO_LIGAND_DIR = PROJECT_ROOT.joinpath("structures", "pxr_lbd", "holo_ligands_aligned")
-TEMPLATE_DB_CSV = PROJECT_ROOT.joinpath("docs", "track2_holo_ligand_db.csv")
+TEMPLATE_DB_CSV = PROJECT_ROOT.joinpath("docs", "track2", "track2_holo_ligand_db.csv")
 DEFAULT_DATA = PROJECT_ROOT.joinpath("data", "structure_test.parquet")
-OUT_CSV = PROJECT_ROOT.joinpath("docs", "track2_template_rmsd_scores.csv")
+OUT_CSV = PROJECT_ROOT.joinpath("docs", "track2", "track2_template_rmsd_scores.csv")
 
 
 # ---------------------------------------------------------------------------

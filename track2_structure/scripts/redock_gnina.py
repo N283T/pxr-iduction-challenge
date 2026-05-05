@@ -22,7 +22,7 @@ Usage:
         --workers 4
     pixi run python track2_structure/scripts/redock_gnina.py \\
         --workers 4 --selection-csv \\
-        docs/track2_model_selection/track2_boltz2_medoid_v2_2026-04-26.csv
+        docs/track2/model_selection/track2_boltz2_medoid_v2_2026-04-26.csv
 """
 
 from __future__ import annotations
@@ -309,7 +309,7 @@ def main() -> None:
         type=Path,
         default=None,
         help="Per-compound model selection CSV "
-        "(e.g. docs/track2_model_selection/<tag>.csv from build_submission.py).",
+        "(e.g. docs/track2/model_selection/<tag>.csv from build_submission.py).",
     )
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--workers", type=int, default=4)
@@ -331,7 +331,9 @@ def main() -> None:
     parser.add_argument(
         "--out-csv",
         type=Path,
-        default=PROJECT_ROOT.joinpath("docs", "track2_redock_gnina_scores.csv"),
+        default=PROJECT_ROOT.joinpath(
+            "docs", "track2", "track2_redock_gnina_scores.csv"
+        ),
     )
     args = parser.parse_args()
 

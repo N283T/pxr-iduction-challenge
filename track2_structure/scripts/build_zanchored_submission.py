@@ -5,7 +5,7 @@ Strategy: for each query, look up the candidate pose source with the
 SMALLEST distance to FTMap consensus hotspot Z (the canonical PXR
 pocket — chain Z in our FTMap output, where all 16 probe types
 converge). The choice comes from
-``docs/track2_ftmap_hotspot_scores.csv``.
+``docs/track2/track2_ftmap_hotspot_scores.csv``.
 
 Motivation: v3 (gnina --minimize) regressed by -0.0083 LDDT-PLI on
 the LB after moving the ligand only ~0.03 Å further from hotspot Z
@@ -54,11 +54,11 @@ PRED_DIR = PROJECT_ROOT.joinpath(
 GNINA_DIR = PROJECT_ROOT.joinpath("structures", "boltz2_track2", "redock_gnina")
 TEMPLATE_DIR = PROJECT_ROOT.joinpath("structures", "boltz2_track2", "redock_template")
 POSIT_DIR = PROJECT_ROOT.joinpath("structures", "boltz2_track2", "redock_posit")
-HOTSPOT_CSV = PROJECT_ROOT.joinpath("docs", "track2_ftmap_hotspot_scores.csv")
+HOTSPOT_CSV = PROJECT_ROOT.joinpath("docs", "track2", "track2_ftmap_hotspot_scores.csv")
 DEFAULT_DATA = PROJECT_ROOT.joinpath("data", "structure_test.parquet")
 SUBMISSIONS_DIR = PROJECT_ROOT.joinpath("track2_structure", "submissions")
 STAGING_DIR = SUBMISSIONS_DIR.joinpath("_staging")
-SELECTION_LOG_DIR = PROJECT_ROOT.joinpath("docs", "track2_model_selection")
+SELECTION_LOG_DIR = PROJECT_ROOT.joinpath("docs", "track2", "model_selection")
 
 
 SOURCE_PDB_RESOLVERS = {
@@ -185,7 +185,7 @@ def main() -> None:
         type=Path,
         default=None,
         help=(
-            "Path to PoseBusters CSV (e.g. docs/track2_posebusters_all.csv). "
+            "Path to PoseBusters CSV (e.g. docs/track2/track2_posebusters_all.csv). "
             "If set, restricts each boltz_model_<i> candidate to (compound, "
             "model) pairs that pass all validity checks. Other source "
             "families are not gated."

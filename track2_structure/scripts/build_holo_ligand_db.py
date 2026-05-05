@@ -13,7 +13,7 @@ For each PDB structure in ``structures/pxr_lbd/`` that has a ligand:
 
 The output SDFs live under
 ``structures/pxr_lbd/holo_ligands_aligned/<pdb_id>_<ccd>_<instance>.sdf``.
-A summary CSV at ``docs/track2_holo_ligand_db.csv`` lists
+A summary CSV at ``docs/track2/track2_holo_ligand_db.csv`` lists
 (pdb_id, ccd, instance_idx, smiles, sdf_path, n_heavy_atoms).
 """
 
@@ -41,7 +41,7 @@ IDEAL_SDF_CACHE = PXR_LBD_DIR.joinpath("ideal_sdf_cache")
 HOLO_SDF_DIR = PXR_LBD_DIR.joinpath("holo_ligands_aligned")
 STRUCTURE_INFO = PROJECT_ROOT.joinpath("structures", "pxr_structure_info.json")
 CCD_CSV = PROJECT_ROOT.joinpath("structures", "pxr_ccd_ligands.csv")
-SUMMARY_CSV = PROJECT_ROOT.joinpath("docs", "track2_holo_ligand_db.csv")
+SUMMARY_CSV = PROJECT_ROOT.joinpath("docs", "track2", "track2_holo_ligand_db.csv")
 
 RCSB_IDEAL_URL = "https://files.rcsb.org/ligands/download/{ccd}_ideal.sdf"
 
@@ -100,8 +100,7 @@ def _read_atom_names_from_sdf(sdf_path: Path) -> list[str | None]:
     except ValueError:
         return []
     names: list[str | None] = []
-    for i in range(n_atoms):
-        atom_line = lines[4 + i]
+    for _ in range(n_atoms):
         # The element symbol field is at columns 31-34 in V2000.
         # RCSB CCD ideal SDFs do NOT include atom names in the standard atom
         # line. The atom names live in an "M  ALS" or appended properties

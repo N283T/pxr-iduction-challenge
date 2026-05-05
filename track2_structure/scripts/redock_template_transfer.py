@@ -2,7 +2,7 @@
 """GLR-style template transfer for Track 2 fragments.
 
 For each Track 2 query SMILES:
-  1. Select best holo template from `docs/track2_holo_ligand_db.csv` by MCS
+  1. Select best holo template from `docs/track2/track2_holo_ligand_db.csv` by MCS
      atom count (whole-molecule Tanimoto is uninformative because our
      queries are fragment-sized while holos are drug-like — substructure
      matching is the right granularity).
@@ -18,7 +18,7 @@ For each Track 2 query SMILES:
      in the format the official validator expects.
 
 The output goes to ``structures/boltz2_track2/redock_template/<id>/``
-plus a summary CSV at ``docs/track2_redock_template_scores.csv``.
+plus a summary CSV at ``docs/track2/track2_redock_template_scores.csv``.
 """
 
 from __future__ import annotations
@@ -49,10 +49,12 @@ PRED_DIR = PROJECT_ROOT.joinpath(
 )
 PXR_LBD_DIR = PROJECT_ROOT.joinpath("structures", "pxr_lbd")
 HOLO_SDF_DIR = PXR_LBD_DIR.joinpath("holo_ligands_aligned")
-TEMPLATE_DB_CSV = PROJECT_ROOT.joinpath("docs", "track2_holo_ligand_db.csv")
+TEMPLATE_DB_CSV = PROJECT_ROOT.joinpath("docs", "track2", "track2_holo_ligand_db.csv")
 DEFAULT_DATA = PROJECT_ROOT.joinpath("data", "structure_test.parquet")
 OUT_DIR = PROJECT_ROOT.joinpath("structures", "boltz2_track2", "redock_template")
-SCORES_CSV = PROJECT_ROOT.joinpath("docs", "track2_redock_template_scores.csv")
+SCORES_CSV = PROJECT_ROOT.joinpath(
+    "docs", "track2", "track2_redock_template_scores.csv"
+)
 
 
 def _per_pdb_cif_path(pdb_id: str) -> Path:
