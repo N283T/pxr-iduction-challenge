@@ -15,12 +15,6 @@ workflow have been migrated to closed GitHub issues.
 | `superpowers/` | Planning/spec artifacts for agentic implementation work. |
 | `track2/` | Track 2 submission specs, scoring tables, and model-selection logs. |
 
-## Root Files
-
-| Path | Purpose |
-|---|---|
-| `script_inventory.md` | Cleanup map for `track1_activity/scripts/`. |
-
 ## Archived Markdown Reports
 
 These files were migrated to closed GitHub issues on 2026-05-05 and removed

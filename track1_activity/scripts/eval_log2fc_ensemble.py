@@ -21,7 +21,7 @@ so its predictions on val_ids may include some compounds it trained on.
 This is flagged in the output but doesn't invalidate downstream use —
 Phase 3 (downstream OOF) is the real acceptance gate.
 
-Output: stdout table + docs/log2fc_ensemble_phase2.csv
+Output: stdout table + track1_activity/reports/log2fc_ensemble_phase2.csv
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ ENCODERS = {
         None,  # external val, incomparable val loss
     ),
 }
-OUT_CSV = REPO_ROOT.joinpath("docs", "log2fc_ensemble_phase2.csv")
+OUT_CSV = REPO_ROOT.joinpath("track1_activity", "reports", "log2fc_ensemble_phase2.csv")
 
 
 def get_pretrain_val_ids(seed: int = 42, val_frac: float = 0.1) -> list[int]:
