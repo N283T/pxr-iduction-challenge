@@ -9,12 +9,12 @@ Two tracks:
 - **Track 1 (Activity)**: Predict pEC50 for 513 blinded compounds. Primary metric: **MAE** (with RAE/R²/Spearman/Kendall as secondaries).
 - **Track 2 (Structure)**: Predict protein-ligand 3D structures for 78 compounds. Primary metric: LDDT-PLI.
 
-Current status: **rank 4** on Track 1 after the 2026-05-05 fetch.
-Best recent local LB row: `ens_meta_axis_reverse_id50_g10` (id=51,
-MAE=0.407326, RAE=0.511758, Spearman=0.847006). Public rank 1 is Yan
-(MAE=0.400381), rank 2 is sia (MAE=0.403116), and rank 3 is jaybirdy
-(MAE=0.407182). Treat ±0.002 LB swings as noise unless supported by a
-large OOF move or repeated directional evidence.
+Current status: Track 1 is in the public leaderboard upper tier, but exact
+rank changes frequently. Check the latest `docs/leaderboard_<date>.csv` and
+`lb_submissions` rows before quoting a rank or gap. Best recent local LB row
+as of 2026-05-05: `ens_meta_axis_reverse_id50_g10` (id=51, MAE=0.407326,
+RAE=0.511758, Spearman=0.847006). Treat ±0.002 LB swings as noise unless
+supported by a large OOF move or repeated directional evidence.
 Research log: issue #100. See latest snapshot in `docs/leaderboard_<date>.csv`.
 
 ## Environment
