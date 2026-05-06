@@ -1,439 +1,128 @@
 # PXR Induction Challenge
 
+This file is the compact operating guide for coding agents in this repository.
+Keep fast-changing experiment details in GitHub issues, database rows, and
+leaderboard snapshots instead of expanding this file.
+
 ## Competition
 
-OpenADMET PXR Blind Challenge (April 1 – July 1, 2026)
+OpenADMET PXR Blind Challenge (April 1 - July 1, 2026)
 https://huggingface.co/spaces/openadmet/pxr-challenge
 
-Two tracks:
-- **Track 1 (Activity)**: Predict pEC50 for 513 blinded compounds. Primary metric: **MAE** (with RAE/R²/Spearman/Kendall as secondaries).
-- **Track 2 (Structure)**: Predict protein-ligand 3D structures for 78 compounds. Primary metric: LDDT-PLI.
+- Track 1 Activity: predict pEC50 for 513 blinded compounds. Primary metric: MAE.
+- Track 2 Structure: predict protein-ligand 3D structures for 78 compounds. Primary metric: LDDT-PLI.
+- Track 1 research log: GitHub issue #100.
+- Leaderboard snapshots: `docs/leaderboards/activity/` and `docs/leaderboards/structure/`.
+- Before quoting rank, gap, or "best", check the latest snapshot and `lb_submissions` / `lb_submission_history`. Rank changes quickly.
 
-Current status: Track 1 is in the public leaderboard upper tier, but exact
-rank changes frequently. Check the latest `docs/leaderboards/activity/leaderboard_<date>.csv` and
-`lb_submissions` rows before quoting a rank or gap. Best recent local LB row
-as of 2026-05-05: `ens_meta_axis_reverse_id50_g10` (id=51, MAE=0.407326,
-RAE=0.511758, Spearman=0.847006). Treat ±0.002 LB swings as noise unless
-supported by a large OOF move or repeated directional evidence.
-Research log: issue #100. See latest snapshot in `docs/leaderboards/activity/leaderboard_<date>.csv`.
+## Workflow Rules
+
+- Never commit directly to `main` or `master`; use a `codex/` branch for repository changes.
+- Code, comments, commit messages, PR descriptions, and technical docs must be in English unless the user-facing artifact requires another language.
+- Do not delete git-tracked files unless the user explicitly asks for that deletion.
+- Treat `track1_activity/scripts/api.py` as local/ignored because it contains personal account details. Do not commit it.
+- Generated artifacts are not source: keep checkpoints, embedding parquets, Boltz outputs, DB data, and submissions out of git.
+- This repo has no GitHub Actions CI. Use focused local checks and report `CI: N/A (no workflow)` when relevant.
+- Prefer small, reversible changes. Update docs when behavior or workflow changes.
 
 ## Environment
 
-- **Package manager**: pixi (conda-forge + pypi)
-- **Python**: 3.12
-- **Database**: PostgreSQL 18 + RDKit cartridge (port 5433, socket /tmp)
-- **GPU**: RTX 5080 (16GB VRAM)
-- **WSL2**: `CONDA_OVERRIDE_CUDA=13.1` set globally via `~/dotfiles/home/shell.nix`
-- **Boltz-2**: installed as a separate `uv tool` (not pixi) — conflicts with pixi env
-  (numpy 2.x and chembl_structure_pipeline downgrades). Invoked via the CLI.
+- Package manager: pixi
+- Python: 3.12
+- Database: PostgreSQL 18 + RDKit cartridge on port 5433, socket `/tmp`
+- GPU: RTX 5080, 16 GB VRAM
+- WSL2 CUDA override: `CONDA_OVERRIDE_CUDA=13.1`
+- Boltz-2 is installed separately as a `uv tool`; do not import/run it inside the pixi env unless that path has been verified.
 
-### DB Commands
-
-```bash
-pixi run db-start    # Start PostgreSQL
-pixi run db-stop     # Stop PostgreSQL
-pixi run db-psql     # Connect to pxr_challenge DB
-```
-
-### DB Setup (after fresh clone)
+Useful commands:
 
 ```bash
 pixi run db-start
-pixi run python download_data.py
-pixi run psql -h /tmp -p 5433 -c "CREATE DATABASE pxr_challenge;"
-pixi run psql -h /tmp -p 5433 -d pxr_challenge -c "CREATE EXTENSION rdkit;"
-pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/schema.sql
-pixi run python db/load_data.py
-pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/add_std_columns.sql
-pixi run python db/standardize_compounds.py
-pixi run python db/fix_bridged_stereo.py --apply
-pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/recompute_descriptors.sql
-pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/experiments_schema.sql
-pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/lb_submissions_schema.sql
-pixi run python db/compute_mordred.py
-pixi run python db/compute_jazzy.py
-pixi run python db/compute_embeddings.py
-pixi run python db/compute_chemeleon.py
-pixi run psql -h /tmp -p 5433 -d pxr_challenge -f db/compound_descriptors_full_schema.sql
-pixi run python db/compute_rdkit_descriptors_full.py
+pixi run db-stop
+pixi run db-psql
+pixi run ruff format <file>
+pixi run ruff check <file>
 ```
 
-### Boltz-2 Setup (structure prediction + affinity)
+## Data And Database
 
-One-time:
-```bash
-uv tool install 'boltz[cuda]' --python 3.12      # Boltz-2 CLI (~3GB model on first run)
-cp /mnt/c/Users/<user>/Downloads/AF-O75469-F1-msa_v6.a3m structures/boltz2/msa/pxr.a3m
-pixi run python track1_activity/boltz2/scripts/boltz2_build_inputs.py     # 4653 input YAMLs
+Fresh clone setup is intentionally script-driven. Start the DB, download data,
+create `pxr_challenge`, enable RDKit, then apply schemas and compute features from
+`db/` scripts. Prefer existing loaders and feature tables over recomputing ad hoc.
+
+Core tables:
+
+- `compounds`: all compounds with SMILES, standardized SMILES, and RDKit mols.
+- `train_activity`, `test_activity`: Track 1 train/test rows.
+- `counter_assay`, `single_concentration`: auxiliary activity data.
+- `experiments`, `experiment_cv_results`, `experiment_oof_predictions`: local experiment tracking.
+- `lb_submissions`, `lb_submission_history`: local leaderboard submission history.
+
+Feature tables include RDKit descriptors/fingerprints, Mordred, Jazzy, ChemBERTa
+variants, BERT-SMILES, MoLFormer, CheMeleon, ChemFM, Boltz-2 pose features, and
+Boltz-2 trunk-fast embeddings. Check `track1_activity/src/features.py` for the
+current supported feature names.
+
+## Project Map
+
+```text
+data/                         ignored parquet/runtime data
+db/                           schemas, loaders, descriptor/embedding builders
+docs/                         documentation, deepresearch, leaderboard snapshots, track2 notes
+track1_activity/src/          shared data loading, features, CV splits, metrics, trainers
+track1_activity/scripts/      training, ensembling, calibration, submission, experiments
+track1_activity/scripts/archive/  older exploratory scripts
+track1_activity/boltz2/       Boltz-2 input, inference, postprocess pipeline
+track1_activity/submissions/  ignored Track 1 CSV submissions
+structures/                   ignored Boltz-2 and structure runtime artifacts
+track2_structure/             Track 2 work area when needed
 ```
 
-Full inference run (~4 days on RTX 5080, resume-safe):
+## Track 1 Modeling Conventions
+
+- Canonical CV: UMAP split, seed 42, 50 clusters, Morgan+Jaccard. Scaffold split is diagnostic only unless explicitly requested.
+- All load functions should preserve deterministic ordering with `ORDER BY t.id`.
+- Record experiments and OOF predictions in the DB when adding a model intended for ensembling.
+- Current ensemble default: `caruana_bag20` in `run_ensemble.py`. Continuous optimizers are useful diagnostics but have caused destructive reallocation with correlated members.
+- Re-run both calibrators after material pool changes:
+  - `run_ensemble_calibrate.py`
+  - `run_ensemble_calibrate_importance.py`
+- Submission flow: run ensemble, calibrate, check cooldown, submit with explicit notes, fetch later to back-fill LB results.
+- Treat tiny OOF gains as weak evidence. The public LB has repeatedly amplified small OOF moves in either direction.
+
+Important Track 1 memory:
+
+- The pretrain-freeze-extract recipe on single-concentration `log2_fc` has been the strongest repeatable axis. Multi-seed upgrades should usually be SWAPs, not ADDs, when predictions are highly correlated.
+- `ens_meta_axis_reverse_id50_g10` was a diagnostic LB-direction probe, not a scalable model family.
+- Re-pooled Boltz trunk features improved standalone trunk OOF but simple swap/drop submissions were LB-negative. Do not keep submitting small variants of that direction without new evidence.
+- Direct MoLFormer-XL PEFT finetuning on pEC50 underperformed the frozen-encoder embedding recipe.
+- Weak single models with non-top-tier OOF have often hurt LB even when they pass local gates.
+
+## Boltz-2 Notes
+
+Boltz-2 runtime artifacts live under `structures/boltz2/` and are ignored. Full
+inference over 4653 compounds takes multiple days and is resume-oriented through
+repository scripts.
+
+Useful entry points:
+
 ```bash
-tmux new -s boltz2
+pixi run python track1_activity/boltz2/scripts/boltz2_build_inputs.py
 bash track1_activity/boltz2/scripts/boltz2_full_run.sh
-# Ctrl+C anytime; re-running the script resumes from cached predictions.
-```
-
-Recovery + DB registration:
-```bash
-# Targeted re-run for a handful of compound IDs (stereo repair, failure recovery)
 bash track1_activity/boltz2/scripts/boltz2_recover_run.sh <compound_id> [<compound_id> ...]
-
-# Record permanently-failed compounds (see issue #50)
-pixi run python track1_activity/boltz2/scripts/boltz2_record_failures.py
-
-# Phase 2 post-processing: ligand pkl + sdf + DB upsert
 pixi run python track1_activity/boltz2/scripts/boltz2_postprocess.py --db
-
-# Pose quality validation (PoseBusters)
 pixi run python track1_activity/boltz2/scripts/boltz2_posebusters.py --workers 8 --db
 ```
 
-## Project Structure
+Known boundaries:
 
-```
-data/                        # Parquet files (gitignored, re-downloadable)
-db/
-  schema.sql                         # Core tables: compounds, train/test/counter/single_conc
-  add_std_columns.sql                # Add std_smiles/std_mol columns
-  standardize_compounds.py           # ChEMBL pipeline standardization
-  fix_bridged_stereo.py              # Hamming-1 cis-bridgehead repair (Boltz-2 input fixup)
-  recompute_descriptors.sql          # RDKit descriptors & fingerprints from std_mol (41 cols)
-  compound_descriptors_full_schema.sql  # Full RDKit descriptor table (JSONB)
-  compute_rdkit_descriptors_full.py  # Compute all 217 RDKit 2D descriptors
-  compute_mordred.py                 # Mordred 2D descriptors -> compound_mordred (JSONB)
-  compute_jazzy.py                   # Jazzy H-bond descriptors -> compound_jazzy
-  compute_embeddings.py              # ChemBERTa/BERT/MoLFormer variants -> DB tables
-  compute_chemeleon.py               # CheMeleon MPNN fingerprints -> compound_chemeleon
-  compound_chemfm_schema.sql         # ChemFM 1B + 3B tables + per-pooling SQL views
-  compute_chemfm.py                  # ChemFM-1B/3B (Llama causal LM) embedding extraction;
-                                     #   --size {1b,3b}, last/mean pool both stored
-                                     #   (PR #120 null result, framework retained)
-  experiments_schema.sql             # Experiment tracking tables + OOF predictions
-  lb_submissions_schema.sql          # Local LB submission history + results tables
-  boltz2_schema.sql                  # compound_boltz2 (pose paths, affinity, confidence)
-  boltz2_posebusters_schema.sql      # compound_boltz2_posebusters (19 pose quality checks)
-  load_data.py                       # Data loader script
-  pgdata/                            # PostgreSQL data dir (gitignored)
-docs/
-  README.md                          # Documentation map + archived issue links
-  deepresearch/                      # Deep Research reports and literature surveys
-  leaderboards/activity/leaderboard_<date>.csv
-                                     # Track 1 leaderboard snapshots (latest 2026-05-05)
-  leaderboards/structure/leaderboard_structure_<date>.csv
-                                     # Track 2 leaderboard snapshots
-  track2/                            # Track 2 specs, scoring CSVs, and model selection logs
-  superpowers/specs/                 # Approved feature design docs (YYYY-MM-DD-<topic>-design.md)
-  superpowers/plans/                 # Implementation plans (YYYY-MM-DD-<topic>.md)
-track1_activity/
-  src/
-    data.py                  # DB loading (SQLAlchemy, ORDER BY t.id)
-    features.py              # FP_REGISTRY + per-feature loaders
-    evaluate.py              # Metrics + DB recording + OOF storage (record_experiment
-                             # supports on_conflict_replace=True for idempotent re-runs)
-    splits.py                # Murcko scaffold split + UMAP split CV
-    losses.py                # Custom chemprop losses (relative-distance aux — FMGCL)
-    peft_backbones.py        # LoRA backbone registry (molformer_xl, molformer_c3_1_1b)
-    peft_methods.py          # LoRA / PEFT method registry
-    peft_trainer.py          # Shared PEFT regressor trainer (rotary-fix aware)
-    pyg_training.py          # PyG graph training helpers
-    pseudo_labels.py         # Weak-label prep for counter-assay
-  scripts/
-    run_train.py                      # Unified LightGBM/XGBoost/CatBoost/TabPFN training
-    run_ensemble.py                   # Ensemble strategies (caruana_bag20 preferred;
-                                      # vanilla / l2_a{0.05..0.5} / fold_l2 / simple_avg
-                                      # reported side-by-side for OOF A/B).
-                                      # ENSEMBLE_MODELS allow-list controls the 9-model pool.
-    run_ensemble_calibrate.py         # Post-hoc regression calibration: linear, linear_pos
-                                      # (slope>=0 affine), spline_k5 (PCHIP monotone),
-                                      # isotonic. 4-way nested CV + MAE/Spearman guardrail
-                                      # writes ens_caruana_bag20_calibrated_best.csv.
-    run_ensemble_calibrate_importance.py # Density-ratio importance-weighted affine
-                                      # calibrator (rank-1 LB winner of id=31, 2026-04-25).
-                                      # Standalone, picks weights from train-vs-test
-                                      # Morgan-FP classifier and clips to [1/3, 3].
-    run_chemprop_pretrain.py          # Pretrain chemprop encoder on single-conc log2_fc.
-                                      # --seed N + --ckpt-dir for multi-seed ensembling
-                                      # (Plan A 2026-04-25: seeds [42..46] -> rank 1).
-    run_chemprop_predict_log2fc.py    # Use pretrained encoder to predict log2_fc for
-                                      # train+test. --ckpt / --out support per-seed runs.
-    build_log2fc_seed_ensemble.py     # Per-row mean of 5 per-seed log2fc parquets ->
-                                      # data/chemprop_pretrain_log2fc_predictions_seed5ens.parquet.
-                                      # Inter-seed std ~0.09 (~18-20% of target std).
-    run_emax_predict.py               # emax_estimate / emax_vs_pos_ctrl side-feature
-                                      # generator (Phase 1 null, framework only). LGBM /
-                                      # TabPFN x rdkit_desc_full / cheme_2d_full_boltz.
-    run_counter_decomp.py             # y = c_hat + s_hat decomposition with cross-fit
-                                      # M_c (Phase 1A null, +0.036 vs direct M_total).
-    run_stacker.py                    # Stage-2 stacker on 9-pool OOF (3 phases all
-                                      # ceiling-bounded at -0.002, framework only).
-    run_chemprop_optuna.py            # ChemProp D-MPNN Optuna tuning
-    run_chemprop_chemeleon.py         # CheMeleon foundation finetune (chemprop head)
-    run_chemprop_embed_extract.py     # Extract frozen [encoded] chemprop features
-    run_chemprop_finetune.py          # Frozen-encoder head FT on pEC50
-    run_chemprop_multitask.py         # Multitask (pec50 + log2_fc) head
-    run_chemprop_multitask_desc.py    # Multitask with descriptor aux (negative result, #86)
-    run_chemprop_relative_aux.py      # FMGCL relative-distance aux loss (negative result, #97)
-    run_attentivefp_optuna.py         # AttentiveFP (PyG) Optuna tuning
-    run_attentivefp_pretrain_finetune.py
-    run_gatedgcn_optuna.py            # GatedGCN (PyG) Optuna tuning
-    run_gatedgcn_pretrain_finetune.py # GatedGCN pretrain+frozen+head FT (pool member)
-    run_gin_optuna.py                 # GIN Optuna tuning
-    run_graphgps_optuna.py            # GraphGPS Optuna tuning
-    run_molformer_c3_pretrain.py      # Pretrain MoLFormer-c3-1.1B + LoRA on log2_fc
-    run_molformer_c3_embed_extract.py # Extract [CLS] 768d embeddings from pretrained
-    run_peft_finetune.py              # Generic PEFT/LoRA direct FT on pEC50 (#95,
-                                      # dropped from pool after LB regression, #96)
-    run_residual_learning.py          # Two-stage residual learning (physprop + Mordred)
-    boltz_affhead/                    # Boltz-2 trunk embedding retarget (issue #74)
-                                      # 01{,b}_pool_embeddings.py: core_pocket / allpairs pools
-                                      # 02_lgbm_baseline, 03_combine_and_correlate,
-                                      # 04_mlp_head (weak), 05_ensemble_dryrun,
-                                      # 06_pool_rework, 07_caruana_select
-                                      # 37_trunk_fast_inventory.py audits 13k trunk-fast coverage
-                                      # 38_repool_trunk_npz.py re-pools raw s/z NPZs into
-                                      #   region-wise zstats features
-                                      # 39_repool_bakeoff.py compares OOF/correlations
-                                      # 40_trunk_residual_head.py is a residual diagnostic
-    run_all_models.sh                 # Sequential DL model training pipeline
-    api.py                            # OpenADMET LB client (fetch / submit / status /
-                                      # cooldown). Writes lb_submissions + back-fills
-                                      # LB results on each `fetch`.
-    archive/                          # Early exploration scripts
-  boltz2/                      # Boltz-2 inference pipeline (Track 1 feature provider; will
-                               #   be reused by Track 2 pose submission once that work starts)
-    src/boltz2/
-      constants.py               # PXR sequence, core pocket residues, paths, chain ids
-      input_builder.py           # SMILES -> Boltz-2 YAML (affinity + pocket constraint)
-      postprocess.py             # pose .cif + cached .pkl -> fully-bonded RDKit Mol
-    scripts/
-      boltz2_build_inputs.py     # DB -> 4653 YAML files + manifest.csv
-      boltz2_full_run.sh         # 4653-compound full run
-      boltz2_embeddings_run.sh   # trunk-only re-run, dumps s/z embeddings to existing outputs (issue #57)
-      boltz2_recover_run.sh      # re-run selected compound IDs into the main output tree (stereo fix, failure recovery)
-      boltz2_postprocess.py      # 4653 pose pkl+sdf + metadata CSV + compound_boltz2 upsert
-      boltz2_posebusters.py      # PoseBusters pose quality checks (19 booleans) + DB upsert
-      boltz2_record_failures.py  # insert permanently-failed compounds into compound_boltz2
-  notebooks/                 # marimo notebooks
-  submissions/               # CSV submission files (gitignored)
-track2_structure/              # Track 2 (pose submission) — not yet started; will be created when work begins
-structures/
-  boltz2/                      # All runtime artifacts (gitignored)
-    msa/pxr.a3m                # AFDB MSA (copied once)
-    inputs/<id>.yaml           # 4653 Boltz-2 inputs
-    outputs/boltz_results_inputs/   # Boltz-2 output tree
-      predictions/<id>/             # cif, confidence, affinity, plddt, pae, pde
-      processed/                    # constraints/, structures/, mols/, msa/ caches
-    ligands/<id>.{pkl,sdf}          # Phase 2 pose outputs (lossless pkl + viewer sdf)
-  alphafold/                   # AF-O75469-F1-model_v6.cif.gz (PR #33)
-  pxr_lbd/                     # 72 PDB holo structures (PR #33)
-  aligned/, aligned_with_ligands/     # AF-aligned multi-model CIFs (PR #33)
-```
+- `compound_boltz2` full pose/confidence coverage is about 4652 compounds.
+- `compound_boltz2_trunk_fast` has about 13k trunk-only embedding rows from a mix of full and cheap runs. Do not mix trunk-only coverage with full-pose features without marking that boundary.
+- Known Boltz preprocessing edge cases are documented in issue #50 and relevant scripts.
 
-## DB Schema
+## Cleanup And Safety
 
-### Core Tables
-- `compounds` -- SMILES + std_smiles + RDKit mol (13,136 rows)
-- `train_activity` -- pEC50 dose-response data (4,140 rows)
-- `test_activity` -- Blinded test compounds (513 rows)
-- `counter_assay` -- PXR-null control data (2,860 rows)
-- `single_concentration` -- Single-dose screening (21,014 rows)
-
-### Pre-computed Feature Tables
-- `compound_descriptors` -- 38 RDKit 2D descriptors + scaffold + formula + InChIKey
-  (PostgreSQL RDKit cartridge `mol_*` functions only; narrow subset for SQL-level filtering)
-- `compound_descriptors_full` -- Full 217 RDKit 2D descriptors (BCUT2D, fr_*, VSA family,
-  EState, MQN, etc.) computed via Python RDKit `Descriptors._descList`, JSONB storage.
-  2 compounds have partial coverage (metal-containing; BCUT2D fails).
-- `compound_fingerprints` -- Morgan, FeatMorgan, MACCS, AtomPair, Avalon FPs
-- `compound_mordred` -- Mordred 2D descriptors (~1460 per compound, JSONB)
-- `compound_jazzy` -- Jazzy H-bond donor/acceptor descriptors (JSONB)
-- `compound_chemberta` -- ChemBERTa-77M-MLM (384d)
-- `compound_chemberta_mtr` / `_100m` / `_10m` / `_5m` variants
-- `compound_chemberta_zinc_v1` -- ChemBERTa-zinc-v1 (768d)
-- `compound_bert_smiles` -- BERT-base-SMILES (768d)
-- `compound_molformer` -- MoLFormer-XL (768d, requires rotary fix)
-- `compound_chemeleon` -- CheMeleon MPNN fingerprints (300d)
-- `compound_chemfm_1b` / `compound_chemfm_3b` -- ChemFM Llama causal LM
-  (TheLuoFengLab Nature Comm Chem 2025), both `embedding_last` (last
-  non-padding token) and `embedding_mean` (BERT-style attention-weighted
-  mean) stored side-by-side. Per-pooling SQL views for run_train.py
-  consumption. PR #120 null result, framework retained.
-
-### Pose-derived feature tables (from Boltz-2 outputs)
-- `compound_boltz2_jazzy` / `_desc3d` / `_desc3d_vector` / `_mordred3d` / `_skfp3d`
-  -- Per-pose 3D features computed after ligand extraction. Populated by scripts in
-  `track1_activity/scripts/` (feature bakeoff + 2d_full_boltz bundle).
-
-### Experiment Tracking
-- `experiments` -- Model config, hyperparameters (JSONB), submission path
-- `experiment_cv_results` -- Per-fold CV metrics
-- `experiment_oof_predictions` -- OOF predictions for ensemble
-- `experiment_summary` -- View: aggregated metrics sorted by RAE
-
-### Leaderboard submission tracking
-- `lb_submissions` -- Local row per `api.py submit`: submission_name, file_path,
-  experiment_name, notes (LOCAL only), submitted_at. Populated by api.py.
-- `lb_submission_history` -- Back-filled LB rank/MAE/RAE etc. per fetch.
-
-### Boltz-2 Prediction Outputs (Track 2 + Track 1 structure features)
-- `compound_boltz2` -- One row per compound (4653 rows). File paths (pose cif, ligand
-  pkl/sdf, confidence/affinity/plddt/pae/pde, embeddings npz), status flags (preprocessing_failed,
-  ligand_oversize), 6 affinity head outputs (mean + 2 ensemble members), 9 confidence
-  metrics, and geometry sanity (ligand_atom_count, ligand_to_pocket_distance_a).
-  Populated by `boltz2_postprocess.py` + `boltz2_record_failures.py`.
-- `compound_boltz2_posebusters` -- One row per Boltz-2 prediction. 19 boolean pose
-  quality checks from PoseBusters (`minimum_distance_to_protein` = no clash, bond
-  lengths/angles, aromatic flatness, internal energy, etc.) plus
-  num_checks / num_passed / all_passed / intramol_passed / intermol_passed summary.
-  Populated by `boltz2_posebusters.py`.
-- `compound_boltz2_trunk_fast` -- 13,134 raw trunk NPZ rows used for cheap
-  protein-conditioned features. Coverage as of 2026-05-05: 4,652 rows from
-  full rcycle=3 Boltz runs and 8,482 rows from cheap rcycle=1 trunk-only runs;
-  missing IDs are 01657 and 08624. Use `source_npz_path` for raw `s`/`z`
-  re-pooling. Do not mix this 13k trunk-only coverage with 4,652 full-pose
-  confidence/geometry features without explicitly marking the coverage boundary.
-
-## Conventions
-
-- Notebooks: use **marimo** (not Jupyter)
-- All code, comments, commits in **English**
-- Experiment results -> `experiments` + `experiment_cv_results` tables
-- OOF predictions -> `experiment_oof_predictions` (required for ensemble)
-- Submission files -> `track1_activity/submissions/` (gitignored)
-- Compare experiments: `pixi run db-psql -c "SELECT * FROM experiment_summary;"`
-- **CV strategy: UMAP split (seed=42, n_clusters=50, Morgan+Jaccard)** — canonical
-  after 12+ variant bake-off in PR #70. Scaffold split still available as
-  `--split scaffold` for diagnostics.
-- All load functions use `ORDER BY t.id` for deterministic row ordering
-- Use `load_train_mordred()` / `load_test_mordred()` from data.py (not recomputing)
-- **Ensemble strategy: `caruana_bag20`** (discrete count-based, bagged 20x per
-  Caruana 2004) when adding correlated-strong members. Continuous weight optimizers
-  (vanilla, L2) concentrate weight on the single best member and reallocate it
-  destructively when a correlated challenger is added — see issue #82 for the LB
-  regression incident that motivated this. Vanilla is still reported side-by-side
-  for OOF A/B diagnostics.
-- **Post-hoc calibration is part of the final submission**.
-  - `run_ensemble_calibrate.py` runs 4-way nested CV (linear / linear_pos /
-    spline_k5 / isotonic) on the ens_caruana_bag20 output and picks the
-    best calibrator via MAE with a `|ΔSpearman| < 0.005` guardrail.
-    `linear_pos` was the 2026-04-21 LB winner (id=22, rank 10 → 7).
-  - `run_ensemble_calibrate_importance.py` is a separate density-ratio
-    importance-weighted affine calibrator. Was the rank-1 LB winner of
-    id=31 (2026-04-25, post seed5ens double-swap). Standalone script —
-    grep for it explicitly when announcing submissions.
-  - The two calibrators have alternated as LB winners depending on pool
-    composition. Re-run both whenever ENSEMBLE_MODELS changes
-    materially and submit the one with better LB precedent.
-- **Pretrain + frozen + embed recipe (Buterez 2024 strategy-3)**: pretrain an
-  encoder on single-concentration log2_fc (13,136 compounds, transductive,
-  NaN-masked MSE per concentration head), freeze it, extract embeddings for all
-  compounds, run TabPFN v7 on those for pEC50. Three pool members follow this
-  pattern (`tabpfn_chemprop_pretrain_embed`, `tabpfn_molformer_c3_pretrain_embed`,
-  `tabpfn_2d_full_boltz_log2fc_pred`) and jointly account for >65% of caruana
-  weight. Direct PEFT FT on pEC50 (PR #95 MoLFormer-XL LoRA) underperforms this
-  recipe and was dropped from the pool.
-- **Multi-seed pretrain ensemble (Plan A, 2026-04-25 PR #120, rank-1 driver)**:
-  same encoder + hyperparams, re-run with seeds [42..46], per-row mean of the 5
-  log2fc_pred parquets via `build_log2fc_seed_ensemble.py`. SWAP (not ADD) into
-  ENSEMBLE_MODELS because residual r 0.985 with single-seed -> structural
-  upgrade, not a new pool member. Drove caruana_bag20 OOF 0.4150 -> 0.4034
-  (Δ -0.0116) and LB 0.4149 (rank 3) -> 0.4084 (rank 1). Memory:
-  `reference_multi_seed_pretrain_recipe`. Untested but expected to extend
-  to 10 seeds for an additional Δ -0.002 to -0.005.
-- **Submission workflow**:
-  1. `run_ensemble.py` -> caruana_bag20 -> `ens_caruana_bag20.csv`
-  2. Calibrate. Both calibrators must be re-evaluated when pool composition
-     changes:
-     - `run_ensemble_calibrate.py` -> 4-way nested CV -> `ens_caruana_bag20_calibrated_best.csv`
-     - `run_ensemble_calibrate_importance.py` -> `ens_caruana_bag20_calibrated_importance.csv`
-       (was the rank-1 LB winner of id=31, 2026-04-25)
-  3. `api.py cooldown` to check 4h window, `api.py submit ...` with `--notes`.
-     Always state the calibrator + pool snapshot explicitly in the notes.
-  4. `api.py fetch` after ~30 min to ~2 h to back-fill LB rank/metrics.
-- **Generated model artifacts are not source files.** Large local checkpoints and
-  embedding parquets are ignored intentionally (`models/unimol_v2_log2fc_seed*/`,
-  `models/chemprop_mtr_seed*/`, `models/molformer_c3_mtr_seed*/`,
-  `models/kermt/*`, `data/*.parquet`, `data/boltz_affhead/`, etc.). If `.git`
-  suddenly grows, check `git count-objects -vH`; the 2026-05-05 incident was
-  363 GiB of unreachable loose blobs created by accidentally staging generated
-  checkpoint files, not packed history. After verifying `git fsck
-  --connectivity-only --no-dangling`, `git prune --expire=now` reduced `.git`
-  from 364 GiB to 28 MiB without deleting worktree artifacts.
-- **No CI in this repo.** There is no GitHub Actions workflow, no `.github/workflows/`,
-  no hosted test runner. Run `pixi run ruff format <file>` + `pixi run ruff check <file>`
-  locally before every commit. `ty check` is **not required** as a gate (competition
-  project, not a library). `gh pr checks <PR>` will report "no checks" — this is
-  expected, not a misconfiguration. When asking the user to merge, say "CI: N/A (no
-  workflow)" rather than reporting failure.
-
-## Known Issues
-
-- OOF/LB MAE gap: raw ensemble OOF MAE ~0.39-0.40, LB MAE ~0.407-0.41 for the
-  current best local family. The gap is driven by the test pEC50 distribution
-  being ~12% narrower than train (analog enrichment), which compresses the RAE
-  denominator but leaves MAE roughly faithful. Prefer MAE for ensemble selection
-  and calibrator tuning; RAE is useful for LB ranking but is noisier across runs.
-- LB "amplification" patterns:
-  - `feedback_oof_lb_reverse_amplification`: small OOF Δ (≤ fold std 0.025)
-    can amplify into a ~2-7× larger LB Δ (positive or negative).
-  - `feedback_tier0_weak_single_oof_lb_regress`: weak-single members (single
-    OOF MAE far from pool top tier) tend to amplify NEGATIVELY at LB even when
-    they pass OOF gate 3 — observed twice (tier-0 PR #117, mixed_top500 PR #110).
-  - `feedback_oof_minus_0002_ceiling`: OOF Δ -0.002 alone is bag-noise, not a
-    real signal. Require Δ ≤ -0.003 AND single MAE near pool top tier.
-  - On the success side: 2026-04-25 seed5ens DOUBLE swap had OOF Δ -0.0116
-    (well above noise) and translated to LB Δ -0.0065 (forward, ~0.56× amp).
-  - `ens_meta_axis_reverse_id50_g10` (2026-05-05) was a diagnostic/LB-direction
-    probe, not a new model: `candidate = id48 - 0.10 * (id50 - id48)`, where
-    id50 had moved in a known bad LB direction. It improved id48 by only
-    0.000074 MAE, so treat it as directional evidence rather than a scalable
-    optimization axis.
-- MoLFormer requires rotary embedding fix for transformers v5 (see issue #30);
-  `peft_trainer.py` + `compute_embeddings.py` recompute `inv_freq` and rebuild
-  the cos/sin cache before PEFT wrapping.
-- MoLFormer-XL direct PEFT FT (LoRA) on pEC50 underperforms the frozen-encoder
-  embedding recipe; dropped from pool in PR #96.
-- LogP dominates feature importance in single-feature LGBMs (gain 17k-24k) --
-  risk of shortcut learning on unseen chemotypes; mitigated by ensembling with
-  graph/transformer members that do not rely on LogP directly.
-- Deprecation warnings from `rdkit.Chem.AllChem.GetMorganFingerprintAsBitVect`
-  (will be removed in a future RDKit release). Migrate to `MorganGenerator` when
-  touching the FP code path.
-
-### Boltz-2 specific
-- Full inference run (4653 compounds, R1 settings) takes ~4 days on RTX 5080.
-  Expect occasional MSA NPZ corruption from interrupted preprocessing; diagnose with
-  `np.load(path)`, delete the affected `processed/msa/<id>*.npz` +
-  `processed/{structures,constraints,mols,records}/<id>*`, and re-run.
-- `uv tool` venv ships torch 2.11+cu130 libs under `nvidia/cu13/lib/`; the
-  `boltz2_*_run.sh` scripts inject that path into `LD_LIBRARY_PATH` so triton /
-  cuequivariance JIT kernels can dlopen `libnvrtc-builtins.so.13.0`.
-- Preprocessing failed compounds (see issue #50):
-  - `01576` (train) -- salt/co-crystal with two macrolide fragments. Recovered via
-    RDKit `LargestFragmentChooser` (62 HAs, oversize warning applies).
-  - `01657` (train) -- Auranofin, Au-containing metal complex. Excluded by Boltz-2
-    standardize; drop (train-only, no metal compounds in test).
-  - `03840` (train) -- 2-azabicyclo[2.2.1] derivative. Original DB SMILES specified
-    geometrically impossible trans-bridgeheads, so RDKit ETKDGv3 refused to embed.
-    Repaired by `db/fix_bridged_stereo.py` (Hamming-1 cis-bridgehead enantiomer);
-    Boltz-2 inference pending (delete cached failure in `compound_boltz2` and
-    rerun via `boltz2_recover_run.sh 03840` once no other GPU job is active,
-    then `boltz2_postprocess.py --db`).
-- 9 compounds exceed the 56-heavy-atom training cap of the Boltz-2 affinity head
-  (`ligand_oversize=TRUE` in compound_boltz2). Their `affinity_pred_value` should be
-  treated as low-confidence.
-- Pose sanity: across 4651 predictions, ligand-to-pocket-centroid distance mean is
-  ~1.55 A (max 10.89 A). Use `compound_boltz2_posebusters.minimum_distance_to_protein`
-  to filter physically implausible poses.
-- Raw trunk re-pooling (PR #163, 2026-05-05) treats Boltz as a frozen
-  protein-conditioned featurizer rather than as a pose/affinity source. The
-  `repooled_trunk_region_zstats` feature uses only raw `s`/`z` NPZ tensors from
-  `compound_boltz2_trunk_fast`; it excludes pose geometry, confidence, affinity,
-  PoseBusters, and contact features. TabPFN OOF improved pure trunk baselines
-  from ~0.486 MAE to ~0.474 MAE, but correlations with existing trunk members
-  are high (r≈0.98-0.99), so use as a SWAP candidate rather than an ADD unless
-  there is strong LB evidence.
-- Residual heads on re-pooled trunk features were null: ridge residual correction
-  ΔMAE -0.000025 and LGBM residual correction ΔMAE -0.000112 with Spearman loss.
-  Do not submit residual-head variants without new evidence.
+- If `.git` grows unexpectedly, check `git count-objects -vH` before deleting anything. A previous incident was unreachable loose blobs from accidentally staged generated checkpoints; `git prune` was used only after connectivity checks.
+- Do not broad-clean ignored directories without explicit user approval.
+- Keep leaderboard CSVs under `docs/leaderboards/<track>/` with timestamped names.
+- Prefer GitHub issues for detailed experiment notebooks/logs; keep this file for durable operating rules only.
