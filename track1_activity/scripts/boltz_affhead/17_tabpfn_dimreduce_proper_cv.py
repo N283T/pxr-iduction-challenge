@@ -123,13 +123,13 @@ def main() -> None:
     with psycopg2.connect(**DB_PARAMS) as conn:
         tr_df = pd.read_sql(
             """SELECT t.id AS compound_id, t.pec50, c.std_smiles AS smiles, c.molecule_name
-                 FROM train_activity t JOIN compounds c ON c.id = t.id
+                 FROM train_activity t JOIN compounds c ON c.id = t.compound_id
                  ORDER BY t.id""",
             conn,
         )
         te_df = pd.read_sql(
             """SELECT t.id AS compound_id, c.std_smiles AS smiles, c.molecule_name
-                 FROM test_activity t JOIN compounds c ON c.id = t.id
+                 FROM test_activity t JOIN compounds c ON c.id = t.compound_id
                  ORDER BY t.id""",
             conn,
         )

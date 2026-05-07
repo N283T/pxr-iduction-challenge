@@ -30,7 +30,7 @@ from sklearn.metrics import mean_absolute_error, r2_score
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT.joinpath("track1_activity", "src")))
 
-from data import DB_PARAMS, load_train_smiles_target  # noqa: E402
+from data import DB_PARAMS  # noqa: E402
 from splits import umap_split_indices  # noqa: E402
 
 
@@ -51,7 +51,6 @@ def load_features() -> pd.DataFrame:
 
 
 def rae(y_true, y_pred):
-    n = len(y_true)
     num = np.sum(np.abs(y_true - y_pred))
     mean_true = np.mean(y_true)
     den = np.sum(np.abs(y_true - mean_true))
@@ -65,7 +64,7 @@ def main() -> None:
     with psycopg2.connect(**DB_PARAMS) as conn:
         train_df = pd.read_sql(
             """SELECT t.id AS compound_id, t.pec50, c.std_smiles AS smiles
-                 FROM train_activity t JOIN compounds c ON c.id = t.id
+                 FROM train_activity t JOIN compounds c ON c.id = t.compound_id
                  ORDER BY t.id""",
             conn,
         )
