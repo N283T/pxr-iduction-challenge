@@ -87,6 +87,10 @@ track2_structure/             Track 2 work area when needed
 - Re-run both calibrators after material pool changes:
   - `run_ensemble_calibrate.py`
   - `run_ensemble_calibrate_importance.py`
+- Before spending a cooldown on a materially changed CSV, run
+  `submission_preflight.py` against a trusted anchor. Treat the PASS/CAUTION/HOLD
+  label as a warning light, not an automatic submit decision; inspect shift
+  counts, largest compound moves, prediction scale, and known-bad-axis alignment.
 - Submission flow: run ensemble, calibrate, check cooldown, submit with explicit notes, fetch later to back-fill LB results.
 - Treat tiny OOF gains as weak evidence. The public LB has repeatedly amplified small OOF moves in either direction.
 
@@ -94,6 +98,9 @@ Important Track 1 memory:
 
 - The pretrain-freeze-extract recipe on single-concentration `log2_fc` has been the strongest repeatable axis. Multi-seed upgrades should usually be SWAPs, not ADDs, when predictions are highly correlated.
 - `ens_meta_axis_reverse_id50_g10` was a diagnostic LB-direction probe, not a scalable model family.
+- The 2026-05-07 optuna trial10 seed5ens top500 SWAP had excellent OOF but
+  regressed on LB (id56). Simple new-top500 SWAP/ADD is risky unless preflight
+  shows small anchored movement or a new gating hypothesis.
 - Re-pooled Boltz trunk features improved standalone trunk OOF but simple swap/drop submissions were LB-negative. Do not keep submitting small variants of that direction without new evidence.
 - Direct MoLFormer-XL PEFT finetuning on pEC50 underperformed the frozen-encoder embedding recipe.
 - Weak single models with non-top-tier OOF have often hurt LB even when they pass local gates.

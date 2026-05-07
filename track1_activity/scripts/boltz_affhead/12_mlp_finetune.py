@@ -39,7 +39,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT.joinpath("track1_activity", "src")))
 sys.path.insert(0, str(REPO_ROOT.joinpath("track1_activity", "scripts")))
 
-from data import DB_PARAMS, load_test_smiles  # noqa: E402
+from data import DB_PARAMS  # noqa: E402
 from evaluate import record_experiment, save_oof_predictions  # noqa: E402
 from splits import umap_split_indices  # noqa: E402
 
@@ -103,7 +103,7 @@ def load_train_ids_and_y(conn) -> tuple[list[int], np.ndarray, list[str], list[s
     with conn.cursor() as cur:
         cur.execute(
             """SELECT t.id, t.pec50, c.std_smiles, c.molecule_name
-                 FROM train_activity t JOIN compounds c ON c.id = t.id
+                 FROM train_activity t JOIN compounds c ON c.id = t.compound_id
                  ORDER BY t.id"""
         )
         rows = cur.fetchall()
@@ -190,7 +190,7 @@ def main() -> None:
         with conn.cursor() as cur:
             cur.execute(
                 """SELECT t.id, c.std_smiles, c.molecule_name
-                     FROM test_activity t JOIN compounds c ON c.id = t.id
+                     FROM test_activity t JOIN compounds c ON c.id = t.compound_id
                      ORDER BY t.id"""
             )
             test_rows = cur.fetchall()
