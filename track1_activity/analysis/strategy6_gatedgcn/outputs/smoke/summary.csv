@@ -1,0 +1,2 @@
+name,MAE,RAE,R2,Spearman_R,Kendall_Tau,test_mean,test_std,submission_path
+gatedgcn_strategy6_adaptive_readout_smoke_umap,0.5556004056032153,0.6105970781218467,0.5172875987817724,0.687493550222095,0.49903156689113803,4.799874473872937,0.5514031522257968,track1_activity/submissions/gatedgcn_strategy6_adaptive_readout_smoke_umap.csv

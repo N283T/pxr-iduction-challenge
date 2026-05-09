@@ -1,0 +1,2 @@
+name,MAE,RAE,R2,Spearman_R,Kendall_Tau,residual_r_vs_ens_caruana_bag20,oof_coverage,test_mean,test_std,submission_path
+chemprop_strategy6_adaptive_readout_smoke_std_umap,0.6253295040580896,0.6558773823006349,0.4517875191518639,0.6576037999861831,0.47916880860536315,,1661,4.607162034554662,0.569013858069323,track1_activity/submissions/chemprop_strategy6_adaptive_readout_smoke_std_umap.csv

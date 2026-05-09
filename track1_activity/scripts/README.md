@@ -35,6 +35,14 @@ move, or delete them as part of repository cleanup.
 | `unimol/` | Uni-Mol v2 experiments; active hold / promising revisit candidate despite earlier null pool attempts. |
 | `clamp/` | CLAMP raw encoder experiment; closed/null as of PR #159. |
 | `gator/` | GatorAffinity experiments; closed negative control for protein-ligand directions. |
+| `run_gsl_mpp_lite.py` | Experimental GSL-MPP-inspired molecule-graph residual smoothing probe for Track 1. |
+| `run_gsl_mpp_learned.py` | Experimental learned GSL-MPP-style molecule-graph residual model for Track 1. |
+| `run_gatedgcn_strategy6.py` | Buterez 2024 Strategy 6 probe: frozen GatedGCN low-fidelity encoder plus adaptive readout. |
+| `run_chemprop_strategy6.py` | Buterez 2024 Strategy 6 probe: frozen ChemProp low-fidelity encoder plus adaptive readout. |
+| `run_kan_embed.py` | pykan/KAN regressor probe on frozen molecular embeddings. |
+| `run_ka_gnn.py` | PyG Fourier KA-GNN probe for direct molecular graph regression. |
+| `run_ka_gnn_pretrain.py` | KA-GNN low-fidelity log2_fc pretraining for frozen embedding extraction. |
+| `run_ka_gnn_embed_extract.py` | Extract frozen KA-GNN graph embeddings from a pretrain checkpoint. |
 | `drugclip/` | DrugCLIP external-data feature extraction scripts. |
 
 When in doubt, archive or document first. Delete only after a separate review
