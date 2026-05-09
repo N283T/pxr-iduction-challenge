@@ -36,6 +36,7 @@ move, or delete them as part of repository cleanup.
 | `clamp/` | CLAMP raw encoder experiment; closed/null as of PR #159. |
 | `gator/` | GatorAffinity experiments; closed negative control for protein-ligand directions. |
 | `run_gsl_mpp_lite.py` | Experimental GSL-MPP-inspired molecule-graph residual smoothing probe for Track 1. |
+| `run_gsl_mpp_learned.py` | Experimental learned GSL-MPP-style molecule-graph residual model for Track 1. |
 | `drugclip/` | DrugCLIP external-data feature extraction scripts. |
 
 When in doubt, archive or document first. Delete only after a separate review
