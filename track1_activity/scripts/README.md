@@ -35,6 +35,7 @@ move, or delete them as part of repository cleanup.
 | `unimol/` | Uni-Mol v2 experiments; active hold / promising revisit candidate despite earlier null pool attempts. |
 | `clamp/` | CLAMP raw encoder experiment; closed/null as of PR #159. |
 | `gator/` | GatorAffinity experiments; closed negative control for protein-ligand directions. |
+| `run_gsl_mpp_lite.py` | Experimental GSL-MPP-inspired molecule-graph residual smoothing probe for Track 1. |
 | `drugclip/` | DrugCLIP external-data feature extraction scripts. |
 
 When in doubt, archive or document first. Delete only after a separate review
