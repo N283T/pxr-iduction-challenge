@@ -1,0 +1,2 @@
+name,MAE,RAE,R2,Spearman_R,Kendall_Tau,residual_r_vs_ens_caruana_bag20,oof_coverage,test_mean,test_std,submission_path
+kan_chemprop_pretrain_embed_pca16_h16_lr1e3_umap,0.502944726212589,0.552729222630398,0.6205898997577848,0.7649378426355424,0.5688444271083979,0.8704113581046576,4140,4.602800082974499,0.7274211790275478,track1_activity/submissions/kan_chemprop_pretrain_embed_pca16_h16_lr1e3_umap.csv

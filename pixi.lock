@@ -417,6 +417,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/f3/0a/fd7d723f8f8153418fb40cf9c940e82004fce7e987026b08a68a36dd3fe7/pydantic-2.13.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5e/d5/e3d9717c9eba10855325650afd2a9cba8e607321697f18953af9d562da2f/pydantic_core-2.46.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/01/dd/bebff3040138f00ae8a102d426b27349b9a49acc310fcae7f92112d867e3/pydantic_settings-2.14.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/2b/e2/c0103e253776b2ec01232cceb9f96fe4ff1b1f69150a0f5220f2cca78a93/pykan-0.2.8-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0b/d7/1959b9648791274998a9c3526f6d0ec8fd2233e4d4acce81bbae76b44b2a/python_dotenv-1.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/1f/13/3f7fbe98e6ff733cc1a5bdb62a72130cee9b9a57e4438c8f008249c1fe01/tabpfn-7.1.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/54/d2/7e1485156e98e10cf0dc621f00d818129da00b10e5229c8fe8fb3dbe97ff/tabpfn_common_utils-0.2.20-py3-none-any.whl
@@ -5024,6 +5025,11 @@ packages:
   - pkg:pypi/pygments?source=hash-mapping
   size: 893031
   timestamp: 1774796815820
+- pypi: https://files.pythonhosted.org/packages/2b/e2/c0103e253776b2ec01232cceb9f96fe4ff1b1f69150a0f5220f2cca78a93/pykan-0.2.8-py3-none-any.whl
+  name: pykan
+  version: 0.2.8
+  sha256: 31261e40973053ab87cff19713f5d9e1f451f4f9ab183ce56edf2a4a44127213
+  requires_python: '>=3.6'
 - conda: https://conda.anaconda.org/conda-forge/noarch/pymdown-extensions-10.21.2-pyhd8ed1ab_0.conda
   sha256: f0513cb5a1ad722025771e7c5a45fa163dfab965d608a82d058cde47abb02d48
   md5: 8e693ba2664eaa3306d7084642e2e4a2
