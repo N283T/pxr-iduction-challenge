@@ -1,0 +1,2 @@
+name,MAE,RAE,R2,Spearman_R,Kendall_Tau,residual_r_vs_ens_caruana_bag20,oof_coverage,test_mean,test_std,submission_path
+ka_gnn_smoke_h32_l2_g2_umap,0.813223667380038,0.8971435396986505,0.17449515605199772,0.38844076396605476,0.268824005674415,,831,4.493741712142617,0.3261815482736779,track1_activity/submissions/ka_gnn_smoke_h32_l2_g2_umap.csv

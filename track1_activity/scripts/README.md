@@ -40,6 +40,7 @@ move, or delete them as part of repository cleanup.
 | `run_gatedgcn_strategy6.py` | Buterez 2024 Strategy 6 probe: frozen GatedGCN low-fidelity encoder plus adaptive readout. |
 | `run_chemprop_strategy6.py` | Buterez 2024 Strategy 6 probe: frozen ChemProp low-fidelity encoder plus adaptive readout. |
 | `run_kan_embed.py` | pykan/KAN regressor probe on frozen molecular embeddings. |
+| `run_ka_gnn.py` | PyG Fourier KA-GNN probe for direct molecular graph regression. |
 | `drugclip/` | DrugCLIP external-data feature extraction scripts. |
 
 When in doubt, archive or document first. Delete only after a separate review

@@ -1,0 +1,2 @@
+name,MAE,RAE,R2,Spearman_R,Kendall_Tau,residual_r_vs_ens_caruana_bag20,oof_coverage,test_mean,test_std,submission_path
+ka_gnn_pykan_sage_h64_l3_g3_lr1e3_umap,0.6079356435128456,0.6681127729056502,0.43515314263052474,0.6310728603751714,0.4499629070838284,0.74379828644064,4140,4.7526978493666325,0.43427618091097475,track1_activity/submissions/ka_gnn_pykan_sage_h64_l3_g3_lr1e3_umap.csv
