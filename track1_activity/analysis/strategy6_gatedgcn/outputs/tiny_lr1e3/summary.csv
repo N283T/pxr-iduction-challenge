@@ -1,0 +1,2 @@
+name,MAE,RAE,R2,Spearman_R,Kendall_Tau,test_mean,test_std,submission_path
+gatedgcn_strategy6_adaptive_readout_tiny_lr1e3_umap,0.4840158268449387,0.5319266268630293,0.6362005762707594,0.7558924838477767,0.565353016929998,4.740735236664264,0.617370562707309,track1_activity/submissions/gatedgcn_strategy6_adaptive_readout_tiny_lr1e3_umap.csv
