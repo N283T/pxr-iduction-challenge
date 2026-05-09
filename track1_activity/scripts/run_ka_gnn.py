@@ -30,7 +30,7 @@ from evaluate import (  # noqa: E402
     record_experiment,
     save_oof_predictions,
 )
-from ka_gnn import FourierKAGNNModel, PykanSAGEModel  # noqa: E402
+from ka_gnn import FourierKAGNNModel, PykanSAGEModel, load_pretrained_encoder_state  # noqa: E402
 from pyg_training import smiles_to_pyg_list  # noqa: E402
 from splits import umap_split_indices  # noqa: E402
 
@@ -127,6 +127,13 @@ def train_fold(
     in_dim = int(graphs[0].x.shape[1])
     edge_dim = int(graphs[0].edge_attr.shape[1])
     model = build_model(args, in_dim, edge_dim, device)
+    pretrained_tensors = 0
+    if args.pretrained_encoder is not None:
+        ckpt = torch.load(args.pretrained_encoder, map_location="cpu", weights_only=False)
+        encoder_state = ckpt.get("encoder_state_dict", ckpt.get("state_dict", ckpt))
+        pretrained_tensors = load_pretrained_encoder_state(model, encoder_state)
+        if pretrained_tensors <= 0:
+            raise RuntimeError(f"no compatible encoder tensors loaded from {args.pretrained_encoder}")
     stats = compute_feature_stats([graphs[int(i)] for i in train_idx])
     model.set_feature_standardization(*(s.to(device) for s in stats))
 
@@ -198,6 +205,7 @@ def train_fold(
         "target_std": y_std,
         "node_dim": in_dim,
         "edge_dim": edge_dim,
+        "pretrained_tensors": pretrained_tensors,
     }
     del model
     if device.type == "cuda":
@@ -228,6 +236,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--fold-limit", type=int, default=None)
+    parser.add_argument("--pretrained-encoder", type=Path, default=None)
     parser.add_argument("--no-record", action="store_true")
     return parser
 
@@ -259,6 +268,8 @@ def main() -> None:
         f"  model_type={args.model_type} hidden={args.hidden_dim} out={args.out_dim} layers={args.num_layers} "
         f"grid={args.grid_size} pooling={args.pooling} aggr={args.aggr} lr={args.lr}"
     )
+    if args.pretrained_encoder is not None:
+        print(f"  pretrained_encoder={args.pretrained_encoder}")
 
     oof = np.full(len(train_smiles), np.nan, dtype=np.float64)
     test_preds_per_fold = []
@@ -371,7 +382,10 @@ def main() -> None:
             description=f"PyG port of KA-GNN ({args.model_type}) for direct pEC50 graph regression",
             model_type="ka_gnn",
             feature_set="molecular_graph_fourier_kan",
-            hyperparameters=vars(args),
+            hyperparameters={
+                **vars(args),
+                "pretrained_encoder": str(args.pretrained_encoder) if args.pretrained_encoder else None,
+            },
             fold_metrics=fold_metrics,
             submission_path=str(sub_path.relative_to(REPO_ROOT)),
             notes=f"OOF MAE={oof_metrics['MAE']:.4f}, KA-GNN {args.model_type}",

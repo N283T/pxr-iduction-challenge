@@ -1363,6 +1363,26 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    if feature_name == "ka_gnn_pretrain_embed":
+        # Frozen graph embedding from KA-GNN pretrained on single_concentration
+        # log2_fc (8.25uM + 33uM), extracted via run_ka_gnn_embed_extract.py.
+        embed_path = REPO_ROOT.joinpath("data", "ka_gnn_pretrain_embed.parquet")
+        if not embed_path.exists():
+            raise SystemExit(
+                f"Missing {embed_path}. Run run_ka_gnn_pretrain.py and "
+                f"run_ka_gnn_embed_extract.py first."
+            )
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(
+            f"  ka_gnn_pretrain_embed: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
     if feature_name.startswith("boltz_trunk_pretrain_embed_"):
         # 256d embedding from the Boltz-2 trunk MLP pretrain head
         # (Buterez 2024 strategy-3 on the Boltz backbone, issue #109).
@@ -2546,6 +2566,7 @@ def main():
             "kermt_pretrain_embed_seed5ens",
             "attentivefp_pretrain_embed",
             "gatedgcn_pretrain_embed",
+            "ka_gnn_pretrain_embed",
             "unimol_v2_pretrain_embed",
             "unimol_v2_pec50_ft_embed",
             "unimol_v2_log2fc_real_embed",

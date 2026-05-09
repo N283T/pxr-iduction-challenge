@@ -1,0 +1,2 @@
+name,MAE,RAE,R2,Spearman_R,Kendall_Tau,residual_r_vs_ens_caruana_bag20,oof_coverage,test_mean,test_std,submission_path
+ka_gnn_pretrain_finetune_fourier_h128_l3_g3_meanaggr_lr1e3_umap,0.5455055203126824,0.5995029403202689,0.5420174218772302,0.6818305023073156,0.49405526081909923,0.7917766880105249,4140,4.766380382281298,0.537918640287589,track1_activity/submissions/ka_gnn_pretrain_finetune_fourier_h128_l3_g3_meanaggr_lr1e3_umap.csv

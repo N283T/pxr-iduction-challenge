@@ -20,6 +20,30 @@ except ModuleNotFoundError:  # pykan is optional outside KA-GNN experiments
 from torch_geometric.utils import scatter
 
 
+def load_pretrained_encoder_state(model: nn.Module, state_dict: dict[str, torch.Tensor]) -> int:
+    """Load compatible non-readout KA-GNN weights and return loaded tensor count.
+
+    Frozen embedding pretraining uses a separate auxiliary head, so the KA-GNN
+    readout tensors in that checkpoint are not task-trained. Keep the
+    message-passing encoder weights while leaving the downstream pEC50 readout
+    freshly initialized.
+    """
+    current = model.state_dict()
+    skip_prefixes = ("readout_1", "readout_2")
+    skip_buffers = {"x_mean", "x_std", "edge_mean", "edge_std"}
+    compatible = {
+        key: value
+        for key, value in state_dict.items()
+        if key in current
+        and key not in skip_buffers
+        and not key.startswith(skip_prefixes)
+        and tuple(value.shape) == tuple(current[key].shape)
+    }
+    if compatible:
+        model.load_state_dict(compatible, strict=False)
+    return len(compatible)
+
+
 class FourierKANLinear(nn.Module):
     """KAN-style linear map with Fourier basis functions on each input edge."""
 
@@ -163,13 +187,14 @@ class FourierKAGNNModel(nn.Module):
             return global_add_pool(x, batch)
         return global_max_pool(x, batch)
 
-    def forward(
+    def encode_graph(
         self,
         x: torch.Tensor,
         edge_index: torch.Tensor,
         edge_attr: torch.Tensor,
         batch: torch.Tensor,
     ) -> torch.Tensor:
+        """Return pooled graph embeddings before the KAN readout."""
         x = (x.float() - self.x_mean) / self.x_std
         edge_attr = (edge_attr.float() - self.edge_mean) / self.edge_std
         h = augment_node_features_with_edge_mean(x, edge_index, edge_attr)
@@ -178,7 +203,16 @@ class FourierKAGNNModel(nn.Module):
             msg = layer(h, edge_index)
             h = F.leaky_relu(h + msg, negative_slope=0.1)
             h = self.dropout(h)
-        pooled = self._pool(h, batch)
+        return self._pool(h, batch)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_attr: torch.Tensor,
+        batch: torch.Tensor,
+    ) -> torch.Tensor:
+        pooled = self.encode_graph(x, edge_index, edge_attr, batch)
         out = self.readout_2(F.leaky_relu(self.readout_1(pooled), negative_slope=0.1))
         return out
 
@@ -263,13 +297,14 @@ class PykanSAGEModel(nn.Module):
             return global_add_pool(x, batch)
         return global_max_pool(x, batch)
 
-    def forward(
+    def encode_graph(
         self,
         x: torch.Tensor,
         edge_index: torch.Tensor,
         edge_attr: torch.Tensor,
         batch: torch.Tensor,
     ) -> torch.Tensor:
+        """Return pooled graph embeddings before the KAN readout."""
         x = (x.float() - self.x_mean) / self.x_std
         edge_attr = (edge_attr.float() - self.edge_mean) / self.edge_std
         h = augment_node_features_with_edge_mean(x, edge_index, edge_attr)
@@ -278,5 +313,14 @@ class PykanSAGEModel(nn.Module):
             msg = layer(h, edge_index)
             h = F.leaky_relu(h + msg, negative_slope=0.1)
             h = self.dropout(h)
-        pooled = self._pool(h, batch)
+        return self._pool(h, batch)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_attr: torch.Tensor,
+        batch: torch.Tensor,
+    ) -> torch.Tensor:
+        pooled = self.encode_graph(x, edge_index, edge_attr, batch)
         return self.readout_2(F.leaky_relu(self.readout_1(pooled), negative_slope=0.1))
