@@ -30,7 +30,11 @@ from evaluate import (  # noqa: E402
     record_experiment,
     save_oof_predictions,
 )
-from rocs_prototype import build_prototype_features, complete_score_maps  # noqa: E402
+from rocs_prototype import (  # noqa: E402
+    build_dense_query_features,
+    build_prototype_features,
+    complete_score_maps,
+)
 from run_train import _build_umap_split_features, load_compound_ids, load_features  # noqa: E402
 from splits import umap_split_indices  # noqa: E402
 
@@ -106,6 +110,50 @@ def select_queries_by_activity(
     return selected
 
 
+def _single_proto_matrix(
+    mode: str,
+    target_ids: list[int],
+    score_maps: dict[int, dict[str, list[float]]],
+    query_ids: list[int],
+    query_targets: dict[int, float],
+    prefix: str,
+) -> tuple[np.ndarray, list[str]]:
+    if mode == "summary":
+        return build_prototype_features(
+            target_ids=target_ids,
+            score_maps=score_maps,
+            query_ids=query_ids,
+            query_targets=query_targets,
+            prefix=prefix,
+        )
+    if mode == "dense":
+        return build_dense_query_features(
+            target_ids=target_ids,
+            score_maps=score_maps,
+            query_ids=query_ids,
+            prefix=prefix,
+        )
+    if mode == "summary_dense":
+        summary_X, summary_names = build_prototype_features(
+            target_ids=target_ids,
+            score_maps=score_maps,
+            query_ids=query_ids,
+            query_targets=query_targets,
+            prefix=f"{prefix}_summary",
+        )
+        dense_X, dense_names = build_dense_query_features(
+            target_ids=target_ids,
+            score_maps=score_maps,
+            query_ids=query_ids,
+            prefix=f"{prefix}_dense",
+        )
+        return (
+            np.concatenate([summary_X, dense_X], axis=1).astype(np.float32),
+            summary_names + dense_names,
+        )
+    raise ValueError(f"Unknown feature_mode: {mode}")
+
+
 def make_feature_matrix(
     target_ids: list[int] | np.ndarray,
     active_maps: dict[int, dict[str, list[float]]],
@@ -113,30 +161,36 @@ def make_feature_matrix(
     query_targets: dict[int, float],
     inactive_maps: dict[int, dict[str, list[float]]] | None = None,
     inactive_query_ids: list[int] | None = None,
+    feature_mode: str = "summary",
 ) -> tuple[np.ndarray, list[str]]:
     target_ids = [int(x) for x in target_ids]
-    active_X, active_names = build_prototype_features(
-        target_ids=target_ids,
-        score_maps=active_maps,
-        query_ids=active_query_ids,
-        query_targets=query_targets,
-        prefix="active_rocs",
+    active_X, active_names = _single_proto_matrix(
+        feature_mode,
+        target_ids,
+        active_maps,
+        active_query_ids,
+        query_targets,
+        "active_rocs",
     )
     if inactive_maps is None or inactive_query_ids is None:
         return active_X, active_names
-    inactive_X, inactive_names = build_prototype_features(
-        target_ids=target_ids,
-        score_maps=inactive_maps,
-        query_ids=inactive_query_ids,
-        query_targets=query_targets,
-        prefix="inactive_rocs",
+    inactive_X, inactive_names = _single_proto_matrix(
+        feature_mode,
+        target_ids,
+        inactive_maps,
+        inactive_query_ids,
+        query_targets,
+        "inactive_rocs",
     )
-    delta_X = active_X - inactive_X
-    delta_names = [name.replace("active_rocs_", "delta_rocs_") for name in active_names]
-    return (
-        np.concatenate([active_X, inactive_X, delta_X], axis=1).astype(np.float32),
-        active_names + inactive_names + delta_names,
-    )
+    if active_X.shape[1] == inactive_X.shape[1]:
+        delta_X = active_X - inactive_X
+        delta_names = [name.replace("active_rocs", "delta_rocs") for name in active_names]
+        parts = [active_X, inactive_X, delta_X]
+        names = active_names + inactive_names + delta_names
+    else:
+        parts = [active_X, inactive_X]
+        names = active_names + inactive_names
+    return np.concatenate(parts, axis=1).astype(np.float32), names
 
 
 def concat_base_features(
@@ -178,7 +232,8 @@ def fit_lgbm(X: np.ndarray, y: np.ndarray, seed: int) -> lgb.LGBMRegressor:
 def run(args: argparse.Namespace) -> dict:
     print(
         f"ROCS prototype axis: n_active={args.n_active}, n_inactive={args.n_inactive}, "
-        f"base={args.base_feature}, inactive={bool(args.inactive_score_parquet)}, "
+        f"mode={args.feature_mode}, base={args.base_feature}, "
+        f"inactive={bool(args.inactive_score_parquet)}, "
         f"umap_seed={args.umap_seed}, clusters={args.umap_clusters}"
     )
     train_df = load_train_smiles_target()
@@ -237,6 +292,7 @@ def run(args: argparse.Namespace) -> dict:
             query_targets,
             inactive_maps,
             inactive_query_ids,
+            args.feature_mode,
         )
         X_rocs_va, _ = make_feature_matrix(
             train_ids[va_idx],
@@ -245,6 +301,7 @@ def run(args: argparse.Namespace) -> dict:
             query_targets,
             inactive_maps,
             inactive_query_ids,
+            args.feature_mode,
         )
         feature_names = names
         X_tr = concat_base_features(args.base_feature, base_train, base_test, tr_idx, X_rocs_tr)
@@ -282,6 +339,7 @@ def run(args: argparse.Namespace) -> dict:
         query_targets,
         inactive_maps,
         final_inactive_queries,
+        args.feature_mode,
     )
     X_rocs_test, _ = make_feature_matrix(
         test_ids,
@@ -290,6 +348,7 @@ def run(args: argparse.Namespace) -> dict:
         query_targets,
         inactive_maps,
         final_inactive_queries,
+        args.feature_mode,
     )
     X_all = concat_base_features(
         args.base_feature, base_train, base_test, np.arange(len(train_ids)), X_rocs_all
@@ -302,7 +361,11 @@ def run(args: argparse.Namespace) -> dict:
     print(f"  Test preds: mean={test_preds.mean():.3f}, std={test_preds.std():.3f}")
 
     contrast_tag = f"_inactive_n{args.n_inactive}" if args.inactive_score_parquet is not None else ""
-    exp_name = f"lgbm_rocs_active_proto_n{args.n_active}{contrast_tag}_{args.base_feature}_umap"
+    mode_tag = "" if args.feature_mode == "summary" else f"_{args.feature_mode}"
+    exp_name = (
+        f"lgbm_rocs_active_proto_n{args.n_active}{contrast_tag}"
+        f"{mode_tag}_{args.base_feature}_umap"
+    )
     if args.umap_seed != 42:
         exp_name += f"_s{args.umap_seed}"
     if args.umap_clusters != 50:
@@ -326,6 +389,7 @@ def run(args: argparse.Namespace) -> dict:
         hyperparameters={
             "n_active": args.n_active,
             "n_inactive": args.n_inactive if args.inactive_score_parquet is not None else 0,
+            "feature_mode": args.feature_mode,
             "base_feature": args.base_feature,
             "feature_names": final_names if feature_names is None else feature_names,
             "source_table": "compound_rocs",
@@ -346,6 +410,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--n-active", type=int, default=64)
     parser.add_argument("--n-inactive", type=int, default=64)
     parser.add_argument("--inactive-score-parquet", type=Path)
+    parser.add_argument(
+        "--feature-mode",
+        choices=["summary", "dense", "summary_dense"],
+        default="summary",
+    )
     parser.add_argument("--base-feature", default="none")
     parser.add_argument("--umap-seed", type=int, default=42)
     parser.add_argument("--umap-clusters", type=int, default=50)

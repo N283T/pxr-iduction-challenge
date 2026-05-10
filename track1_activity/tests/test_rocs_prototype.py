@@ -70,6 +70,34 @@ class TestRocsPrototype(unittest.TestCase):
         self.assertEqual(completed[2], {})
         self.assertEqual(completed[3], {})
 
+    def test_build_dense_query_features_keeps_query_columns(self):
+        from track1_activity.src.rocs_prototype import build_dense_query_features
+
+        X, names = build_dense_query_features(
+            target_ids=[100, 101],
+            score_maps={
+                100: {"10": [0.1, 0.2, 0.3], "11": [0.4, 0.5, 0.9]},
+                101: {"11": [0.7, 0.8, 1.5]},
+            },
+            query_ids=[10, 11],
+            prefix="active",
+        )
+
+        self.assertEqual(X.shape, (2, 6))
+        self.assertEqual(
+            names,
+            [
+                "active_q10_shape",
+                "active_q10_color",
+                "active_q10_combo",
+                "active_q11_shape",
+                "active_q11_color",
+                "active_q11_combo",
+            ],
+        )
+        self.assertTrue(np.allclose(X[0], [0.1, 0.2, 0.3, 0.4, 0.5, 0.9]))
+        self.assertTrue(np.allclose(X[1], [0.0, 0.0, 0.0, 0.7, 0.8, 1.5]))
+
 
 if __name__ == "__main__":
     unittest.main()

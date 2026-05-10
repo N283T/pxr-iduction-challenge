@@ -82,6 +82,35 @@ def complete_score_maps(
     return {int(target_id): score_maps.get(int(target_id), {}) for target_id in target_ids}
 
 
+def build_dense_query_features(
+    target_ids: Sequence[int],
+    score_maps: Mapping[int, ScoreMap],
+    query_ids: Sequence[int],
+    prefix: str,
+) -> tuple[np.ndarray, list[str]]:
+    """Build query-by-score ROCS features with fixed columns per query ID."""
+    query_ids = [int(q) for q in query_ids]
+    names = [
+        f"{prefix}_q{qid}_{score_name}"
+        for qid in query_ids
+        for score_name in ("shape", "color", "combo")
+    ]
+    rows: list[list[float]] = []
+    for target_id in target_ids:
+        score_map = score_maps.get(int(target_id), {})
+        row: list[float] = []
+        for qid in query_ids:
+            value = score_map.get(qid) or score_map.get(str(qid))
+            if value is None or len(value) < 3:
+                row.extend([0.0, 0.0, 0.0])
+            else:
+                row.extend([float(value[0]), float(value[1]), float(value[2])])
+        rows.append(row)
+    X = np.asarray(rows, dtype=np.float32)
+    X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+    return X, names
+
+
 def build_prototype_features(
     target_ids: Sequence[int],
     score_maps: Mapping[int, ScoreMap],
