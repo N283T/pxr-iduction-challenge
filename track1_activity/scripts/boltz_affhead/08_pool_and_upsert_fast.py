@@ -1,11 +1,13 @@
 """Pool Boltz-2 trunk s/z embeddings to a 1024-dim vector and upsert
 into compound_boltz2_trunk_fast.
 
-Two source sets:
+Source sets:
   historical  --  rcycle=3 npz from existing compound_boltz2.embeddings_npz_path
                   (4,653 train+test+counter compounds, finalized)
   fast        --  rcycle=1 npz from structures/boltz2/outputs_fast/.../predictions/<id>/
                   (8,482 missing compounds, populated by boltz2_fast_embeddings_run.sh)
+  fast-r3     --  rcycle=3 npz from structures/boltz2/outputs_fast_rcycle3/.../predictions/<id>/
+                  (same fast-only compounds, upgraded by resuming from rcycle=1)
 
 Pool variant: all_pairs (Boltz-2 paper's interface mask, minus lig x lig
 diagonal). Matches 01b_pool_allpairs.py (same 1024d schema).
@@ -24,6 +26,9 @@ Usage
 
     # Only the fast (rcycle=1) set, force re-pool everything
     pixi run python track1_activity/scripts/boltz_affhead/08_pool_and_upsert_fast.py --source fast --force
+
+    # Upsert upgraded rcycle=3 fast compounds as they finish
+    pixi run python track1_activity/scripts/boltz_affhead/08_pool_and_upsert_fast.py --source fast-r3
 """
 
 from __future__ import annotations
@@ -53,6 +58,13 @@ FAST_PRED_DIR = REPO_ROOT.joinpath(
     "structures",
     "boltz2",
     "outputs_fast",
+    "boltz_results_inputs_fast",
+    "predictions",
+)
+FAST_R3_PRED_DIR = REPO_ROOT.joinpath(
+    "structures",
+    "boltz2",
+    "outputs_fast_rcycle3",
     "boltz_results_inputs_fast",
     "predictions",
 )
@@ -112,10 +124,10 @@ def iter_historical(conn) -> Iterable[tuple[int, Path]]:
             yield int(cid), Path(path)
 
 
-def iter_fast() -> Iterable[tuple[int, Path]]:
-    if not FAST_PRED_DIR.exists():
+def iter_prediction_dir(pred_dir: Path) -> Iterable[tuple[int, Path]]:
+    if not pred_dir.exists():
         return
-    for cid_dir in sorted(FAST_PRED_DIR.iterdir()):
+    for cid_dir in sorted(pred_dir.iterdir()):
         if not cid_dir.is_dir():
             continue
         try:
@@ -125,6 +137,14 @@ def iter_fast() -> Iterable[tuple[int, Path]]:
         npz = cid_dir.joinpath(f"embeddings_{cid_dir.name}.npz")
         if npz.exists():
             yield cid, npz
+
+
+def iter_fast() -> Iterable[tuple[int, Path]]:
+    yield from iter_prediction_dir(FAST_PRED_DIR)
+
+
+def iter_fast_r3() -> Iterable[tuple[int, Path]]:
+    yield from iter_prediction_dir(FAST_R3_PRED_DIR)
 
 
 def existing_ids(conn, recycling_steps: int) -> set[int]:
@@ -234,7 +254,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument(
         "--source",
-        choices=["historical", "fast", "both"],
+        choices=["historical", "fast", "fast-r3", "both", "all-r3"],
         default="both",
     )
     ap.add_argument(
@@ -256,7 +276,7 @@ def main() -> None:
 
     conn = psycopg2.connect(**DB_PARAMS)
     try:
-        if args.source in ("historical", "both"):
+        if args.source in ("historical", "both", "all-r3"):
             process_source(
                 conn,
                 source="historical",
@@ -272,6 +292,16 @@ def main() -> None:
                 source="fast",
                 iterator=iter_fast(),
                 rcycle=1,
+                force=args.force,
+                min_age_seconds=args.min_age_seconds,
+                batch_size=args.batch_size,
+            )
+        if args.source in ("fast-r3", "all-r3"):
+            process_source(
+                conn,
+                source="fast-r3",
+                iterator=iter_fast_r3(),
+                rcycle=3,
                 force=args.force,
                 min_age_seconds=args.min_age_seconds,
                 batch_size=args.batch_size,
