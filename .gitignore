@@ -40,6 +40,7 @@ structures/boltz2/inputs_fast/
 structures/boltz2/inputs_fast_smoke/
 structures/boltz2/outputs/
 structures/boltz2/outputs_fast/
+structures/boltz2/outputs_fast_rcycle3/
 structures/boltz2/ligands/
 structures/boltz2/manifest*.csv
 structures/boltz2/postprocess*.csv

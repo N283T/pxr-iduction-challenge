@@ -4,7 +4,9 @@
 -- which pools embeddings_*.npz files (s/z trunk tensors) into a fixed
 -- 1024-dim vector via the Boltz-2 paper's all-pairs interface mask
 -- variant, then upserts both the existing 4,653 rcycle=3 outputs and the
--- new 8,482 rcycle=1 fast outputs into one table.
+-- new 8,482 rcycle=1 fast outputs into one table. The rcycle=1 rows can be
+-- progressively upgraded in place with rcycle=3 resumed outputs from
+-- structures/boltz2/outputs_fast_rcycle3/.
 --
 -- Two recycling settings coexist (recycling_steps column flags which);
 -- consumers should treat the union as a single 13,135-row corpus for
