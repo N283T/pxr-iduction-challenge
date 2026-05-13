@@ -1,6 +1,6 @@
 [project]
 authors = [{name = "N283T", email = "w255508b@yokohama-cu.ac.jp"}]
-dependencies = ["tabpfn>=7.1.0,<8", "gradio-client>=2.4.0,<3", "posebusters>=0.6.5,<0.7", "pykan>=0.2.8,<0.3"]
+dependencies = ["tabpfn>=8.0.1,<9", "tabpfn-extensions[interpretability]>=0.4.1,<0.5", "gradio-client>=2.4.0,<3", "posebusters>=0.6.5,<0.7", "pykan>=0.2.8,<0.3"]
 name = "pxr-iduction-challenge"
 requires-python = ">= 3.11"
 version = "0.1.0"

@@ -395,10 +395,12 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/7e/46/02ac5e262d4af18054b3e922b2baedbb2a03289ee792162de60a865defc5/accelerate-1.13.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/78/b6/6307fbef88d9b5ee7421e68d78a9f162e0da4900bc5f5793f6d3d0e34fb8/annotated_types-0.7.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/df/73/b6e24bd22e6720ca8ee9a85a0c4a2971af8497d8f3193fa05390cbd46e09/backoff-2.2.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/74/46/e81907704ab203206769dee1385dc77e1407576ff8f50a0681d0a6b541be/colour-0.1.5-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6a/c9/3bf4473e3b8131a733219346ff90cdab98e019b90c944fc339a599fc8896/deepchem-2.8.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/12/b3/231ffd4ab1fc9d679809f356cebee130ac7daa00d6d6f3206dd4fd137e9e/distro-1.9.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2a/09/f8d8f8f31e4483c10a906437b4ce31bdf3d6d417b73fe33f1a8b59e34228/einops-0.8.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/cf/22/fdc2e30d43ff853720042fa15baa3e6122722be1a7950a98233ebb55cd71/eval_type_backport-0.3.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/05/89/dc69acbd34bde07b9dee9f9f88d7ce61ff97fd99d6d576d72d2db1461349/galois-0.4.11-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/78/81/0a861b8e1ff42960139c6cd4c7dd591292fa09ea1ae2d87677441cba4c00/gradio_client-2.5.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5e/ed/139ce29a650d9d4d35ce78b3fc4741da3d2a6d0f4db7b88d5f4ffcff8c77/griddataformats-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4f/4b/5fe3a00833a9f9775b3c237624a6212798167278ffe10fe0de04f58612d0/mda_xdrlib-0.2.0-py3-none-any.whl
@@ -419,8 +421,11 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/01/dd/bebff3040138f00ae8a102d426b27349b9a49acc310fcae7f92112d867e3/pydantic_settings-2.14.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2b/e2/c0103e253776b2ec01232cceb9f96fe4ff1b1f69150a0f5220f2cca78a93/pykan-0.2.8-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0b/d7/1959b9648791274998a9c3526f6d0ec8fd2233e4d4acce81bbae76b44b2a/python_dotenv-1.2.2-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1f/13/3f7fbe98e6ff733cc1a5bdb62a72130cee9b9a57e4438c8f008249c1fe01/tabpfn-7.1.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/af/cc/13fefd7203ffe71d5107221be939dd64945378b93f7c0a7cb82d7f281071/shapiq-1.4.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/64/ec/c85f95289e4638faf889ca02b588ad3af0f3ef8f92b99bee3ce936ef3860/sparse_transform-0.2.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/6b/93/73fb747b573d92f81b5b4f9a3e07eb1e8a9603d055aecf83252fa26cba07/tabpfn-8.0.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/54/d2/7e1485156e98e10cf0dc621f00d818129da00b10e5229c8fe8fb3dbe97ff/tabpfn_common_utils-0.2.20-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/79/6b/ebf5e42b2cbb5b75ef8327fd2ec504720dd62f9e043ce3cfbbd45cf1334d/tabpfn_extensions-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/dc/9b/47798a6c91d8bdb567fe2698fe81e0c6b7cb7ef4d13da4114b41d239f65d/typing_inspection-0.4.2-py3-none-any.whl
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-7_kmp_llvm.conda
@@ -1249,6 +1254,12 @@ packages:
   - pkg:pypi/colorlog?source=hash-mapping
   size: 16410
   timestamp: 1760645097806
+- pypi: https://files.pythonhosted.org/packages/74/46/e81907704ab203206769dee1385dc77e1407576ff8f50a0681d0a6b541be/colour-0.1.5-py2.py3-none-any.whl
+  name: colour
+  version: 0.1.5
+  sha256: 33f6db9d564fadc16e59921a56999b79571160ce09916303d35346dddc17978c
+  requires_dist:
+  - nose ; extra == 'test'
 - conda: https://conda.anaconda.org/conda-forge/noarch/configargparse-1.7.5-pyhcf101f3_0.conda
   sha256: 7f8ea42a8411b433ec7244dfd30637d90564256c13a114dbe42455fe032ae89c
   md5: 12389a21e7f69704b0ae77f44355e30b
@@ -1804,6 +1815,15 @@ packages:
   - pkg:pypi/fsspec?source=hash-mapping
   size: 148757
   timestamp: 1770387898414
+- pypi: https://files.pythonhosted.org/packages/05/89/dc69acbd34bde07b9dee9f9f88d7ce61ff97fd99d6d576d72d2db1461349/galois-0.4.11-py3-none-any.whl
+  name: galois
+  version: 0.4.11
+  sha256: d2e12a2b7fd44b108cc15d7de27dabcb8a98a556ea2c69c94fe695139629d9aa
+  requires_dist:
+  - numpy>=1.21.0
+  - numba>=0.55
+  - typing-extensions>=4.0.0
+  requires_python: '>=3.7'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/gdk-pixbuf-2.44.6-h2b0a6b4_0.conda
   sha256: c5594497f0646e9079705b3199dbb2d5b13c48173cf110000fa1c8818e2b3e0c
   md5: 7892f39a39ed39591a89a28eba03e987
@@ -5598,6 +5618,25 @@ packages:
   - pkg:pypi/shap?source=hash-mapping
   size: 5889054
   timestamp: 1773389083844
+- pypi: https://files.pythonhosted.org/packages/af/cc/13fefd7203ffe71d5107221be939dd64945378b93f7c0a7cb82d7f281071/shapiq-1.4.1-py3-none-any.whl
+  name: shapiq
+  version: 1.4.1
+  sha256: c86667eb28ea0de56005fbe9fd072783242b74aa87fede11e07b6b915b93e7b3
+  requires_dist:
+  - numpy
+  - scipy
+  - pandas
+  - joblib
+  - scikit-learn
+  - tqdm
+  - requests
+  - sparse-transform
+  - galois
+  - matplotlib
+  - networkx
+  - colour
+  - pillow
+  requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/conda-forge/noarch/shellingham-1.5.4-pyhd8ed1ab_2.conda
   sha256: 1d6534df8e7924d9087bd388fbac5bd868c5bf8971c36885f9f016da0657d22b
   md5: 83ea3a2ddb7a75c1b09cea582aa4f106
@@ -5668,6 +5707,19 @@ packages:
   - pkg:pypi/sniffio?source=hash-mapping
   size: 15698
   timestamp: 1762941572482
+- pypi: https://files.pythonhosted.org/packages/64/ec/c85f95289e4638faf889ca02b588ad3af0f3ef8f92b99bee3ce936ef3860/sparse_transform-0.2.1-py3-none-any.whl
+  name: sparse-transform
+  version: 0.2.1
+  sha256: d01b19f8add68e2b4c98a17272830af0e03d163667f03b1dc2b0c9eb8471727b
+  requires_dist:
+  - galois>=0.4.1
+  - numpy>1.18
+  - scikit-learn
+  - scipy
+  - tqdm
+  - colorama ; extra == 'extra'
+  - matplotlib ; extra == 'extra'
+  requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/sqlalchemy-2.0.49-py312h5253ce2_0.conda
   sha256: ab3445a03e1fe99093cac00a4f923c25e1f438cc7f7b64d254b7e4f06e52693e
   md5: 0662f9f9ffb7ae91f2c095c77f18b9a5
@@ -5732,10 +5784,10 @@ packages:
   - pkg:pypi/sympy?source=hash-mapping
   size: 4661767
   timestamp: 1771952371059
-- pypi: https://files.pythonhosted.org/packages/1f/13/3f7fbe98e6ff733cc1a5bdb62a72130cee9b9a57e4438c8f008249c1fe01/tabpfn-7.1.1-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/6b/93/73fb747b573d92f81b5b4f9a3e07eb1e8a9603d055aecf83252fa26cba07/tabpfn-8.0.1-py3-none-any.whl
   name: tabpfn
-  version: 7.1.1
-  sha256: 7482516cc9be151e849353bb1e1d65a0fdcefa0a41e3c9e635f34da0c7a8a5bd
+  version: 8.0.1
+  sha256: a0741c224e1de068c14f0eb9b0563ab1e609a86876c17560e898f84c5506ff5c
   requires_dist:
   - torch>=2.5
   - numpy>=1.21.6
@@ -5744,13 +5796,15 @@ packages:
   - scipy>=1.11.1
   - pandas>=1.4.0
   - einops>=0.4.0
-  - huggingface-hub>=0.19.0
+  - huggingface-hub>=0.23.0
   - pydantic>=2.8.0
   - pydantic-settings>=2.10.1
   - eval-type-backport>=0.2.2
   - joblib>=1.2.0
+  - tqdm>=4.66.0
   - tabpfn-common-utils[telemetry-interactive]>=0.2.13
   - filelock>=3.11.0
+  - lightgbm>=3.0
   - wandb>=0.25.1 ; extra == 'wandb'
   requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/54/d2/7e1485156e98e10cf0dc621f00d818129da00b10e5229c8fe8fb3dbe97ff/tabpfn_common_utils-0.2.20-py3-none-any.whl
@@ -5768,6 +5822,26 @@ packages:
   - scikit-learn>=1.2.0
   - typing-extensions>=4.12
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/79/6b/ebf5e42b2cbb5b75ef8327fd2ec504720dd62f9e043ce3cfbbd45cf1334d/tabpfn_extensions-0.4.1-py3-none-any.whl
+  name: tabpfn-extensions
+  version: 0.4.1
+  sha256: e8124246677e4f1fc67c95db6730e3b0fe181c005f70a294a69f39de8ec6fc0a
+  requires_dist:
+  - torch>=2.1
+  - pandas>=2.2.2
+  - scikit-learn>=1.6.0
+  - scipy>=1.11.1
+  - tabpfn>=7.0.0
+  - tabpfn-common-utils[telemetry-interactive]>=0.2.13
+  - shapiq>=1.1.0 ; extra == 'interpretability'
+  - seaborn>=0.12.2 ; extra == 'interpretability'
+  - llvmlite>=0.43.0 ; extra == 'post-hoc-ensembles'
+  - hyperopt>=0.2.7 ; extra == 'post-hoc-ensembles'
+  - autogluon-tabular>=1.5.0,<1.6 ; extra == 'post-hoc-ensembles'
+  - hyperopt>=0.2.7 ; extra == 'hpo'
+  - setuptools>=67.0.0,<82 ; extra == 'hpo'
+  - tabpfn-extensions[hpo,interpretability,post-hoc-ensembles,survival] ; extra == 'all'
+  requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/conda-forge/noarch/tabulate-0.10.0-pyhcf101f3_0.conda
   sha256: 3f661e98a09f976775a494488beb3d35ebb00f535b169c6bd891f2e280d55783
   md5: 3b887b7b3468b0f494b4fad40178b043
