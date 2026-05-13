@@ -2190,13 +2190,16 @@ def run(args):
 
     optuna.logging.set_verbosity(optuna.logging.WARNING)
 
-    if args.model == "tabpfn" and args.tabpfn_version != "v2_6":
+    if args.model == "tabpfn":
         from tabpfn import TabPFNRegressor
         from tabpfn.constants import ModelVersion
 
-        version_enum = {"v2_5": ModelVersion.V2_5, "v2": ModelVersion.V2}[
-            args.tabpfn_version
-        ]
+        version_enum = {
+            "v3": ModelVersion.V3,
+            "v2_6": ModelVersion.V2_6,
+            "v2_5": ModelVersion.V2_5,
+            "v2": ModelVersion.V2,
+        }[args.tabpfn_version]
         ref = TabPFNRegressor.create_default_for_version(version_enum)
         DEFAULT_PARAMS["tabpfn"]["model_path"] = ref.model_path
 
@@ -2728,10 +2731,11 @@ def main():
     )
     parser.add_argument(
         "--tabpfn-version",
-        choices=["v2_6", "v2_5", "v2"],
-        default="v2_6",
-        help="TabPFN pretrained checkpoint (v2_6=synthetic latest, "
-        "v2_5=real-tuned, v2=legacy). Only used when --model tabpfn.",
+        choices=["v3", "v2_6", "v2_5", "v2"],
+        default="v3",
+        help="TabPFN pretrained checkpoint (v3=TabPFN-3 OSS default, "
+        "v2_6=previous synthetic latest, v2_5=real-tuned, v2=legacy). "
+        "Only used when --model tabpfn.",
     )
     args = parser.parse_args()
 
