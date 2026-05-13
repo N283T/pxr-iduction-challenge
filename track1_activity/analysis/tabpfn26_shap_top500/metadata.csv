@@ -1,0 +1,2 @@
+feature_set,tabpfn_version,K,budget,n_explained,fit_s,explainer_init_s,explain_total_s,note
+cheme_2d_full_boltz_log2fc_pred_seed10ens,v2_6,500,512,12,3.647606059001191,28.31030131800071,230.35981014999925,v2.6 no-cache imputation SHAP; full-train top500 diagnostic selection
