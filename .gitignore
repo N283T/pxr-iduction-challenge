@@ -54,6 +54,9 @@ track2_structure/inputs/
 # GatorAffinity Phase A/B pipeline (re-creatable from compound_boltz2)
 structures/gator/
 
+# PocketXMol probe artifacts (external model outputs, configs, generated SDFs)
+structures/pocketxmol_probe/
+
 # OpenEye Omega 3D conformer SDFs (~545 MB, regenerable via db/compute_omega.py)
 structures/omega/
 
