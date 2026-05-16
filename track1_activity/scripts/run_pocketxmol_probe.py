@@ -56,14 +56,34 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--radius", type=float, default=10.0)
     parser.add_argument("--limit", type=int, default=40)
     parser.add_argument("--compound-ids", nargs="*", type=int)
+    parser.add_argument(
+        "--all-compounds",
+        action="store_true",
+        help="Run every compound with available Boltz protein/ligand structures.",
+    )
     parser.add_argument("--save-output-tensors", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
 
-def select_jobs(limit: int, compound_ids: list[int] | None) -> list[CompoundJob]:
+def select_jobs(
+    limit: int, compound_ids: list[int] | None, all_compounds: bool
+) -> list[CompoundJob]:
     engine = get_engine()
-    if compound_ids:
+    if all_compounds:
+        query = """
+        SELECT c.id AS compound_id,
+               CASE WHEN t.compound_id IS NULL THEN 'test' ELSE 'train' END AS split,
+               c.std_smiles AS smiles,
+               t.pec50
+        FROM compounds c
+        LEFT JOIN train_activity t ON t.compound_id = c.id
+        WHERE EXISTS (SELECT 1 FROM train_activity tx WHERE tx.compound_id = c.id)
+           OR EXISTS (SELECT 1 FROM test_activity tx WHERE tx.compound_id = c.id)
+        ORDER BY c.id
+        """
+        rows = pd.read_sql(query, engine)
+    elif compound_ids:
         ids = ",".join(str(i) for i in compound_ids)
         query = f"""
         SELECT c.id AS compound_id,
@@ -360,7 +380,7 @@ def main() -> None:
     args = parse_args()
     run_dir = args.output_root / args.run_name
     run_dir.mkdir(parents=True, exist_ok=True)
-    jobs = select_jobs(args.limit, args.compound_ids)
+    jobs = select_jobs(args.limit, args.compound_ids, args.all_compounds)
     summary_path = run_dir / "summary.csv"
     fields = [
         "compound_id",
