@@ -1,0 +1,4 @@
+rank,path,gate,amount,public_hybrid_with_y_delta_mae,full_delta_mae,test_abs_shift_p90,test_abs_shift_max
+1,track1_activity/submissions/ens_id57_high_activity_lift_rank1.csv,lf_max_soft_q50_AND_pred_soft_q50,0.05,-0.0043530273486496185,-0.0005446552337920463,0.029764529312899416,0.04999999999999982
+2,track1_activity/submissions/ens_id57_high_activity_lift_rank2.csv,lf_mean_soft_q50,0.03,-0.004313114070636115,-0.0007060357887809787,0.024372701018213407,0.03000000000000025
+3,track1_activity/submissions/ens_id57_high_activity_lift_rank3.csv,lf_max_soft_q50_AND_pred_soft_q60,0.05,-0.0041782607242924485,-0.000546229297182399,0.028799478655103,0.04999999999999982
