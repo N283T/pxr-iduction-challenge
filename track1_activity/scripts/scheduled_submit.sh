@@ -4,8 +4,9 @@
 # (ZIP) submissions; the cooldown query is now track-filtered so it
 # doesn't false-succeed when the OTHER track is READY.
 #
-# Designed to run unattended via nohup + disown so it survives terminal/session
-# closes. Logs to a timestamped file under logs/ for post-hoc audit.
+# Designed to run unattended. Use `--daemon` to launch through `setsid` so it
+# survives Codex app / non-interactive shell teardown. Logs to a timestamped file
+# under logs/ for post-hoc audit.
 #
 # Usage:
 #   scheduled_submit.sh <input_path> \
@@ -14,7 +15,8 @@
 #       [--track <track_name>] \
 #       [--poll <seconds>] \
 #       [--safety <seconds>] \
-#       [--log <log_path>]
+#       [--log <log_path>] \
+#       [--daemon]
 #
 #   <input_path> is a CSV for Activity Prediction or a ZIP for Structure
 #   Prediction; api.py auto-detects from the file passed.
@@ -26,22 +28,20 @@
 #                    in case of clock skew with LB server)
 #   --log     logs/scheduled_submit_<timestamp>.log
 #
-# Typical background invocation (Track 1):
-#   nohup bash track1_activity/scripts/scheduled_submit.sh \
+# Typical daemon invocation (Track 1):
+#   bash track1_activity/scripts/scheduled_submit.sh \
 #       track1_activity/submissions/ens_caruana_bag20_calibrated_best.csv \
 #       --experiment ens_caruana_bag20_calibrated_best \
 #       --notes "blah blah" \
-#       > /tmp/scheduled_submit_status.log 2>&1 &
-#   disown
+#       --daemon
 #
 # Track 2 example:
-#   nohup bash track1_activity/scripts/scheduled_submit.sh \
+#   bash track1_activity/scripts/scheduled_submit.sh \
 #       track2_structure/submissions/track2_boltz2_zanchored_v2b_2026-04-26.zip \
 #       --track "Structure Prediction" \
 #       --experiment track2_zanchored_v2b \
 #       --notes "Z-anchored ..." \
-#       > /tmp/scheduled_submit_status.log 2>&1 &
-#   disown
+#       --daemon
 #
 # Exit codes:
 #   0  submission successful
@@ -57,6 +57,8 @@ TRACK="Activity Prediction"
 POLL=180
 SAFETY=60
 LOG=""
+DAEMON=0
+STATUS=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -66,6 +68,8 @@ while [[ $# -gt 0 ]]; do
         --poll) POLL="$2"; shift 2 ;;
         --safety) SAFETY="$2"; shift 2 ;;
         --log) LOG="$2"; shift 2 ;;
+        --status-log) STATUS="$2"; shift 2 ;;
+        --daemon) DAEMON=1; shift ;;
         -h|--help)
             sed -n '2,/^set -/p' "$0" | grep '^#'
             exit 0
@@ -99,6 +103,28 @@ cd "$REPO"
 if [[ -z "$LOG" ]]; then
     mkdir -p logs
     LOG="logs/scheduled_submit_$(date +%Y%m%d_%H%M%S).log"
+fi
+
+if [[ -z "$STATUS" ]]; then
+    STATUS="/tmp/scheduled_submit_$(basename "$LOG" .log).status.log"
+fi
+
+if [[ "$DAEMON" -eq 1 ]]; then
+    # Relaunch this script in a new session and return immediately. This is more
+    # reliable than `nohup ... &` from Codex app / short-lived non-interactive
+    # shells, where background children can be reaped as the shell exits.
+    args=("$CSV" --experiment "$EXP" --track "$TRACK" --poll "$POLL" --safety "$SAFETY" --log "$LOG" --status-log "$STATUS")
+    if [[ -n "$NOTES" ]]; then
+        args+=(--notes "$NOTES")
+    fi
+    setsid bash "$0" "${args[@]}" </dev/null >"$STATUS" 2>&1 &
+    PID=$!
+    echo "scheduled_submit daemon started"
+    echo "  pid:        $PID"
+    echo "  log:        $LOG"
+    echo "  status-log: $STATUS"
+    echo "  stop:       pkill -f 'scheduled_submit.*$(basename "$CSV")'"
+    exit 0
 fi
 
 {
