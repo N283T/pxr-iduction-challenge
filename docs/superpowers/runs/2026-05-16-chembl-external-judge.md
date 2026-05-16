@@ -68,6 +68,41 @@ the covered ChEMBL neighbors have much higher pChEMBL than our predictions.
 | log2fc gate q60 g50 | -0.00360 | +0.00034 | +0.00360 |
 | num_rings positive g50 | -0.00331 | +0.00008 | +0.00473 |
 
+## Current Model vs ChEMBL
+
+Exact external inference for the full submitted ensemble on arbitrary ChEMBL
+SMILES is not available from the stored artifacts. Most pool members are stored
+as train OOF plus challenge-test submissions, not reusable arbitrary-SMILES
+model checkpoints. The measurable proxy is therefore:
+
+- exact challenge-train overlaps with ChEMBL PXR activation;
+- challenge-train compounds compared to their exact-overlap-excluded ChEMBL
+  nearest-neighbor pChEMBL.
+
+For the 12 exact challenge-train overlaps, challenge pEC50 itself is closer to
+ChEMBL than the current ensemble OOF. The current model underpredicts ChEMBL on
+average.
+
+| set | prediction | n | MAE vs ChEMBL | bias pred - ChEMBL | Pearson | Spearman |
+|---|---|---:|---:|---:|---:|---:|
+| exact train overlap | challenge pEC50 label | 12 | 0.6476 | -0.1793 | 0.7780 | 0.9702 |
+| exact train overlap | raw current OOF | 12 | 0.8046 | -0.4463 | 0.4086 | 0.6480 |
+| exact train overlap | calibrated-best OOF | 12 | 0.8280 | -0.4425 | 0.4080 | 0.6480 |
+
+For non-exact ChEMBL-nearest train regions, the signal is much weaker and the
+model is roughly one log unit below ChEMBL pChEMBL on average:
+
+| train subset | prediction | n | MAE vs external NN | bias pred - ChEMBL NN | Spearman |
+|---|---|---:|---:|---:|---:|
+| NN >= 0.25 | raw current OOF | 790 | 1.1496 | -1.0322 | 0.1979 |
+| NN >= 0.30 | raw current OOF | 161 | 1.2897 | -1.2105 | 0.2638 |
+| NN >= 0.35 | raw current OOF | 55 | 1.5155 | -1.4140 | 0.1091 |
+
+This reinforces the main conclusion: ChEMBL is not currently a calibrated
+target-compatible judge for our challenge predictions. It mostly says "these
+nearby public PXR compounds are active in ChEMBL assays", but that does not
+translate cleanly to Octant challenge pEC50 or to our model scale.
+
 ## Interpretation
 
 ChEMBL PXR activation data are useful for qualitative auditing and future
