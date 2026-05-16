@@ -1,0 +1,5 @@
+name,value
+logreg_test_classifier_auc,0.9401107438483487
+lgbm_test_classifier_auc,0.9563833093199988
+n_train,4140.0
+n_potent46,46.0
