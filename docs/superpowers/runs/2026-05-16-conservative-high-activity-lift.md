@@ -68,3 +68,35 @@ full OOF delta among the three, and is anti-aligned with the id56 bad axis when
 viewed from id55.
 
 No submission was made from this run.
+
+## Cooldown Wait Follow-Up
+
+While waiting for the 4-hour cooldown, I ran a finer check around the preferred
+`lf_mean_soft_q50` gate:
+
+- plain lift amounts: 0.015, 0.020, 0.025, 0.030, 0.040
+- centered variants that preserve the test mean shift
+
+Output:
+
+- `track1_activity/analysis/compound_level_lb/outputs/conservative_high_activity_lift/rank2_centering_sweep.csv`
+
+Plain lift remained cleaner than centered lift. Centering reduced the high-y
+pseudo-public gain and did not improve known-bad-axis behavior. A smaller
+fallback CSV was written:
+
+- `track1_activity/submissions/ens_id57_high_activity_lift_lfmean_g020.csv`
+
+Fallback 0.020 plain lift:
+
+| mode | amount | full OOF delta MAE | public stress mean delta | high-y pseudo delta | p90 shift vs id57 | max shift vs id57 | id56 projection vs id57 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| plain | 0.020 | -0.000507 | -0.001358 | -0.002976 | 0.016248 | 0.020000 | +0.016747 |
+
+Preflight:
+
+- vs id57: PASS
+- vs id55: PASS
+
+Recommendation unchanged: use rank2 amount 0.030 if spending a cooldown. The
+0.020 fallback is available if we want an even smaller, lower-upside move.
