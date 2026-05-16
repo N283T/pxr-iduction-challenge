@@ -1,0 +1,4 @@
+rank,candidate,source,gate,gamma
+1,/home/nagaet/pxr-iduction-challenge/track1_activity/submissions/ens_id55_combo_gate_rank1.csv,optuna_top500_minus_current_raw,log2fc_33_pred_soft_q60_to_q95_MAX_positive_delta_AND_num_rings_high_soft_q20,0.35
+2,/home/nagaet/pxr-iduction-challenge/track1_activity/submissions/ens_id55_combo_gate_rank2.csv,optuna_top500_minus_current_raw,positive_delta_AND_num_rings_high_soft_q20,0.5
+3,/home/nagaet/pxr-iduction-challenge/track1_activity/submissions/ens_id55_combo_gate_rank3.csv,optuna_top500_minus_current_raw,log2fc_33_pred_soft_q50_to_q95_MAX_family_gap_high_soft_q20,0.25
