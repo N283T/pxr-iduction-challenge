@@ -1,0 +1,33 @@
+{
+  "feature_set": "cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens",
+  "mode": "full_train_explanatory_diagnostic",
+  "K": 500,
+  "seed": 42,
+  "tabpfn_version": "v2_6",
+  "n_estimators": 8,
+  "softmax_temperature": 0.9,
+  "fit_mode": "fit_preprocessors",
+  "shap_index": "SV",
+  "shap_max_order": 1,
+  "shap_imputer": "baseline",
+  "shap_budget": 512,
+  "n_explain_test_compounds": 12,
+  "explained_test_indices": [
+    101,
+    401,
+    472,
+    489,
+    239,
+    477,
+    234,
+    195,
+    209,
+    398,
+    350,
+    435
+  ],
+  "fit_s": 5.805803936000302,
+  "explainer_init_s": 23.08625701500023,
+  "explain_total_s": 472.78678341699924,
+  "note": "This is not the exact fold-local OOF model explanation. It is a single full-train top500 diagnostic intended to summarize broad feature tendencies."
+}

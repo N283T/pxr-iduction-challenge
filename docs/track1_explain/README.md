@@ -20,6 +20,8 @@ Source-of-truth details remain elsewhere:
 | File | Purpose |
 |---|---|
 | `current_state.md` | Current Track 1 status from issue #100 and the latest local snapshots. |
+| `overall_strategy_report.md` | Overall modeling strategy: Buterez-style low-fidelity transfer, log2fc usage, TabPFN readout, and rejected alternatives. |
+| `dataset_split_report.md` | Dataset construction, auxiliary assay coverage, and the rationale for the canonical Morgan UMAP split. |
 | `model_inventory.md` | Practical taxonomy of the model families and methods. |
 | `explanation_outline.md` | Suggested order for explaining the work to another person. |
 | `models/` | Per-model notes with reproducibility checks and adoption/drop rationale. |
