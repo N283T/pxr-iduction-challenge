@@ -463,6 +463,128 @@ def load_features(feature_name: str, train_df, test_df):
         )
         return X_train, X_test
 
+    if feature_name in {
+        "boltz2_distogram",
+        "pooled_boltz_distogram",
+        "pooled_boltz_allpairs_distogram",
+        "boltz2_token_distogram",
+        "pooled_boltz_token_distogram",
+        "pooled_boltz_allpairs_token_distogram",
+    }:
+        use_token_distogram = "_token_distogram" in feature_name
+        distogram_path = REPO_ROOT.joinpath(
+            "data",
+            "boltz2_token_distogram_features.parquet"
+            if use_token_distogram
+            else "boltz2_distogram_features.parquet",
+        )
+        if not distogram_path.exists():
+            mode = "token" if use_token_distogram else "atom"
+            raise SystemExit(
+                f"Missing {distogram_path}. Run "
+                f"track1_activity/scripts/build_boltz2_distogram_features.py --mode {mode}"
+            )
+        distogram_df = pd.read_parquet(distogram_path).reindex(train_ids + test_ids)
+        X_dist = distogram_df.to_numpy(dtype=np.float32).copy()
+        col_mean = np.nanmean(X_dist, axis=0)
+        col_mean = np.where(np.isfinite(col_mean), col_mean, 0.0)
+        X_dist[~np.isfinite(X_dist)] = np.broadcast_to(col_mean, X_dist.shape)[
+            ~np.isfinite(X_dist)
+        ]
+        X_dist_tr = X_dist[: len(train_ids)]
+        X_dist_te = X_dist[len(train_ids) :]
+        if feature_name in {"boltz2_distogram", "boltz2_token_distogram"}:
+            print(f"  {feature_name}: {X_dist_tr.shape[1]} compact pose-distance dims")
+            return X_dist_tr, X_dist_te
+
+        base_name = (
+            "pooled_boltz_allpairs" if "allpairs" in feature_name else "pooled_boltz"
+        )
+        X_base_tr, X_base_te = load_features(base_name, train_df, test_df)
+        X_train = np.concatenate([X_base_tr, X_dist_tr], axis=1).astype(np.float32)
+        X_test = np.concatenate([X_base_te, X_dist_te], axis=1).astype(np.float32)
+        print(
+            f"  {feature_name}: {X_base_tr.shape[1]} {base_name} + "
+            f"{X_dist_tr.shape[1]} distogram dims = {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
+    if feature_name in {
+        "boltz_dist_weighted_z",
+        "pooled_boltz_dist_weighted_z",
+        "pooled_boltz_allpairs_dist_weighted_z",
+    }:
+        weighted_path = REPO_ROOT.joinpath(
+            "data", "boltz_affhead", "dist_weighted_z_pool.parquet"
+        )
+        if not weighted_path.exists():
+            raise SystemExit(
+                f"Missing {weighted_path}. Run "
+                "track1_activity/scripts/boltz_affhead/41_dist_weighted_z_pool.py"
+            )
+        weighted_df = pd.read_parquet(weighted_path).reindex(train_ids + test_ids)
+        X_w = weighted_df.to_numpy(dtype=np.float32).copy()
+        col_mean = np.nanmean(X_w, axis=0)
+        col_mean = np.where(np.isfinite(col_mean), col_mean, 0.0)
+        X_w[~np.isfinite(X_w)] = np.broadcast_to(col_mean, X_w.shape)[~np.isfinite(X_w)]
+        X_w_tr = X_w[: len(train_ids)]
+        X_w_te = X_w[len(train_ids) :]
+        if feature_name == "boltz_dist_weighted_z":
+            print(
+                f"  boltz_dist_weighted_z: {X_w_tr.shape[1]} distance-weighted z dims"
+            )
+            return X_w_tr, X_w_te
+
+        base_name = (
+            "pooled_boltz_allpairs"
+            if feature_name == "pooled_boltz_allpairs_dist_weighted_z"
+            else "pooled_boltz"
+        )
+        X_base_tr, X_base_te = load_features(base_name, train_df, test_df)
+        X_train = np.concatenate([X_base_tr, X_w_tr], axis=1).astype(np.float32)
+        X_test = np.concatenate([X_base_te, X_w_te], axis=1).astype(np.float32)
+        print(
+            f"  {feature_name}: {X_base_tr.shape[1]} {base_name} + "
+            f"{X_w_tr.shape[1]} weighted-z dims = {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
+    if feature_name in {
+        "boltz_dist_interactions",
+        "pooled_boltz_allpairs_dist_interactions",
+    }:
+        interaction_path = REPO_ROOT.joinpath(
+            "data", "boltz_affhead", "dist_interactions.parquet"
+        )
+        if not interaction_path.exists():
+            raise SystemExit(
+                f"Missing {interaction_path}. Run "
+                "track1_activity/scripts/boltz_affhead/42_dist_interaction_features.py"
+            )
+        interaction_df = pd.read_parquet(interaction_path).set_index("compound_id")
+        X_i = (
+            interaction_df.reindex(train_ids + test_ids)
+            .to_numpy(dtype=np.float32)
+            .copy()
+        )
+        col_mean = np.nanmean(X_i, axis=0)
+        col_mean = np.where(np.isfinite(col_mean), col_mean, 0.0)
+        X_i[~np.isfinite(X_i)] = np.broadcast_to(col_mean, X_i.shape)[~np.isfinite(X_i)]
+        X_i_tr = X_i[: len(train_ids)]
+        X_i_te = X_i[len(train_ids) :]
+        if feature_name == "boltz_dist_interactions":
+            print(f"  boltz_dist_interactions: {X_i_tr.shape[1]} PCA/Kronecker dims")
+            return X_i_tr, X_i_te
+
+        X_base_tr, X_base_te = load_features("pooled_boltz_allpairs", train_df, test_df)
+        X_train = np.concatenate([X_base_tr, X_i_tr], axis=1).astype(np.float32)
+        X_test = np.concatenate([X_base_te, X_i_te], axis=1).astype(np.float32)
+        print(
+            f"  pooled_boltz_allpairs_dist_interactions: {X_base_tr.shape[1]} base + "
+            f"{X_i_tr.shape[1]} interaction dims = {X_train.shape[1]} features"
+        )
+        return X_train, X_test
+
     _seed_match = re.match(r"^2d_full_boltz_log2fc_pred_seed(\d+)ens$", feature_name)
     _optuna_match = re.match(
         r"^2d_full_boltz_log2fc_pred_optuna_trial(\d+)_seed5ens$", feature_name
@@ -2553,6 +2675,17 @@ def main():
             "pooled_boltz_allpairs",
             "repooled_trunk_region_zstats",
             "boltz2_contact",
+            "boltz2_distogram",
+            "pooled_boltz_distogram",
+            "pooled_boltz_allpairs_distogram",
+            "boltz2_token_distogram",
+            "pooled_boltz_token_distogram",
+            "pooled_boltz_allpairs_token_distogram",
+            "boltz_dist_weighted_z",
+            "pooled_boltz_dist_weighted_z",
+            "pooled_boltz_allpairs_dist_weighted_z",
+            "boltz_dist_interactions",
+            "pooled_boltz_allpairs_dist_interactions",
             "chemprop_pretrain_embed",
             "chemprop_assay_shape_embed",
             "chemprop_assay_shape_drlatent_embed",
