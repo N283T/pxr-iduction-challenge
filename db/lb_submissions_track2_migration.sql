@@ -21,6 +21,7 @@ ALTER TABLE lb_submissions ADD COLUMN IF NOT EXISTS lb_bisyrmsd_std  DOUBLE PREC
 ALTER TABLE lb_submissions ADD COLUMN IF NOT EXISTS lb_lddt_lp       DOUBLE PRECISION;
 ALTER TABLE lb_submissions ADD COLUMN IF NOT EXISTS lb_lddt_lp_std   DOUBLE PRECISION;
 ALTER TABLE lb_submissions ADD COLUMN IF NOT EXISTS lb_coverage      DOUBLE PRECISION;
+ALTER TABLE lb_submissions ADD COLUMN IF NOT EXISTS lb_cld           TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_lb_submissions_track
     ON lb_submissions(track, submitted_at DESC);
@@ -43,6 +44,7 @@ SELECT
     lb_mae,
     lb_r2,
     lb_spearman,
+    lb_cld,
     -- Track 2 (structure) metrics
     lb_lddt_pli,
     lb_lddt_pli_std,

@@ -42,6 +42,33 @@ CREATE TABLE test_activity (
 
 CREATE INDEX idx_test_activity_compound ON test_activity(compound_id);
 
+-- Phase 1 unblinded labels for a subset of test_activity (Analog Set 1).
+-- Keep separate from train_activity so Phase 1 vs Phase 2 training choices are explicit.
+CREATE TABLE test_activity_phase1_labels (
+    id SERIAL PRIMARY KEY,
+    compound_id INTEGER NOT NULL REFERENCES compounds(id),
+    phase INTEGER NOT NULL DEFAULT 1,
+    ocnt_batch TEXT,
+    pec50 DOUBLE PRECISION NOT NULL,
+    pec50_ci_lower DOUBLE PRECISION,
+    pec50_ci_upper DOUBLE PRECISION,
+    pec50_std_error DOUBLE PRECISION,
+    emax_estimate DOUBLE PRECISION,
+    emax_ci_lower DOUBLE PRECISION,
+    emax_ci_upper DOUBLE PRECISION,
+    emax_std_error DOUBLE PRECISION,
+    emax_vs_pos_ctrl DOUBLE PRECISION,
+    emax_vs_pos_ctrl_ci_lower DOUBLE PRECISION,
+    emax_vs_pos_ctrl_ci_upper DOUBLE PRECISION,
+    emax_vs_pos_ctrl_std_error DOUBLE PRECISION,
+    source_split TEXT,
+    loaded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (compound_id, phase)
+);
+
+CREATE INDEX idx_test_activity_phase1_labels_compound
+    ON test_activity_phase1_labels(compound_id);
+
 -- Counter-assay data (PXR-null control)
 CREATE TABLE counter_assay (
     id SERIAL PRIMARY KEY,
