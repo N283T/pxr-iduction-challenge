@@ -36,14 +36,20 @@ track2_structure/submissions/
 # Boltz-2 pipeline artifacts (re-creatable from DB + AFDB MSA)
 structures/boltz2/msa/
 structures/boltz2/inputs/
+structures/boltz2/inputs_*/
 structures/boltz2/inputs_fast/
 structures/boltz2/inputs_fast_smoke/
 structures/boltz2/outputs/
+structures/boltz2/outputs_resume_from_embeddings/
+structures/boltz2/processed_*/
+structures/boltz2/resume_*/
+structures/boltz2/affinity_*_smoke*/
 structures/boltz2/outputs_fast/
 structures/boltz2/outputs_fast_rcycle3/
 structures/boltz2/ligands/
 structures/boltz2/manifest*.csv
 structures/boltz2/postprocess*.csv
+structures/boltz2/affinity_reuse_postprocess.csv
 structures/boltz2/posebusters*.csv
 structures/boltz2_track2/
 
