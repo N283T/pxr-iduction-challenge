@@ -35,9 +35,10 @@ BACKBONES: dict[str, dict] = {
         "max_length": 202,
         "trust_remote_code": True,
         # Architecture identical to ibm/MoLFormer-XL-both-10pct (verified
-        # config.json). The "1.1B" refers to pretrain token count; actual
-        # model is ~80M params. HF auto_map references ibm modeling code,
-        # so trust_remote_code=True pulls from the ibm repo.
+        # config.json). The "1.1B" refers to pretraining data scale, not
+        # parameter count; the HF model card reports 46.8M params. HF
+        # auto_map references ibm modeling code, so trust_remote_code=True
+        # pulls from the ibm repo.
         "lora_target_modules_qv": ["query", "value"],
         "lora_target_modules_qkvo": ["query", "key", "value", "dense"],
         # Same rotary embedding bug as ibm/MoLFormer-XL (inherited
