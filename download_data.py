@@ -17,6 +17,9 @@ CONFIGS = {
     "counter_assay": {"splits": ["train"]},
     "single_concentration": {"splits": ["train"]},
     "structure": {"splits": ["test"]},
+    "phase_1_unblinded": {"splits": ["test"]},
+    "crudes_htchem": {"splits": ["train"]},
+    "semi_pure_htchem": {"splits": ["train"]},
 }
 
 

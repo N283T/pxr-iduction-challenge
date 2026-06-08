@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS lb_submissions (
     lb_spearman_std DOUBLE PRECISION,
     lb_kendall DOUBLE PRECISION,
     lb_kendall_std DOUBLE PRECISION,
+    lb_cld TEXT,
     -- Track 2 (structure) metrics
     lb_lddt_pli DOUBLE PRECISION,
     lb_lddt_pli_std DOUBLE PRECISION,
@@ -76,6 +77,7 @@ SELECT
     lb_mae,
     lb_r2,
     lb_spearman,
+    lb_cld,
     -- Track 2 (structure) metrics
     lb_lddt_pli,
     lb_lddt_pli_std,
