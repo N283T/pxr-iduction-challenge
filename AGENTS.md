@@ -11,7 +11,8 @@ https://huggingface.co/spaces/openadmet/pxr-challenge
 
 - Track 1 Activity: predict pEC50 for 513 blinded compounds. Primary metric: MAE.
 - Track 2 Structure: predict protein-ligand 3D structures for 78 compounds. Primary metric: LDDT-PLI.
-- Track 1 research log: GitHub issue #100.
+- Track 1 Phase 1 research log: GitHub issue #100.
+- Track 1 Phase 2 research log: GitHub issue #208.
 - Leaderboard snapshots: `docs/leaderboards/activity/` and `docs/leaderboards/structure/`.
 - Before quoting rank, gap, or "best", check the latest snapshot and `lb_submissions` / `lb_submission_history`. Rank changes quickly.
 
@@ -54,6 +55,7 @@ Core tables:
 
 - `compounds`: all compounds with SMILES, standardized SMILES, and RDKit mols.
 - `train_activity`, `test_activity`: Track 1 train/test rows.
+- `test_activity_phase1_labels`: released Phase 2 labels for Analog Set 1.
 - `counter_assay`, `single_concentration`: auxiliary activity data.
 - `experiments`, `experiment_cv_results`, `experiment_oof_predictions`: local experiment tracking.
 - `lb_submissions`, `lb_submission_history`: local leaderboard submission history.
@@ -82,6 +84,11 @@ track2_structure/             Track 2 work area when needed
 
 - Canonical CV: UMAP split, seed 42, 50 clusters, Morgan+Jaccard. Scaffold split is diagnostic only unless explicitly requested.
 - All load functions should preserve deterministic ordering with `ORDER BY t.id`.
+- Phase 2 has released Analog Set 1 labels for 253 of the 513 Track 1 test
+  compounds; 260 compounds remain blinded as Analog Set 2. Use AS1 for
+  answer-checks and validation design, not as a reason to train directly on AS2
+  labels that do not exist.
+- Use issue #208 for Phase 2 Track 1 logs. Keep issue #100 as the Phase 1/live-leaderboard chronology.
 - Record experiments and OOF predictions in the DB when adding a model intended for ensembling.
 - Current ensemble default: `caruana_bag20` in `run_ensemble.py`. Continuous optimizers are useful diagnostics but have caused destructive reallocation with correlated members.
 - Re-run both calibrators after material pool changes:
@@ -96,6 +103,24 @@ track2_structure/             Track 2 work area when needed
 
 Important Track 1 memory:
 
+- Phase 2 AS1 replay confirmed the public LB target was effectively the released
+  253-compound subset. Recent unique submission CSVs replay within about
+  0.0003-0.0006 MAE of recorded public LB rows; older stable paths may have been
+  overwritten.
+- The id55/id60 anchor `ens_id51_top500_potent46_t40_soft_g35` remains the best
+  recent Phase 1 anchor on AS1 (MAE about 0.4066). Its main error shape is
+  extreme compression: very weak compounds are overpredicted and very strong
+  compounds are underpredicted.
+- Predicted `log2_fc` remains a real AS1 activity axis, but low-tail activity
+  cliffs near potent train analogs are not solved by simple NN or high-LF gates.
+- OOF is directionally meaningful on AS1, but small late-stage OOF gains and
+  local gates remain weak evidence. The id56 top500/log2fc-heavy direction, id58
+  combo gate, and id59 high-activity lift were all AS1-negative relative to id55.
+- Current AS1 member replay supports re-checking low-weight diversity reserves
+  before carrying them forward by inertia; weak single models can help in exact
+  ensemble contexts, but that must be verified rather than assumed.
+- HTChem Phase 2 data is loaded for future work, but it was intentionally
+  deferred from the first AS1 answer-check audit.
 - The pretrain-freeze-extract recipe on single-concentration `log2_fc` has been the strongest repeatable axis. Multi-seed upgrades should usually be SWAPs, not ADDs, when predictions are highly correlated.
 - `ens_meta_axis_reverse_id50_g10` was a diagnostic LB-direction probe, not a scalable model family.
 - The 2026-05-07 optuna trial10 seed5ens top500 SWAP had excellent OOF but

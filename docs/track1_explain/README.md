@@ -7,7 +7,8 @@ into the production ensemble, and what lessons are worth carrying forward.
 
 Source-of-truth details remain elsewhere:
 
-- Research chronology: GitHub issue #100.
+- Phase 2 research log and answer-checks: GitHub issue #208.
+- Phase 1 research chronology: GitHub issue #100.
 - Current ensemble allow-list: `track1_activity/scripts/run_ensemble.py`.
 - Model and feature scripts: `track1_activity/scripts/` and
   `track1_activity/src/`.
@@ -19,7 +20,7 @@ Source-of-truth details remain elsewhere:
 
 | File | Purpose |
 |---|---|
-| `current_state.md` | Current Track 1 status from issue #100 and the latest local snapshots. |
+| `current_state.md` | Phase 1 Track 1 status from issue #100 and local snapshots. Phase 2 updates live in issue #208 until refreshed. |
 | `overall_strategy_report.md` | Overall modeling strategy: Buterez-style low-fidelity transfer, log2fc usage, TabPFN readout, and rejected alternatives. |
 | `dataset_split_report.md` | Dataset construction, auxiliary assay coverage, and the rationale for the canonical Morgan UMAP split. |
 | `ensemble_calibration_report.md` | Ensemble weighting, Caruana selection, post-hoc calibration, and why late small calibration moves were paused. |
