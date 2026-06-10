@@ -1,0 +1,15 @@
+{
+  "member": {
+    "name": "tabpfn_attentivefp_pretrain_embed_umap_default",
+    "feature": "attentivefp_pretrain_embed",
+    "top_k": null
+  },
+  "tabpfn_version": "v2_6",
+  "n_estimators": 8,
+  "softmax_temperature": 0.9,
+  "average_before_softmax": false,
+  "device": "cuda",
+  "n_splits": 5,
+  "n_clusters": 100,
+  "seed": 42
+}

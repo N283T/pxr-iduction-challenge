@@ -1,0 +1,6 @@
+alpha,path,as2_mean_abs_shift,as2_p90_abs_shift,as2_max_abs_shift
+0.1,track1_activity/submissions/phase2_as1_aug_top500_id55blend_a0p1_labels_as1.csv,0.012551278244055334,0.025104426603971126,0.06299366772536007
+0.2,track1_activity/submissions/phase2_as1_aug_top500_id55blend_a0p2_labels_as1.csv,0.025102556488110668,0.05020885320794225,0.12598733545072013
+0.3,track1_activity/submissions/phase2_as1_aug_top500_id55blend_a0p3_labels_as1.csv,0.037653834732166,0.07531327981191337,0.18898100317608016
+0.4,track1_activity/submissions/phase2_as1_aug_top500_id55blend_a0p4_labels_as1.csv,0.050205112976221336,0.1004177064158845,0.25197467090144027
+0.5,track1_activity/submissions/phase2_as1_aug_top500_id55blend_a0p5_labels_as1.csv,0.06275639122027667,0.12552213301985563,0.3149683386268003
