@@ -1,0 +1,10 @@
+{
+  "feature": "cheme_2d_full_boltz_log2fc_pred_seed10ens",
+  "top_k": 500,
+  "n_splits": 5,
+  "n_clusters": 100,
+  "seed": 42,
+  "ranker_estimators": 500,
+  "model_estimators": 2000,
+  "skip_oof": false
+}
