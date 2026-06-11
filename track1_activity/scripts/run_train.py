@@ -20,11 +20,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.joinpath("src")))
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-import numpy as np
-import pandas as pd
-import psycopg2
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import psycopg2  # noqa: E402
 
-from data import (
+from data import (  # noqa: E402
     DB_PARAMS,
     JAZZY_FEATURE_COLS,
     get_conn,
@@ -36,20 +36,20 @@ from data import (
     load_train_smiles_target,
     load_train_smiles_with_counter,
 )
-from evaluate import (
+from evaluate import (  # noqa: E402
     compute_metrics,
     print_fold_summary,
     print_metrics,
     record_experiment,
     save_oof_predictions,
 )
-from features import FP_REGISTRY, smiles_to_mols
-from pseudo_labels import (
+from features import FP_REGISTRY, smiles_to_mols  # noqa: E402
+from pseudo_labels import (  # noqa: E402
     augment_fold,
     build_pseudo_feature_matrix,
     load_pseudo_labels,
 )
-from splits import (
+from splits import (  # noqa: E402
     adversarial_split_indices,
     analog_aware_split_indices,
     mixed_analog_diversity_split_indices,
@@ -1165,6 +1165,31 @@ def load_features(feature_name: str, train_df, test_df):
         X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
         print(
             f"  chemprop_pretrain_embed: {X_train.shape[1]} dims "
+            f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
+        )
+        return X_train, X_test
+
+    if feature_name == "chemprop_log2fc_htchem_pretrain_embed":
+        # 256d per-compound fingerprints from a 3-head ChemProp pretrain:
+        # log2fc_8p25 + log2fc_33 + HTChem corrected pEC50. This tests whether
+        # the small HTChem SAR island can gently adapt the LF encoder without
+        # replacing the stronger log2fc predicted-feature axis.
+        embed_path = REPO_ROOT.joinpath(
+            "data", "chemprop_log2fc_htchem_pretrain_embed.parquet"
+        )
+        if not embed_path.exists():
+            raise SystemExit(
+                f"Missing {embed_path}. Run "
+                "track1_activity/analysis/phase2_htchem_pred_axis/"
+                "run_chemprop_htchem_pretrain.py"
+            )
+        emb_df = pd.read_parquet(embed_path)
+        X_train = emb_df.reindex(index=train_ids).to_numpy(dtype=np.float32).copy()
+        X_test = emb_df.reindex(index=test_ids).to_numpy(dtype=np.float32).copy()
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+        print(
+            f"  chemprop_log2fc_htchem_pretrain_embed: {X_train.shape[1]} dims "
             f"(train {X_train.shape[0]} / test {X_test.shape[0]})"
         )
         return X_train, X_test
@@ -2687,6 +2712,7 @@ def main():
             "boltz_dist_interactions",
             "pooled_boltz_allpairs_dist_interactions",
             "chemprop_pretrain_embed",
+            "chemprop_log2fc_htchem_pretrain_embed",
             "chemprop_assay_shape_embed",
             "chemprop_assay_shape_drlatent_embed",
             "chemprop_counter_emax_embed",

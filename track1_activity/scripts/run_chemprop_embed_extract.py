@@ -8,8 +8,8 @@ fingerprints (the output of ``MPNN.fingerprint``, i.e. post-aggregation
 post-batchnorm, pre-predictor).
 
 Output: ``data/chemprop_pretrain_embed.parquet`` indexed by compound_id
-with columns ``emb_000 .. emb_255``. Covers the union of train + test
-(4653 compounds). Downstream TabPFN / LGBM consumers reindex by
+with columns ``emb_000 .. emb_255``. By default it covers the union of
+train + test (4653 compounds). Downstream TabPFN / LGBM consumers reindex by
 compound_id.
 
 Usage:
@@ -81,23 +81,44 @@ def build_pretrain_model(params: dict):
     )
 
 
-def load_target_compounds() -> pd.DataFrame:
-    """Return DataFrame with compound_id + std_smiles for train + test.
+def load_target_compounds(scope: str = "train_test") -> pd.DataFrame:
+    """Return target compounds for ChemProp extraction.
 
-    Only these compounds will appear in tabular training pipelines; the
-    remaining 8483 single-only compounds are irrelevant here.
+    ``htchem`` uses COALESCE(std_smiles, smiles) because HTChem compounds were
+    loaded after standardization and mostly do not have std_smiles populated.
     """
-    sql = """
-    SELECT DISTINCT c.id AS compound_id, c.std_smiles AS smiles
-    FROM compounds c
-    WHERE c.id IN (
-      SELECT compound_id FROM train_activity
-      UNION
-      SELECT compound_id FROM test_activity
-    )
-      AND c.std_smiles IS NOT NULL
-    ORDER BY c.id
-    """
+    if scope == "train_test":
+        sql = """
+        SELECT DISTINCT c.id AS compound_id, c.std_smiles AS smiles
+        FROM compounds c
+        WHERE c.id IN (
+          SELECT compound_id FROM train_activity
+          UNION
+          SELECT compound_id FROM test_activity
+        )
+          AND c.std_smiles IS NOT NULL
+        ORDER BY c.id
+        """
+    elif scope == "htchem":
+        sql = """
+        SELECT DISTINCT c.id AS compound_id, COALESCE(c.std_smiles, c.smiles) AS smiles
+        FROM compounds c
+        JOIN htchem_activity h ON h.compound_id = c.id
+        WHERE h.corrected_pec50 IS NOT NULL
+          AND COALESCE(c.std_smiles, c.smiles) IS NOT NULL
+        ORDER BY c.id
+        """
+    elif scope == "all_with_smiles":
+        sql = """
+        SELECT DISTINCT c.id AS compound_id, COALESCE(c.std_smiles, c.smiles) AS smiles
+        FROM compounds c
+        WHERE COALESCE(c.std_smiles, c.smiles) IS NOT NULL
+        ORDER BY c.id
+        """
+    else:
+        raise ValueError(
+            f"Unknown scope {scope!r}; use train_test, htchem, or all_with_smiles"
+        )
     with psycopg2.connect(**DB_PARAMS) as conn:
         return pd.read_sql(sql, conn)
 
@@ -113,6 +134,12 @@ def main() -> None:
         "--out", type=Path, default=DEFAULT_OUT_PATH, help="output parquet path"
     )
     parser.add_argument("--batch-size", type=int, default=256)
+    parser.add_argument(
+        "--scope",
+        choices=["train_test", "htchem", "all_with_smiles"],
+        default="train_test",
+        help="compound set to extract",
+    )
     args = parser.parse_args()
 
     ckpt_path: Path = args.ckpt
@@ -127,9 +154,9 @@ def main() -> None:
     print(f"Loaded pretrain ckpt: {ckpt_path}")
     print(f"  params: {params}")
 
-    df = load_target_compounds()
+    df = load_target_compounds(args.scope)
     n = len(df)
-    print(f"Target compounds: {n}")
+    print(f"Target compounds ({args.scope}): {n}")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = build_pretrain_model(params).to(device)

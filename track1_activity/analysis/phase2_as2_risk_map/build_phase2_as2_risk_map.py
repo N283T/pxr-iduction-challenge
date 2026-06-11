@@ -34,6 +34,22 @@ LF_PATH = (
     / "data"
     / "chemprop_pretrain_log2fc_predictions_optuna_trial10_seed5ens.parquet"
 )
+HTCHEM_AXIS_PATH = (
+    REPO_ROOT
+    / "track1_activity"
+    / "analysis"
+    / "phase2_htchem_pred_axis"
+    / "outputs"
+    / "challenge_pred_htchem_context.csv"
+)
+HTCHEM_SPACE_DIR = (
+    REPO_ROOT
+    / "track1_activity"
+    / "analysis"
+    / "phase2_htchem_pred_axis"
+    / "outputs"
+    / "chemical_space"
+)
 
 TRAIN_BINS = [-np.inf, 3.0, 4.0, 5.0, 6.0, np.inf]
 TRAIN_BIN_LABELS = ["lt3", "3to4", "4to5", "5to6", "gte6"]
@@ -162,11 +178,9 @@ def add_train_support(df: pd.DataFrame) -> pd.DataFrame:
     for threshold in (0.40, 0.50, 0.60):
         near = sim >= threshold
         out[f"train_support_n_ge_{threshold:.2f}"] = near.sum(axis=1)
-        out[f"train_support_weak_n_ge_{threshold:.2f}"] = (
-            near[:, weak_mask].sum(axis=1)
-        )
-        out[f"train_support_potent_n_ge_{threshold:.2f}"] = (
-            near[:, potent_mask].sum(axis=1)
+        out[f"train_support_weak_n_ge_{threshold:.2f}"] = near[:, weak_mask].sum(axis=1)
+        out[f"train_support_potent_n_ge_{threshold:.2f}"] = near[:, potent_mask].sum(
+            axis=1
         )
 
     train_bins = pd.cut(train_y, TRAIN_BINS, labels=TRAIN_BIN_LABELS)
@@ -212,6 +226,63 @@ def add_as1_case_similarity(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def add_htchem_context(df: pd.DataFrame) -> pd.DataFrame:
+    axis = pd.read_csv(HTCHEM_AXIS_PATH)[
+        [
+            "compound_id",
+            "pred_htchem",
+            "htchem_minus_lf_z",
+        ]
+    ]
+    nearest = pd.read_csv(HTCHEM_SPACE_DIR / "test_to_htchem_nearest.csv")[
+        [
+            "compound_id",
+            "nn_htchem_molecule_name",
+            "nn_htchem_tanimoto",
+            "nn_htchem_corrected_pec50",
+        ]
+    ]
+    coords = pd.read_csv(HTCHEM_SPACE_DIR / "morgan_umap_coordinates.csv")[
+        ["compound_id", "cluster"]
+    ].rename(columns={"cluster": "htchem_umap_cluster"})
+    clusters = pd.read_csv(HTCHEM_SPACE_DIR / "umap_kmeans_cluster_summary.csv")
+    clusters = clusters.rename(
+        columns={
+            "cluster": "htchem_umap_cluster",
+            "AS1": "htchem_cluster_as1",
+            "AS2": "htchem_cluster_as2",
+            "train": "htchem_cluster_train",
+            "test_total": "htchem_cluster_test_total",
+        }
+    )[
+        [
+            "htchem_umap_cluster",
+            "htchem_cluster_as1",
+            "htchem_cluster_as2",
+            "htchem_crude",
+            "htchem_semi_pure",
+            "htchem_total",
+            "htchem_cluster_train",
+            "htchem_cluster_test_total",
+        ]
+    ]
+
+    out = df.merge(axis, on="compound_id", how="left")
+    out = out.merge(nearest, on="compound_id", how="left")
+    out = out.merge(coords, on="compound_id", how="left")
+    out = out.merge(clusters, on="htchem_umap_cluster", how="left")
+    out["htchem_total"] = out["htchem_total"].fillna(0).astype(int)
+    out["htchem_crude"] = out["htchem_crude"].fillna(0).astype(int)
+    out["htchem_semi_pure"] = out["htchem_semi_pure"].fillna(0).astype(int)
+    out["htchem_cluster_train"] = out["htchem_cluster_train"].fillna(0).astype(int)
+    out["htchem_cluster_test_total"] = (
+        out["htchem_cluster_test_total"].fillna(0).astype(int)
+    )
+    out["htchem_cluster_as1"] = out["htchem_cluster_as1"].fillna(0).astype(int)
+    out["htchem_cluster_as2"] = out["htchem_cluster_as2"].fillna(0).astype(int)
+    return out
+
+
 def add_risk_scores(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
     out["split"] = np.where(out["as1_pec50"].notna(), "AS1", "AS2")
@@ -245,6 +316,18 @@ def add_risk_scores(df: pd.DataFrame) -> pd.DataFrame:
     out["overall_risk_score"] = out[
         ["low_tail_risk_score", "high_tail_risk_score", "mid_3to4_ambiguity_score"]
     ].max(axis=1)
+    out["htchem_activity_score"] = (
+        0.45 * pct_rank(out["pred_htchem"])
+        + 0.25 * pct_rank(out["htchem_minus_lf_z"])
+        + 0.20 * pct_rank(out["nn_htchem_tanimoto"])
+        + 0.10 * pct_rank(out["nn_htchem_corrected_pec50"])
+    )
+    out["htchem_space_score"] = (
+        0.35 * pct_rank(out["nn_htchem_tanimoto"])
+        + 0.25 * pct_rank(out["htchem_total"])
+        + 0.20 * pct_rank(out["htchem_semi_pure"])
+        + 0.20 * pct_rank(out["htchem_cluster_test_total"])
+    )
 
     as1 = out[out["split"] == "AS1"]
     lf_low = float(as1["lf_mean"].quantile(0.25))
@@ -252,6 +335,10 @@ def add_risk_scores(df: pd.DataFrame) -> pd.DataFrame:
     pred_mid = float(as1["pred_id55"].quantile(0.50))
     pred_high = float(as1["pred_id55"].quantile(0.85))
     std_high = float(as1["member_std"].quantile(0.90))
+    htchem_pred_q80 = float(as1["pred_htchem"].quantile(0.80))
+    htchem_pred_q90 = float(as1["pred_htchem"].quantile(0.90))
+    htchem_minus_lf_q70 = float(as1["htchem_minus_lf_z"].quantile(0.70))
+    htchem_activity_q90 = float(as1["htchem_activity_score"].quantile(0.90))
 
     tag_columns = {
         "tag_low_lf_high_pred": (out["lf_mean"] <= lf_low)
@@ -266,10 +353,26 @@ def add_risk_scores(df: pd.DataFrame) -> pd.DataFrame:
         "tag_as1_low_case_like": out["max_sim_to_as1_low_overpred"] >= 0.50,
         "tag_as1_high_case_like": out["max_sim_to_as1_high_underpred"] >= 0.50,
         "tag_as1_mid_case_like": out["max_sim_to_as1_mid_3to4_large_error"] >= 0.50,
+        "tag_htchem_pred_high_q80": out["pred_htchem"] >= htchem_pred_q80,
+        "tag_htchem_pred_very_high_q90": out["pred_htchem"] >= htchem_pred_q90,
+        "tag_htchem_top500_lift_candidate": (
+            (out["pred_htchem"] >= htchem_pred_q80)
+            | (out["htchem_minus_lf_z"] >= htchem_minus_lf_q70)
+        ),
+        "tag_htchem_vs_lf_high": out["htchem_minus_lf_z"] >= htchem_minus_lf_q70,
+        "tag_htchem_near_ge_050": out["nn_htchem_tanimoto"] >= 0.50,
+        "tag_htchem_near_ge_060": out["nn_htchem_tanimoto"] >= 0.60,
+        "tag_htchem_active_neighbor": (out["nn_htchem_tanimoto"] >= 0.50)
+        & (out["nn_htchem_corrected_pec50"] >= 5.5),
+        "tag_htchem_mixed_cluster": out["htchem_total"] > 0,
+        "tag_htchem_activity_top_as1_decile": (
+            out["htchem_activity_score"] >= htchem_activity_q90
+        ),
     }
     for col, values in tag_columns.items():
         out[col] = values
-    out["tag_count"] = out[list(tag_columns)].sum(axis=1)
+    tag_cols = [c for c in out.columns if c.startswith("tag_") and c != "tag_count"]
+    out["tag_count"] = out[tag_cols].sum(axis=1)
     return out
 
 
@@ -283,6 +386,12 @@ def build_split_summary(df: pd.DataFrame) -> pd.DataFrame:
         "nn_potent_tanimoto",
         "nn_weak_tanimoto",
         "train_support_pred_bin_n_ge_0.50",
+        "pred_htchem",
+        "htchem_minus_lf_z",
+        "nn_htchem_tanimoto",
+        "nn_htchem_corrected_pec50",
+        "htchem_activity_score",
+        "htchem_space_score",
         "low_tail_risk_score",
         "high_tail_risk_score",
         "mid_3to4_ambiguity_score",
@@ -336,6 +445,23 @@ def plot_maps(df: pd.DataFrame) -> None:
     fig.colorbar(sc, ax=ax, label="overall risk score")
     savefig(fig, ASSET_DIR / "as2_risk_map_scatter.png")
 
+    fig, ax = plt.subplots(figsize=(7.2, 5.4))
+    sc = ax.scatter(
+        as2["lf_mean"],
+        as2["pred_htchem"],
+        c=as2["htchem_activity_score"],
+        cmap="viridis",
+        s=34,
+        alpha=0.9,
+        linewidths=0,
+    )
+    ax.set_xlabel("Predicted log2fc mean")
+    ax.set_ylabel("Predicted HTChem pEC50")
+    ax.set_title("AS2 HTChem high-activity map")
+    ax.grid(alpha=0.22)
+    fig.colorbar(sc, ax=ax, label="HTChem activity score")
+    savefig(fig, ASSET_DIR / "as2_htchem_activity_map.png")
+
 
 def write_report(
     df: pd.DataFrame,
@@ -344,10 +470,19 @@ def write_report(
     missing_members: list[str],
 ) -> None:
     as2 = df[df["split"] == "AS2"].sort_values("overall_risk_score", ascending=False)
+    as2_htchem = df[df["split"] == "AS2"].sort_values(
+        "htchem_activity_score", ascending=False
+    )
     top_cols = [
         "molecule_name",
         "pred_id55",
         "lf_mean",
+        "pred_htchem",
+        "htchem_minus_lf_z",
+        "nn_htchem_tanimoto",
+        "nn_htchem_corrected_pec50",
+        "htchem_activity_score",
+        "htchem_space_score",
         "member_std",
         "nn_train_tanimoto",
         "nn_train_pec50",
@@ -362,6 +497,7 @@ def write_report(
         "tag_count",
     ]
     top = as2[top_cols].head(20)
+    top_htchem = as2_htchem[top_cols].head(20)
     tag_cols = [c for c in df.columns if c.startswith("tag_") and c != "tag_count"]
     tag_counts = (
         as2[tag_cols]
@@ -400,6 +536,8 @@ def write_report(
         f"- Production member CSVs found: {len(member_names)}.",
         f"- Missing production member CSVs: {len(missing_members)}.",
         "- LF proxy: chemprop optuna trial10 seed5ens predicted `log2_fc` parquet.",
+        "- HTChem proxy: ChemProp-embedding Ridge prediction of corrected HTChem pEC50,",
+        "  nearest HTChem analog, and Morgan UMAP cluster context.",
         "- Chemistry support: Morgan nearest-neighbor context against train activity.",
         "- AS1 case anchors: released AS1 low-tail overpredictions, high-tail",
         "  underpredictions, and 3-4 large-error cases.",
@@ -414,9 +552,13 @@ def write_report(
         f"- AS2 LF mean is {lf_delta:+.4f} higher than AS1.",
         f"- AS2 compounds with overall risk score >= 0.80: {high_risk_top_n}.",
         f"- AS2 compounds directly similar to tagged AS1 miss sets at Tanimoto >= 0.50: {as1_case_like_n}.",
+        f"- AS2 compounds with HTChem nearest-neighbor Tanimoto >= 0.50: {int(as2['tag_htchem_near_ge_050'].sum())}.",
+        f"- AS2 compounds in a Morgan UMAP cluster containing HTChem compounds: {int(as2['tag_htchem_mixed_cluster'].sum())}.",
         "- The highest-ranked AS2 rows are mostly high-prediction/high-LF or",
         "  potent-neighbor/low-support cases. This points more toward high-tail",
         "  saturation risk than a clean replay of the AS1 low-tail cliff cases.",
+        "- The HTChem map should be read as a high-activity/local-chemistry",
+        "  diagnostic. It is not broad enough to replace the existing AS2 map.",
         "",
         "## AS2 tag counts",
         "",
@@ -426,11 +568,17 @@ def write_report(
         "",
         top.to_markdown(index=False, floatfmt=".4f"),
         "",
+        "## Top AS2 compounds by HTChem activity score",
+        "",
+        top_htchem.to_markdown(index=False, floatfmt=".4f"),
+        "",
         "## Figures",
         "",
         "![AS1 and AS2 LF-vs-anchor space](assets/phase2_as2_risk_map/as1_as2_lf_vs_id55.png)",
         "",
         "![AS2 unlabeled risk map](assets/phase2_as2_risk_map/as2_risk_map_scatter.png)",
+        "",
+        "![AS2 HTChem high-activity map](assets/phase2_as2_risk_map/as2_htchem_activity_map.png)",
         "",
         "## Interpretation guardrails",
         "",
@@ -449,6 +597,7 @@ def write_report(
         "",
         "- `track1_activity/analysis/phase2_as2_risk_map/outputs/all_test_risk_map.csv`",
         "- `track1_activity/analysis/phase2_as2_risk_map/outputs/as2_risk_map.csv`",
+        "- `track1_activity/analysis/phase2_as2_risk_map/outputs/as2_htchem_map.csv`",
         "- `track1_activity/analysis/phase2_as2_risk_map/outputs/split_summary.csv`",
         "- `track1_activity/analysis/phase2_as2_risk_map/outputs/as2_tag_counts.csv`",
     ]
@@ -465,10 +614,14 @@ def main() -> None:
     df = add_train_support(df)
     df["split"] = np.where(df["as1_pec50"].notna(), "AS1", "AS2")
     df = add_as1_case_similarity(df)
+    df = add_htchem_context(df)
     df = add_risk_scores(df)
 
     split_summary = build_split_summary(df)
     as2 = df[df["split"] == "AS2"].sort_values("overall_risk_score", ascending=False)
+    as2_htchem = df[df["split"] == "AS2"].sort_values(
+        "htchem_activity_score", ascending=False
+    )
     tag_cols = [c for c in df.columns if c.startswith("tag_") and c != "tag_count"]
     tag_counts = (
         as2[tag_cols]
@@ -480,6 +633,7 @@ def main() -> None:
 
     df.to_csv(OUT_DIR / "all_test_risk_map.csv", index=False)
     as2.to_csv(OUT_DIR / "as2_risk_map.csv", index=False)
+    as2_htchem.to_csv(OUT_DIR / "as2_htchem_map.csv", index=False)
     split_summary.to_csv(OUT_DIR / "split_summary.csv", index=False)
     tag_counts.to_csv(OUT_DIR / "as2_tag_counts.csv", index=False)
     plot_maps(df)

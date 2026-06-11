@@ -1,0 +1,6 @@
+set,n_compounds,n_scaffolds,overlap_train_scaffolds,overlap_test_scaffolds,overlap_htchem_scaffolds,compounds_with_train_scaffold,compounds_with_htchem_scaffold
+train,4140,3670,3670,35,11,4110,161
+test,513,369,35,369,9,97,20
+as1,253,180,18,180,6,56,9
+as2,260,190,17,190,3,41,11
+htchem,441,361,11,9,361,43,441

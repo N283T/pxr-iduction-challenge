@@ -66,6 +66,12 @@ def main() -> None:
         default=OUT_PATH,
         help=f"Output parquet path (default: {OUT_PATH})",
     )
+    parser.add_argument(
+        "--scope",
+        choices=["train_test", "htchem", "all_with_smiles"],
+        default="train_test",
+        help="compound set to predict",
+    )
     args = parser.parse_args()
 
     if not args.ckpt.exists():
@@ -76,9 +82,9 @@ def main() -> None:
     stds = np.asarray(ckpt["target_stds"], dtype=np.float32)  # (2,)
     print(f"Target standardisation from pretrain meta: mean={means}, std={stds}")
 
-    df = load_target_compounds()
+    df = load_target_compounds(args.scope)
     n = len(df)
-    print(f"Target compounds: {n}")
+    print(f"Target compounds ({args.scope}): {n}")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = build_pretrain_model(params).to(device)
