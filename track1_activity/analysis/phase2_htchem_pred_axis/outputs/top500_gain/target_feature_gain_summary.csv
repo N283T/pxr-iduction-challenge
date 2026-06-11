@@ -1,0 +1,4 @@
+feature,family,selected_folds,mean_rank,min_rank,max_rank,mean_gain_share_pct,mean_split,full_rank,full_selected,full_gain_share_pct,full_split
+log2fc_8p25_pred,log2fc_pred,5,1.2,1,2,51.27202650961603,257.6,1,True,58.364803144586084,260
+log2fc_33_pred,log2fc_pred,5,1.8,1,2,22.298418066343668,173.4,2,True,15.156318211174144,195
+pred_htchem,pred_htchem,5,11.0,6,17,0.1765302306018175,54.6,10,True,0.17917892487287998,57

@@ -1,0 +1,6 @@
+fold,pred_htchem_rank,pred_htchem_selected,pred_htchem_gain_share_pct,pred_htchem_split,zero_gain_selected
+0,15,True,0.13581144979180254,59,0
+1,17,True,0.13405983173191097,60,0
+2,6,True,0.23154218310387298,58,0
+3,9,True,0.1905103067506292,49,0
+4,8,True,0.19072738163087175,47,0
