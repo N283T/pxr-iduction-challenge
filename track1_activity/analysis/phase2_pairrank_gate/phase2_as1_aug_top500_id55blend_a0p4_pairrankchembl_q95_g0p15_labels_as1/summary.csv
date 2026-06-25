@@ -1,0 +1,2 @@
+base,output,threshold,shift,n_total,n_as1,n_as2,n_flags,as2_flag_fraction,mean_shift_all,mean_shift_as2,max_shift
+track1_activity/submissions/phase2_as1_aug_top500_id55blend_a0p4_labels_as1.csv,track1_activity/submissions/phase2_as1_aug_top500_id55blend_a0p4_pairrankchembl_q95_g0p15_labels_as1.csv,0.58878,0.15,513,253,260,32,0.12307692307692308,0.009356725146198853,0.018461538461538505,0.15000000000000036

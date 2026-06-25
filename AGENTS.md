@@ -13,6 +13,7 @@ https://huggingface.co/spaces/openadmet/pxr-challenge
 - Track 2 Structure: predict protein-ligand 3D structures for 78 compounds. Primary metric: LDDT-PLI.
 - Track 1 Phase 1 research log: GitHub issue #100.
 - Track 1 Phase 2 research log: GitHub issue #208.
+- Track 1 public model report repo: https://github.com/N283T/openadmet-pxr-model-report
 - Leaderboard snapshots: `docs/leaderboards/activity/` and `docs/leaderboards/structure/`.
 - Before quoting rank, gap, or "best", check the latest snapshot and `lb_submissions` / `lb_submission_history`. Rank changes quickly.
 
@@ -119,6 +120,7 @@ Important Track 1 memory:
 - Current AS1 member replay supports re-checking low-weight diversity reserves
   before carrying them forward by inertia; weak single models can help in exact
   ensemble contexts, but that must be verified rather than assumed.
+- Phase 2 final candidate submitted on 2026-06-25: `phase2_as1_aug_top500_id55blend_a0p4_pairrankchembl_q95_g0p15_labels_as1` (`lb_submissions` id 62). It fills AS1 rows with released labels, applies a 0.4 blend from the id55 anchor toward the AS1-augmented top500 TabPFN v3 model for AS2, then adds a small +0.15 high-activity lift to AS2 compounds flagged by the ChEMBL/public-PXR pairwise assay-rank gate.
 - HTChem Phase 2 data is loaded for future work, but it was intentionally
   deferred from the first AS1 answer-check audit.
 - The pretrain-freeze-extract recipe on single-concentration `log2_fc` has been the strongest repeatable axis. Multi-seed upgrades should usually be SWAPs, not ADDs, when predictions are highly correlated.
