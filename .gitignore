@@ -33,6 +33,15 @@ data/optuna_chemprop_pretrain/
 track1_activity/submissions/
 track2_structure/submissions/
 
+# Track 1 analysis runtime artifacts. Existing tracked reports remain tracked;
+# force-add intentionally curated outputs when a lightweight audit artifact is
+# worth preserving in git.
+track1_activity/analysis/**/outputs/
+track1_activity/analysis/phase2_as1_augmented_suite/
+track1_activity/analysis/phase2_composite_gate/
+track1_activity/analysis/phase2_pairrank_gate/
+track1_activity/analysis/phase2_submission_candidates/
+
 # Boltz-2 pipeline artifacts (re-creatable from DB + AFDB MSA)
 structures/boltz2/msa/
 structures/boltz2/inputs/
