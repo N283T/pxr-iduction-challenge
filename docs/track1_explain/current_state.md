@@ -1,98 +1,104 @@
 # Track 1 Current State
 
-Last reviewed: 2026-05-17 JST.
+Last reviewed: 2026-06-28 JST.
 
-This summary is based on GitHub issue #100, the current production ensemble
-script, and the latest local leaderboard snapshots.
+This summary is based on GitHub issue #208, local Phase 2 answer checks, the
+`lb_submissions` table, and the latest local leaderboard snapshot. Detailed
+experiment chronology remains in issue #208.
 
 ## One-Sentence Status
 
-Track 1 Phase 1 is effectively in hold mode: the strongest useful model family
-has been found, recent small local gains have not transferred to the public
-leaderboard, and the next high-value step is to wait for Phase 2 labels before
-fitting more calibration or local-gain variants.
+Track 1 Phase 2 is in final-candidate mode: the submitted candidate is local
+`lb_submissions.id = 63`, a conservative AS1-label-filled update that nudges
+the id62 anchor from `alpha=0.40` to `alpha=0.45` and adds only two new
+high-confidence AS2 composite-gate lifts.
 
-## Latest Public-LB Context
+## Submitted Phase 2 Candidate
 
-Latest local snapshot checked:
-`docs/leaderboards/activity/leaderboard_2026-05-16_2141JST.csv`.
+Submitted candidate:
 
-Visible N283T row:
+```text
+phase2_as1_aug_top500_id55blend_a0p45_pairrankchembl_q95_g0p15_plus_combo_new_h0p15_l0p15_labels_as1
+```
 
-| Rank | MAE | RAE | R2 | Spearman |
+Recipe:
+
+- AS1 rows are filled with released labels.
+- AS2 rows start from the id55/id60 Phase 1 anchor.
+- AS2 blends `0.45` toward the AS1-augmented top500 TabPFN v3 model.
+- The old ChEMBL/public-PXR pairrank q95 high gate is retained at `+0.15`.
+- The new composite pairrank/ChemProp gate adds only AS2 rows not already
+  lifted by the old gate, also at `+0.15`.
+- No low-side shift is applied in the submitted candidate.
+
+The two new composite-only AS2 additions are:
+
+- `OADMET-0006488`
+- `OADMET-0006142`
+
+Submission was accepted by the Hugging Face API on 2026-06-28 JST and recorded
+locally as `lb_submissions.id = 63`. Leaderboard metrics are still pending in
+the local snapshot.
+
+## Immediate Preflight Read
+
+The selected `alpha=0.45` candidate was compared against the current id62
+anchor on AS2:
+
+| metric | value |
+|---|---:|
+| AS2 mean absolute shift | 0.00729 |
+| AS2 p90 absolute shift | 0.01263 |
+| AS2 max absolute shift | 0.14696 |
+| AS2 rows with abs shift > 0.05 | 2 |
+| AS2 rows with abs shift > 0.10 | 2 |
+| preflight verdict vs id62 | PASS |
+
+This is the "strict-small-move" point in the alpha ladder. Larger alpha values
+improved the AS1-aug model proxy but started to move many more AS2 rows:
+
+| alpha | AS1 model proxy MAE | AS2 mean abs shift vs id62 | AS2 p90 shift | rows > 0.05 |
 |---:|---:|---:|---:|---:|
-| 5 | 0.407730 | 0.512323 | 0.678512 | 0.844763 |
+| 0.40 | 0.28033 | 0.00115 | 0.00000 | 2 |
+| 0.45 | 0.26456 | 0.00729 | 0.01263 | 2 |
+| 0.50 | 0.24881 | 0.01343 | 0.02527 | 5 |
+| 0.55 | 0.23308 | 0.01957 | 0.03790 | 19 |
+| 0.60 | 0.21735 | 0.02571 | 0.05054 | 28 |
 
-Recent internal submission anchors from issue #100:
+## Current Modeling Read
 
-| id | Submission | Public result | Interpretation |
-|---:|---|---|---|
-| 55 | `ens_id51_top500_potent46_t40_soft_g35` | MAE 0.407080, rank 3 | Best recent practical anchor. |
-| 57 | `ens_id51_top500_potent46_t40_soft_g50` | MAE 0.407389, rank 4 | Slightly worse than id55, still trusted. |
-| 58 | `ens_id55_combo_gate_rank1` | MAE 0.407520, rank 5 | Local OOF/preflight gain did not transfer. |
-| 59 | `ens_id57_high_activity_lift_rank2` | MAE 0.407730, rank 5 | Conservative calibration-style lift also did not transfer. |
+The id55/id60 anchor remains the most trusted Phase 1 base, but it does not
+train on released AS1 labels. The AS1-augmented top500 model therefore carries
+real continuation signal; the risk is that broad movement toward it repeats the
+Phase 1 pattern where small local gains failed to transfer.
 
-The absolute differences are small, but the repeated id58/id59 pattern is the
-important signal: small OOF or pseudo-public improvements are no longer reliable
-enough to justify spending Phase 1 submissions.
+The current submission compromise is:
 
-## Current Production Ensemble Shape
+- trust the AS1-augmented model enough to move from `alpha=0.40` to `0.45`;
+- keep AS2 movement very small;
+- keep the proven ChEMBL/public-PXR pairrank high gate;
+- use the new Boltz-style ChemProp/pairrank composite only as a sparse extra
+  high-tail confirmation signal;
+- avoid low-tail gates because the safe low threshold flags zero AS2 rows and
+  looser thresholds looked too broad.
 
-The canonical script is `track1_activity/scripts/run_ensemble.py`.
+## Useful New Research Artifacts
 
-As of this review, `ENSEMBLE_MODELS` contains nine active members:
+- `docs/track1_explain/chembl_pairwise_deep.md` records the ActFound/Boltz-style
+  ChEMBL same-assay pairwise ChemProp line and the id63 decision.
+- `docs/track1_explain/twinbooster_zero_shot.md` records a negative zero-shot
+  assay-text probe.
+- `track1_activity/scripts/phase2_apply_composite_gate.py` reproduces sparse
+  composite-gate submission adjustments.
+- `track1_activity/scripts/prepare_chembl_pairwise_deep.py`,
+  `run_chemprop_pairwise_pretrain.py`, and
+  `score_chemprop_pairwise_pretrain.py` reproduce the pairwise ChemProp
+  pretraining and scoring pipeline.
 
-1. `tabpfn_cheme_2d_full_boltz_log2fc_pred_optuna_trial10_seed5ens_umap_default`
-2. `tabpfn_chemprop_pretrain_embed_umap_default`
-3. `tabpfn_pooled_boltz_umap_default`
-4. `tabpfn_pooled_boltz_allpairs_umap_default`
-5. `tabpfn_molformer_c3_pretrain_embed_umap`
-6. `tabpfn_kermt_pretrain_embed_umap_default`
-7. `tabpfn_attentivefp_pretrain_embed_umap_default`
-8. `tabpfn_gatedgcn_pretrain_embed_umap_default`
-9. `tabpfn_cheme_2d_full_boltz_log2fc_pred_seed10ens_top500_umap`
+## Next Watch Items
 
-The ensemble recipe is `caruana_bag20`: a bagged forward-selection ensemble
-that spreads weight across correlated strong members more conservatively than
-continuous weight optimizers.
-
-## Main Lessons
-
-### What Worked
-
-- Low-fidelity `log2_fc` pretraining followed by frozen embedding extraction
-  was the strongest repeatable modeling axis.
-- TabPFN was very effective once strong molecular representations or selected
-  tabular features were prepared for it.
-- Multi-seed `log2_fc` prediction features improved the dominant 2D/Boltz
-  tabular model family.
-- Per-fold top-500 feature selection helped TabPFN handle large feature sets.
-- Simple positive-slope affine calibration gave one large early public-LB gain.
-
-### What Became Risky
-
-- Adding highly correlated variants often improved OOF but hurt public LB.
-- Local OOF gains below roughly 0.004 became weak evidence near the end of the
-  Phase 1 sweep.
-- Public-LB movement after id55/id57 suggests the current validation setup no
-  longer simulates Analog Set 1 well enough for small calibration moves.
-
-### What Did Not Pay Off Enough
-
-- Direct MoLFormer-XL LoRA fine-tuning on pEC50.
-- FMGCL-style auxiliary loss without the full pretraining setup.
-- Repeated small Boltz trunk/pose-feature swaps after the main trunk features
-  were already represented.
-- Combined gates based on `log2_fc`, ring count, feature-family gaps, and
-  top500 deltas.
-- Conservative high-activity lifts before Phase 2 labels.
-
-## Phase 2 Carry-Forward
-
-Keep id55/id57/id58/id59 prediction deltas as diagnostic anchors. Once Analog
-Set 1 labels are released, revisit:
-
-- very small affine or monotone calibration layers;
-- validation split construction that better simulates the released analog set;
-- whether high R2 from id59 indicates useful broad variance structure despite
-  worse MAE/RAE.
+- Fetch the activity leaderboard again later and back-fill id61/id62/id63 local
+  rows once the public metrics appear.
+- If id63 is positive, revisit a slightly more aggressive `alpha=0.50` variant.
+- If id63 is negative, keep id62 as the safer Phase 2 anchor and treat the
+  composite gate as research-only.

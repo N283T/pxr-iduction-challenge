@@ -20,7 +20,7 @@ Source-of-truth details remain elsewhere:
 
 | File | Purpose |
 |---|---|
-| `current_state.md` | Phase 1 Track 1 status from issue #100 and local snapshots. Phase 2 updates live in issue #208 until refreshed. |
+| `current_state.md` | Current Track 1 Phase 2 status, submitted candidate, and immediate next watch items. |
 | `phase2_answer_check_report.md` | Japanese Phase 2 answer-check report using released Analog Set 1 labels, with figures for anchors, error bins, OOF-vs-AS1, and proxy signals. |
 | `phase2_compound_case_study_report.md` | Japanese compound-level Phase 2 case study with molecule structure figures for low-tail, 3-4 bidirectional, high-tail, and well-predicted id55 cases. |
 | `overall_strategy_report.md` | Overall modeling strategy: Buterez-style low-fidelity transfer, log2fc usage, TabPFN readout, and rejected alternatives. |
@@ -30,6 +30,8 @@ Source-of-truth details remain elsewhere:
 | `negative_results_report.md` | High-level summary of model families and probes that were dropped because they were weak, redundant, or LB-negative. |
 | `foundation_model_lessons_report.md` | Practical interpretation of why generic foundation models often underperformed on this fixed-target PXR task. |
 | `external_data_report.md` | How external ChEMBL/related-target data were tested, why direct use was deferred, and what remains useful for Phase 2. |
+| `chembl_pairwise_deep.md` | ActFound/Boltz-style same-assay ChEMBL pairwise ChemProp work and the id63 sparse composite-gate decision. |
+| `twinbooster_zero_shot.md` | Negative assay-text zero-shot probe using TwinBooster as a PXR ranking/gating prior. |
 | `model_inventory.md` | Practical taxonomy of the model families and methods. |
 | `explanation_outline.md` | Suggested order for explaining the work to another person. |
 | `models/` | Per-model notes with reproducibility checks and adoption/drop rationale. |
