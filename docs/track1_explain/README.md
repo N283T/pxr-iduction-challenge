@@ -21,6 +21,7 @@ Source-of-truth details remain elsewhere:
 | File | Purpose |
 |---|---|
 | `current_state.md` | Current Track 1 Phase 2 status, submitted candidate, and immediate next watch items. |
+| `phase2_final_submission_decision.md` | Final Phase 2 submission review: id63 hold decision, top500 v3/v2.6 checks, and hedge candidates. |
 | `phase2_answer_check_report.md` | Japanese Phase 2 answer-check report using released Analog Set 1 labels, with figures for anchors, error bins, OOF-vs-AS1, and proxy signals. |
 | `phase2_compound_case_study_report.md` | Japanese compound-level Phase 2 case study with molecule structure figures for low-tail, 3-4 bidirectional, high-tail, and well-predicted id55 cases. |
 | `overall_strategy_report.md` | Overall modeling strategy: Buterez-style low-fidelity transfer, log2fc usage, TabPFN readout, and rejected alternatives. |

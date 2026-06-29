@@ -1,6 +1,6 @@
 # Track 1 Current State
 
-Last reviewed: 2026-06-28 JST.
+Last reviewed: 2026-06-29 JST.
 
 This summary is based on GitHub issue #208, local Phase 2 answer checks, the
 `lb_submissions` table, and the latest local leaderboard snapshot. Detailed
@@ -37,8 +37,9 @@ The two new composite-only AS2 additions are:
 - `OADMET-0006142`
 
 Submission was accepted by the Hugging Face API on 2026-06-28 JST and recorded
-locally as `lb_submissions.id = 63`. Leaderboard metrics are still pending in
-the local snapshot.
+locally as `lb_submissions.id = 63`. Phase 2 Activity has no live public
+leaderboard feedback, so there is no expected post-submit LB row to fetch before
+the final blind evaluation.
 
 ## Immediate Preflight Read
 
@@ -84,6 +85,9 @@ The current submission compromise is:
 
 ## Useful New Research Artifacts
 
+- `docs/track1_explain/phase2_final_submission_decision.md` records the final
+  id63 hold decision, the top500 v3/v2.6 re-check, and the optional consensus
+  hedge candidate.
 - `docs/track1_explain/chembl_pairwise_deep.md` records the ActFound/Boltz-style
   ChEMBL same-assay pairwise ChemProp line and the id63 decision.
 - `docs/track1_explain/twinbooster_zero_shot.md` records a negative zero-shot
@@ -97,8 +101,9 @@ The current submission compromise is:
 
 ## Next Watch Items
 
-- Fetch the activity leaderboard again later and back-fill id61/id62/id63 local
-  rows once the public metrics appear.
-- If id63 is positive, revisit a slightly more aggressive `alpha=0.50` variant.
-- If id63 is negative, keep id62 as the safer Phase 2 anchor and treat the
-  composite gate as research-only.
+- If only one/latest final submission matters, leave id63 as the final file.
+- If multiple final files can be retained or selected, keep id63 as primary and
+  use `phase2_id63_plus_consensus_boltz_top500_b0p2_delta_labels_as1.csv` only
+  as a controlled hedge.
+- Do not replace id63 with v2.6, seed15, id55-shape, broad low-side gates, or
+  `alpha >= 0.50` without new blind-evaluation evidence.
