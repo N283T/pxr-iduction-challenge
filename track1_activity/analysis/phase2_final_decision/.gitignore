@@ -1,0 +1,6 @@
+*.csv
+*.parquet
+*.json
+*.png
+*.log
+*/
