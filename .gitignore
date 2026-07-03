@@ -21,8 +21,10 @@ data/*.parquet
 data/**/*.parquet
 data/**/*.h5
 data/**/*.db
+data/*.csv
 data/*.bak_*
 data/**/*_meta.json
+data/hf_pxr_challenge_train_test/
 data/eda_redo/
 data/eda_cv_prep/
 data/chembl/
@@ -41,6 +43,7 @@ track1_activity/analysis/phase2_as1_augmented_suite/
 track1_activity/analysis/phase2_composite_gate/
 track1_activity/analysis/phase2_pairrank_gate/
 track1_activity/analysis/phase2_submission_candidates/
+track1_activity/analysis/final_label_replay/
 
 # Boltz-2 pipeline artifacts (re-creatable from DB + AFDB MSA)
 structures/boltz2/msa/
