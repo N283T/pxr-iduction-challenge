@@ -1,60 +1,64 @@
 # PXR Induction Challenge
 
-Repository for the OpenADMET PXR Blind Challenge (April 1 - July 1, 2026).
+Repository for my OpenADMET PXR Blind Challenge work (April 1 - July 1, 2026).
 
 - Challenge page: <https://huggingface.co/spaces/openadmet/pxr-challenge>
+- Track 1 public model report: <https://github.com/N283T/openadmet-pxr-model-report>
 - Track 1 Phase 1 research log: [issue #100](https://github.com/N283T/pxr-iduction-challenge/issues/100)
 - Track 1 Phase 2 research log: [issue #208](https://github.com/N283T/pxr-iduction-challenge/issues/208)
-- Track 2 research log: [issue #129](https://github.com/N283T/pxr-iduction-challenge/issues/129) (local Track 2 assets were removed after the competition)
+- Track 2 research log: [issue #129](https://github.com/N283T/pxr-iduction-challenge/issues/129)
 
-The GitHub issues above are the source of truth for current experiments,
-leaderboard status, null results, and next-step notes. This README is only a
-lightweight orientation guide and may intentionally lag behind active work.
+The issues are intentionally part of the public record: they contain the
+day-by-day experiment notes, wrong turns, leaderboard reactions, null results,
+and decision logs that do not belong in a polished README. If you want the
+battle record rather than the cleaned-up code map, start with #100 and #208.
 
-## Tracks
+## Final Result
 
-| Track | Task | Primary metric | Current notes |
-|---|---|---|---|
-| Track 1 Activity | Predict pEC50 for blinded compounds | MAE lower is better | Phase 2 work is in issue #208; Phase 1 chronology is issue #100 |
-| Track 2 Structure | Predict protein-ligand 3D structures | LDDT-PLI higher is better | Deferred during the competition; local assets were removed post-competition |
+| Track | Task | Result |
+|---|---|---|
+| Track 1 Activity | Predict pEC50 for 513 blinded compounds | Rank 4, MAE 0.411256332902247 in the final local snapshot (`docs/leaderboards/activity/leaderboard_2026-07-03_1426JST.csv`) |
+| Track 2 Structure | Predict protein-ligand 3D structures | Not pursued to final submission; local Track 2 assets were removed after the competition |
 
-Before quoting a rank, gap, or "best" submission, check the latest leaderboard
-snapshot and local submission history. The public leaderboard changes quickly.
+Track 1 moved through several leaderboard phases. The best late Phase 1 public
+snapshot in this repo was rank 4 / MAE 0.4059243855909984 on the 2026-06-28
+snapshot; the post-deadline/final-report snapshot recorded rank 4 / MAE
+0.411256332902247 with the public model report linked above.
 
-## Track 1 Phase 2 status
+## What Is Here
 
-Analog Set 1 labels have been released for 253 of the 513 Track 1 test
-compounds; 260 compounds remain blinded. The first Phase 2 pass was an
-answer-check audit only: existing submission CSVs, OOF summaries, production
-members, and `docs/track1_explain/` claims were replayed against the released
-labels without retraining or generating new predictions.
-
-Short read from that audit:
-
-- The Phase 1 public leaderboard effectively tracked the released Analog Set 1
-  subset.
-- The id55/id60 anchor `ens_id51_top500_potent46_t40_soft_g35` remains the best
-  recent Phase 1 anchor on released labels.
-- The main error shape is compressed extremes: very weak compounds were
-  overpredicted and very strong compounds were underpredicted.
-- Predicted `log2_fc` is still a strong activity axis, but small OOF gains,
-  local gates, and diversity-reserve assumptions need Phase 2 revalidation.
-
-Use issue #208 for current Track 1 Phase 2 decisions. Keep issue #100 as the
-Phase 1 chronology.
-
-## Repository map
+This repository keeps the reproducible Track 1 code, schemas, lightweight
+documentation, and public leaderboard snapshots. Generated data, checkpoints,
+embeddings, Boltz outputs, model weights, private reports, and submission CSVs
+are intentionally left out of git.
 
 ```text
 data/                         ignored runtime parquet/data artifacts
 db/                           database schemas, loaders, feature builders
-docs/                         notes, literature reports, leaderboard snapshots
+docs/                         documentation, literature notes, leaderboard snapshots
+docs/leaderboards/activity/   timestamped Track 1 leaderboard snapshots
 track1_activity/src/          shared Track 1 loading, features, splits, metrics
-track1_activity/scripts/      Track 1 training, ensembling, calibration, submit tools
+track1_activity/scripts/      training, ensembling, calibration, diagnostics
 track1_activity/boltz2/       Boltz-2 feature-generation pipeline for Track 1
 track1_activity/submissions/  ignored Track 1 CSV submissions
 structures/                   ignored Boltz-2 / structure runtime artifacts
 ```
+
+## Track 1 Notes
+
+The final Track 1 system was an ensemble workflow built around deterministic
+UMAP-split validation, feature families from 2D descriptors and foundation-model
+embeddings, Boltz-2-derived features, Caruana-style ensemble selection, and
+submission preflight checks against trusted anchors.
+
+Useful context:
+
+- Issue #100 is the Phase 1/live-leaderboard chronology.
+- Issue #208 is the Phase 2 answer-check and finalization log.
+- `docs/track1_explain/` keeps compact public explanation and audit notes.
+- `docs/leaderboards/activity/` keeps the public leaderboard snapshots used for
+  retrospective checks.
+- `AGENTS.md` is the durable operating guide for coding agents in this repo.
 
 ## Environment
 
@@ -81,42 +85,12 @@ Database details used in local scripts:
 GPU-heavy work was developed on an RTX 5080 with WSL2 CUDA override
 `CONDA_OVERRIDE_CUDA=13.1`.
 
-## Submission helpers
-
-Track 1 submissions are handled through `track1_activity/scripts/api.py`.
-The script records local submission metadata in the database when available.
-
-```bash
-pixi run python track1_activity/scripts/api.py cooldown
-pixi run python track1_activity/scripts/api.py status --track activity
-pixi run python track1_activity/scripts/api.py fetch --track activity
-```
-
-For Track 1, run a preflight report before spending a cooldown on a material CSV
-change:
-
-```bash
-pixi run python track1_activity/scripts/submission_preflight.py \
-  --candidate track1_activity/submissions/<candidate>.csv \
-  --anchor track1_activity/submissions/<trusted-anchor>.csv \
-  --name <report-name>
-```
-
-Treat `PASS` / `CAUTION` / `HOLD` as warning lights, not automatic decisions.
-Inspect anchor shifts, largest compound moves, prediction scale, and known bad
-axis alignment.
-
 ## Data
 
 Challenge data comes from
 [openadmet/pxr-challenge-train-test](https://huggingface.co/datasets/openadmet/pxr-challenge-train-test).
-Generated data, checkpoints, embeddings, Boltz outputs, and submission files are
-kept out of git.
+Fresh clone setup is intentionally script-driven through the database and data
+loading scripts under `db/`.
 
-## Where to look first
-
-- Track 1 Phase 2 status / decisions: issue #208
-- Track 1 Phase 1 chronology: issue #100
-- Durable agent operating rules: `AGENTS.md`
-- Leaderboard snapshots: `docs/leaderboards/`
-- Detailed docs and archived research notes: `docs/`
+Local submission clients can contain personal account state, so they are ignored
+by git. Recreate them locally rather than committing credentials or API state.
