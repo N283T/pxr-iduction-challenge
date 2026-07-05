@@ -17,10 +17,10 @@ Some issue comments are informal notes in Japanese.
 
 Track 1 Activity: predict pEC50 for 513 blinded compounds.
 
-| Phase | Rank | MAE | RAE | R2 | Spearman rho | Kendall tau | Snapshot | Report |
-|---|---:|---:|---:|---:|---:|---:|---|---|
-| Phase 1 | 4 | 0.4059243855909984 | 0.5358944071957822 | 0.64960073479329 | 0.8342824140936284 | 0.6459344918654071 | `docs/leaderboards/activity/leaderboard_2026-06-28_1811JST.csv` | - |
-| Phase 2 | 4 | 0.411256332902247 | 0.5703230159134048 | 0.6007957466717375 | 0.816145814183088 | 0.6225300706062136 | `docs/leaderboards/activity/leaderboard_2026-07-03_1426JST.csv` | [model report](https://github.com/N283T/openadmet-pxr-model-report) |
+| Phase | Rank | MAE | RAE | R2 | Spearman rho | Kendall tau |
+|---|---:|---:|---:|---:|---:|---:|
+| Phase 1 | 4 | 0.4059 | 0.5359 | 0.6496 | 0.8343 | 0.6459 |
+| Phase 2 | 4 | 0.4113 | 0.5703 | 0.6008 | 0.8161 | 0.6225 |
 
 ## What Is Here
 
