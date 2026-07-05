@@ -6,7 +6,6 @@ Repository for my OpenADMET PXR Blind Challenge work (April 1 - July 1, 2026).
 - Track 1 public model report: <https://github.com/N283T/openadmet-pxr-model-report>
 - Track 1 Phase 1 research log: [issue #100](https://github.com/N283T/pxr-iduction-challenge/issues/100)
 - Track 1 Phase 2 research log: [issue #208](https://github.com/N283T/pxr-iduction-challenge/issues/208)
-- Track 2 research log: [issue #129](https://github.com/N283T/pxr-iduction-challenge/issues/129)
 
 The issues are intentionally part of the public record: they contain the
 day-by-day experiment notes, wrong turns, leaderboard reactions, null results,
@@ -16,10 +15,13 @@ Some issue comments are informal notes in Japanese.
 
 ## Final Result
 
-| Track | Task | Result |
-|---|---|---|
-| Track 1 Activity | Predict pEC50 for 513 blinded compounds | Rank 4, MAE 0.411256332902247 in the final local snapshot (`docs/leaderboards/activity/leaderboard_2026-07-03_1426JST.csv`) |
-| Track 2 Structure | Predict protein-ligand 3D structures | Not pursued to final submission; local Track 2 assets were removed after the competition |
+| Metric | Value |
+|---|---|
+| Task | Track 1 Activity: predict pEC50 for 513 blinded compounds |
+| Final rank | 4 |
+| Final MAE | 0.411256332902247 |
+| Final snapshot | `docs/leaderboards/activity/leaderboard_2026-07-03_1426JST.csv` |
+| Model report | <https://github.com/N283T/openadmet-pxr-model-report> |
 
 Track 1 moved through several leaderboard phases. The best late Phase 1 public
 snapshot in this repo was rank 4 / MAE 0.4059243855909984 on the 2026-06-28
