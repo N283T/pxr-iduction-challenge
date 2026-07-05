@@ -12,6 +12,7 @@ The issues are intentionally part of the public record: they contain the
 day-by-day experiment notes, wrong turns, leaderboard reactions, null results,
 and decision logs that do not belong in a polished README. If you want the
 battle record rather than the cleaned-up code map, start with #100 and #208.
+Some issue comments are informal notes in Japanese.
 
 ## Final Result
 
