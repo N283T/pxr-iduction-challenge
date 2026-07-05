@@ -1,8 +1,6 @@
 #!/bin/bash
-# Scheduled LB submission — polls api.py cooldown for the chosen track
-# and submits once READY. Works for both Activity (CSV) and Structure
-# (ZIP) submissions; the cooldown query is now track-filtered so it
-# doesn't false-succeed when the OTHER track is READY.
+# Scheduled LB submission — polls api.py cooldown for Track 1 activity
+# submissions and submits once READY.
 #
 # Designed to run unattended. Use `--daemon` to launch through `setsid` so it
 # survives Codex app / non-interactive shell teardown. Logs to a timestamped file
@@ -18,11 +16,10 @@
 #       [--log <log_path>] \
 #       [--daemon]
 #
-#   <input_path> is a CSV for Activity Prediction or a ZIP for Structure
-#   Prediction; api.py auto-detects from the file passed.
+#   <input_path> is a CSV for Activity Prediction.
 #
 # Defaults:
-#   --track   "Activity Prediction"     (use "Structure Prediction" for Track 2)
+#   --track   "Activity Prediction"
 #   --poll    180   (check cooldown every 3 minutes)
 #   --safety  60    (sleep this long after cooldown READY before submitting,
 #                    in case of clock skew with LB server)
@@ -33,14 +30,6 @@
 #       track1_activity/submissions/ens_caruana_bag20_calibrated_best.csv \
 #       --experiment ens_caruana_bag20_calibrated_best \
 #       --notes "blah blah" \
-#       --daemon
-#
-# Track 2 example:
-#   bash track1_activity/scripts/scheduled_submit.sh \
-#       track2_structure/submissions/track2_boltz2_zanchored_v2b_2026-04-26.zip \
-#       --track "Structure Prediction" \
-#       --experiment track2_zanchored_v2b \
-#       --notes "Z-anchored ..." \
 #       --daemon
 #
 # Exit codes:
