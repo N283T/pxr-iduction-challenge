@@ -22,7 +22,7 @@ Output: track1_activity/submissions/ens_caruana_bag20_anchor_residual.csv
 
 LB A/B mandatory regardless of OOF gate.
 
-Spec: docs/superpowers/specs/2026-04-29-anchor-residual-model-design.md
+Legacy experiment script; internal design note was removed from the public repository.
 """
 
 from __future__ import annotations

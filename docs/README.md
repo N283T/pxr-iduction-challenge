@@ -12,7 +12,6 @@ workflow have been migrated to closed GitHub issues.
 | `deepresearch/` | Deep Research reports and literature surveys. |
 | `leaderboards/` | Public leaderboard CSV snapshots for Track 1. |
 | `papers/` | Focused paper notes and local parse metadata. |
-| `superpowers/` | Planning/spec artifacts for agentic implementation work. |
 
 ## Archived Markdown Reports
 

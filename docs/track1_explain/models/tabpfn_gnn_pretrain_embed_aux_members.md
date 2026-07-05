@@ -301,8 +301,6 @@ feature parquetとcheckpointは残っているので、
   - PR #106 direct GNN drop
   - 2026-04-27 drop_lowweight / family concentration notes
   - 2026-04-28 family-meta notes
-- `docs/superpowers/specs/2026-04-21-attentivefp-pretrain-embed-design.md`
-- `docs/superpowers/specs/2026-04-21-gatedgcn-pretrain-embed-design.md`
 - `track1_activity/scripts/run_attentivefp_embed_extract.py`
 - `track1_activity/scripts/run_gatedgcn_embed_extract.py`
 - `track1_activity/scripts/boltz_affhead/32_drop_lowweight_members.py`

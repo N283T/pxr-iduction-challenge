@@ -12,8 +12,7 @@
 -- consumers should treat the union as a single 13,135-row corpus for
 -- pretrain MLP input, but may filter on recycling_steps for analysis.
 --
--- See docs/superpowers/specs/2026-04-21-boltz-trunk-log2fc-pretrain-design.md
--- (Buterez strategy-3 with Boltz-2 backbone, issue #109).
+-- Buterez strategy-3 with Boltz-2 backbone, issue #109.
 
 CREATE TABLE IF NOT EXISTS compound_boltz2_trunk_fast (
     compound_id INT PRIMARY KEY REFERENCES compounds(id),

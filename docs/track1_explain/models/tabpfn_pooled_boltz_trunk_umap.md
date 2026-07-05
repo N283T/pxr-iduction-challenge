@@ -440,7 +440,6 @@ Boltz trunkに独立した情報が入っていることの実験的な手がか
   - 2026-05-05 trunk-fast inventory and re-pool experiments
   - 2026-05-06 re-pooled Boltz core-only LB readback
 - `docs/papers/boltz2_affinity_notes.md`
-- `docs/superpowers/specs/2026-04-21-boltz-trunk-log2fc-pretrain-design.md`
 - `track1_activity/scripts/boltz_affhead/01_pool_embeddings.py`
 - `track1_activity/scripts/boltz_affhead/01b_pool_allpairs.py`
 - `track1_activity/scripts/boltz_affhead/37_trunk_fast_inventory.py`

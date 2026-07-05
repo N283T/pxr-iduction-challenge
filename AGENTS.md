@@ -22,7 +22,7 @@ https://huggingface.co/spaces/openadmet/pxr-challenge
 - Never commit directly to `main` or `master`; use a `codex/` branch for repository changes.
 - Code, comments, commit messages, PR descriptions, and technical docs must be in English unless the user-facing artifact requires another language.
 - Do not delete git-tracked files unless the user explicitly asks for that deletion.
-- Treat `track1_activity/scripts/api.py` as local/ignored because it contains personal account details. Do not commit it.
+- Treat local submission clients such as `track1_activity/scripts/api.py` as ignored because they can contain account-specific details. Do not commit them.
 - Generated artifacts are not source: keep checkpoints, embedding parquets, Boltz outputs, DB data, and submissions out of git.
 - This repo has no GitHub Actions CI. Use focused local checks and report `CI: N/A (no workflow)` when relevant.
 - Prefer small, reversible changes. Update docs when behavior or workflow changes.
@@ -71,7 +71,7 @@ current supported feature names.
 ```text
 data/                         ignored parquet/runtime data
 db/                           schemas, loaders, descriptor/embedding builders
-docs/                         documentation, deepresearch, leaderboard snapshots
+docs/                         documentation, literature notes, leaderboard snapshots
 track1_activity/src/          shared data loading, features, CV splits, metrics, trainers
 track1_activity/scripts/      training, ensembling, calibration, submission, experiments
 track1_activity/scripts/archive/  older exploratory scripts

@@ -15,7 +15,7 @@ Output: track1_activity/submissions/ens_caruana_bag20_calibrated_proximity.csv
 LB A/B mandatory regardless of OOF gate (calibrator family changes have a
 documented OOF/LB sign-flip history).
 
-Spec: docs/superpowers/specs/2026-04-29-potent46-proximity-gated-calibrator-design.md
+Legacy experiment script; internal design note was removed from the public repository.
 """
 
 from __future__ import annotations

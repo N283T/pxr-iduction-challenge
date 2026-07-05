@@ -40,7 +40,7 @@ from data import (  # noqa: E402
     load_train_smiles_target,
 )
 
-OUT_DIR = REPO_ROOT.joinpath("docs", "superpowers", "runs")
+OUT_DIR = REPO_ROOT.joinpath("track1_activity", "reports")
 SUBMISSION_DIR = REPO_ROOT.joinpath("track1_activity", "submissions")
 SEED = 42
 N_QUARTILES = 4

@@ -5,7 +5,7 @@
 このreportは、Track 1で「試したが最終採用しなかったもの」を説明するための軽い整理。
 全部を深掘りするより、なぜ捨てたのかを人に説明できる粒度に留める。
 主な根拠は、GitHub issue #100、`track1_activity/scripts/run_ensemble.py` のallow-list/dropコメント、
-既存の個別model report、`docs/superpowers/runs/` と `docs/superpowers/specs/` に残った実験メモ。
+既存の個別model report、各analysis directoryに残った軽量summary。
 
 結論から言うと、negative resultの大半は次のどちらかだった。
 

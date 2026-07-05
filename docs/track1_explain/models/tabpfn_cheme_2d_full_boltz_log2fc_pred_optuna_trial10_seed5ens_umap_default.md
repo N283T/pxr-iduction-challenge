@@ -65,8 +65,7 @@ public LBで悪化しやすかった。full版は同じ `log2_fc`/CheMeleon/Bolt
 
 ![Optuna trial10 default context](assets/optuna_trial10_default/optuna_default_context.png)
 
-この図の左2つは単体モデルの OOF、右は trial11 ADD を外した後の9-pool診断
-`docs/superpowers/runs/2026-04-30-region-diagnostic.log` に残る
+この図の左2つは単体モデルの OOF、右は trial11 ADD を外した後の9-pool診断で見た
 Caruana weight。OOFだけを見ると optuna trial10 top500 が最強だが、
 実際の安定運用では `optuna trial10 full` と `seed10 top500` を並べる形になった。
 

@@ -13,8 +13,7 @@ Source-of-truth details remain elsewhere:
 - Model and feature scripts: `track1_activity/scripts/` and
   `track1_activity/src/`.
 - Leaderboard snapshots: `docs/leaderboards/activity/`.
-- Detailed run notes: `docs/superpowers/runs/`.
-- Design notes: `docs/superpowers/specs/` and `docs/superpowers/plans/`.
+- Public-facing model and feature summaries: this directory.
 
 ## Files
 

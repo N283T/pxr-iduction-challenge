@@ -116,8 +116,7 @@ ChEMBLからnearest-neighbor signalをざっと確認した。
 ただし、関連target dataは「類似化合物の値をそのまま入れる」よりも、
 target-specific pretrainやmulti-task representation learningとして使う方が可能性がある。
 
-実際、`docs/superpowers/specs/2026-05-01-cross-nr-multitask-plan.md` では、
-CAR/VDR/FXRなどを使ったcross-NR multi-task pretrain案を検討していた。
+実際、CAR/VDR/FXRなどを使ったcross-NR multi-task pretrain案を検討していた。
 ただし、Phase 1終盤ではOOF/LB mismatchが大きくなっており、
 新しい外部データ軸を急いでsubmissionまで持っていくのはriskが高いと判断した。
 

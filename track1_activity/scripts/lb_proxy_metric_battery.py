@@ -41,7 +41,7 @@ Decision rule: metric whose Spearman rank correlation with LB MAE >= 0.5
 across the LB-known subset is a candidate gate. If no metric reaches 0.3,
 fallback to multi-condition gate.
 
-Spec: docs/superpowers/specs/2026-04-29-lb-proxy-discovery-design.md (TBD)
+Legacy experiment script; internal design note was removed from the public repository.
 """
 
 from __future__ import annotations

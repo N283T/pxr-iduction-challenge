@@ -17,7 +17,7 @@ OOF MAE) <= -0.003, it's a submit candidate.
 
 Pool member name: tabpfn_cheme_2d_full_boltz_admet_ai_top500_umap
 
-Spec: docs/superpowers/specs/2026-04-29-admet-ai-features-design.md (open question)
+Legacy experiment script; internal design note was removed from the public repository.
 """
 
 from __future__ import annotations

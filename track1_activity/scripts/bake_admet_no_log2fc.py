@@ -9,7 +9,7 @@ so not chemprop family). Tests:
 
 If all pass, this is a submit candidate.
 
-Spec: docs/superpowers/specs/2026-04-29-lb-proxy-discovery-design.md
+Legacy experiment script; internal design note was removed from the public repository.
 """
 
 from __future__ import annotations

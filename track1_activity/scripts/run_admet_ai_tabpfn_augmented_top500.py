@@ -19,7 +19,7 @@ Pool member name: tabpfn_cheme_2d_full_boltz_log2fc_pred_seed10ens_admet_ai_top5
 If single OOF MAE < 0.397, this is a SWAP candidate for the existing
 `tabpfn_cheme_2d_full_boltz_log2fc_pred_seed10ens_top500_umap`.
 
-Spec: docs/superpowers/specs/2026-04-29-admet-ai-features-design.md
+Legacy experiment script; internal design note was removed from the public repository.
 """
 
 from __future__ import annotations

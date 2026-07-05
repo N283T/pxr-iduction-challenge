@@ -13,7 +13,7 @@ If this single OOF MAE beats the existing top500 (~0.397), it becomes a
 SWAP candidate (replace top500 in ENSEMBLE_MODELS, no family share
 concentration). Caruana bakeoff is the next step.
 
-Spec: docs/superpowers/specs/2026-04-29-admet-ai-features-design.md
+Legacy experiment script; internal design note was removed from the public repository.
 """
 
 from __future__ import annotations
