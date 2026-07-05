@@ -37,7 +37,7 @@ def main() -> None:
         mols.append(mol)
         legends.append(f"{name}\npEC50={pec50:.2f}  Δ={delta:.2f}")
 
-    out_dir = Path("docs/images")
+    out_dir = Path("docs/figures")
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir.joinpath("potent-46.png")
 
