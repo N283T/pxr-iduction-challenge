@@ -10,9 +10,10 @@ workflow have been migrated to closed GitHub issues.
 |---|---|
 | `assay_notes/` | OpenADMET/Octant challenge announcement and assay notes. |
 | `deepresearch/` | Deep Research reports and literature surveys. |
+| `figures/` | Shared figures used by reports and exploratory notes. |
 | `leaderboards/` | Public leaderboard CSV snapshots for Track 1. |
 | `papers/` | Focused paper notes and local parse metadata. |
-| `superpowers/` | Planning/spec artifacts for agentic implementation work. |
+| `track1_explain/` | Compact Track 1 explanation and Phase 2 audit notes. |
 
 ## Archived Markdown Reports
 

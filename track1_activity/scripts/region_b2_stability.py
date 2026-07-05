@@ -41,7 +41,7 @@ from data import (  # noqa: E402
     load_train_smiles_target,
 )
 
-OUT_DIR = REPO_ROOT.joinpath("docs", "superpowers", "runs")
+OUT_DIR = REPO_ROOT.joinpath("track1_activity", "reports")
 N_QUARTILES = 4
 WEIGHT_CLIP_LO = 1.0 / 3.0
 WEIGHT_CLIP_HI = 3.0

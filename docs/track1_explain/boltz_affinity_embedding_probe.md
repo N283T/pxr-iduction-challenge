@@ -172,7 +172,6 @@ Generated outputs are intentionally ignored under:
 
 Related background:
 
-- `docs/papers/boltz2_affinity_notes.md`
 - `docs/track1_explain/models/tabpfn_pooled_boltz_trunk_umap.md`
 - `db/boltz2_affinity_reuse_schema.sql`
 - `track1_activity/boltz2/scripts/boltz2_affinity_reuse_postprocess.py`

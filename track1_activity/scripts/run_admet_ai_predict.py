@@ -12,7 +12,7 @@ Output: data/admet_ai_predictions.parquet with columns:
   smiles (string),
   <ADMET-AI feature columns>...
 
-Spec: docs/superpowers/specs/2026-04-29-admet-ai-features-design.md
+Legacy experiment script; internal design note was removed from the public repository.
 """
 
 from __future__ import annotations

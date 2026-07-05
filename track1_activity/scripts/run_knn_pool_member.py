@@ -20,7 +20,7 @@ For each member:
   3. Write submission CSV (SMILES, Molecule Name, pEC50).
   4. Record experiment + save OOF to DB (idempotent: on_conflict_replace).
 
-Spec: docs/superpowers/specs/2026-04-29-knn-pool-members-design.md
+Legacy experiment script; internal design note was removed from the public repository.
 """
 
 from __future__ import annotations

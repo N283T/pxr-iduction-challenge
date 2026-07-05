@@ -6,7 +6,7 @@ MAE above the bag noise floor (-0.003).
 
 No DB writes. Standalone diagnostic.
 
-Spec: docs/superpowers/specs/2026-04-29-knn-pool-members-design.md
+Legacy experiment script; internal design note was removed from the public repository.
 """
 
 from __future__ import annotations

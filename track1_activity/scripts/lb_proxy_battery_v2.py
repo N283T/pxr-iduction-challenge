@@ -18,7 +18,7 @@ a stronger classifier, we can:
   2. Quantify improvement from LightGBM vs LogReg classifier.
   3. Test whether top-quartile slicing (hard) beats sample weighting (soft).
 
-Output: docs/superpowers/runs/2026-04-30-lb-proxy-battery-v2.log
+Output: track1_activity/reports/2026-04-30-lb-proxy-battery-v2.log
 """
 
 from __future__ import annotations
@@ -562,7 +562,7 @@ def main() -> None:
         print(f"     {m_key:>28}  Spearman = {rho:+.4f}")
 
     out_path = REPO_ROOT.joinpath(
-        "docs", "superpowers", "runs", "2026-04-30-lb-proxy-battery-v2-table.csv"
+        "track1_activity", "reports", "2026-04-30-lb-proxy-battery-v2-table.csv"
     )
     df.to_csv(out_path, index=False)
     print(f"\nFull table written to {out_path}")

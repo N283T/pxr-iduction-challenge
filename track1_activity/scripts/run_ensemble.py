@@ -224,8 +224,7 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # single_concentration log2_fc, frozen, then TabPFN with
     # ignore_pretraining_limits=True for 3200d). Added as a
     # decorrelating 11th pool member. Previous pretrain-embed backbones:
-    # chemprop (GNN) and MoLFormer-c3 (transformer). See
-    # docs/superpowers/specs/2026-04-21-kermt-grover-pretrain-embed-design.md.
+    # chemprop (GNN) and MoLFormer-c3 (transformer).
     # Single-model OOF MAE 0.4485, Pearson r vs others: chemprop 0.945,
     # molformer_c3 0.918, 2d_full_boltz 0.943. PR <TBD>.
     "tabpfn_kermt_pretrain_embed_umap_default",
@@ -234,8 +233,7 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # single_concentration log2_fc via PR #79 checkpoint, then 512d
     # readout frozen into TabPFN). Added as decorrelating 12th pool
     # member. Complements chemprop (D-MPNN), molformer_c3 (transformer),
-    # kermt (graph-transformer). See
-    # docs/superpowers/specs/2026-04-21-attentivefp-pretrain-embed-design.md.
+    # kermt (graph-transformer).
     # Single-model OOF MAE 0.4844, Pearson r vs existing:
     # chemprop 0.937, molformer_c3 0.922, 2d_full_boltz 0.941, kermt 0.920.
     # 12-pool caruana_bag20 OOF MAE 0.4242 (-0.0026 vs 11-pool 0.4268),
@@ -252,8 +250,7 @@ ENSEMBLE_MODELS: tuple[str, ...] = (
     # attentivefp 0.934. Caruana weight 0.036 in the swap config.
     # Added via swap with lgbm_pooled_boltz_umap (12->12 members).
     # 12-pool MAE 0.4251 (+0.0009 vs 0.4242 = noise-level within fold
-    # std 0.027). See
-    # docs/superpowers/specs/2026-04-21-gatedgcn-pretrain-embed-design.md.
+    # std 0.027).
     "tabpfn_gatedgcn_pretrain_embed_umap_default",
     # --- top500 LGBM-selected TabPFN (2026-04-22 evening) ---
     # Same feature base as cheme_2d_full_boltz_log2fc_pred (2103d) but

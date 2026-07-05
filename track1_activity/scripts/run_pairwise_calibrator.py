@@ -42,7 +42,7 @@ from data import (  # noqa: E402
 )
 from splits import umap_split_indices  # noqa: E402
 
-OUT_DIR = REPO_ROOT.joinpath("docs", "superpowers", "runs")
+OUT_DIR = REPO_ROOT.joinpath("track1_activity", "reports")
 SUBMISSION_DIR = REPO_ROOT.joinpath("track1_activity", "submissions")
 SEED = 42
 N_SPLITS = 5
