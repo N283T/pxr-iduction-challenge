@@ -15,18 +15,12 @@ Some issue comments are informal notes in Japanese.
 
 ## Final Result
 
-| Metric | Value |
-|---|---|
-| Task | Track 1 Activity: predict pEC50 for 513 blinded compounds |
-| Final rank | 4 |
-| Final MAE | 0.411256332902247 |
-| Final snapshot | `docs/leaderboards/activity/leaderboard_2026-07-03_1426JST.csv` |
-| Model report | <https://github.com/N283T/openadmet-pxr-model-report> |
+Track 1 Activity: predict pEC50 for 513 blinded compounds.
 
-Track 1 moved through several leaderboard phases. The best late Phase 1 public
-snapshot in this repo was rank 4 / MAE 0.4059243855909984 on the 2026-06-28
-snapshot; the post-deadline/final-report snapshot recorded rank 4 / MAE
-0.411256332902247 with the public model report linked above.
+| Phase | Rank | MAE | RAE | R2 | Spearman rho | Kendall tau | Snapshot | Report |
+|---|---:|---:|---:|---:|---:|---:|---|---|
+| Phase 1 | 4 | 0.4059243855909984 | 0.5358944071957822 | 0.64960073479329 | 0.8342824140936284 | 0.6459344918654071 | `docs/leaderboards/activity/leaderboard_2026-06-28_1811JST.csv` | - |
+| Phase 2 | 4 | 0.411256332902247 | 0.5703230159134048 | 0.6007957466717375 | 0.816145814183088 | 0.6225300706062136 | `docs/leaderboards/activity/leaderboard_2026-07-03_1426JST.csv` | [model report](https://github.com/N283T/openadmet-pxr-model-report) |
 
 ## What Is Here
 
