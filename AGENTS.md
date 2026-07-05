@@ -14,7 +14,7 @@ https://huggingface.co/spaces/openadmet/pxr-challenge
 - Track 1 Phase 1 research log: GitHub issue #100.
 - Track 1 Phase 2 research log: GitHub issue #208.
 - Track 1 public model report repo: https://github.com/N283T/openadmet-pxr-model-report
-- Leaderboard snapshots: `docs/leaderboards/activity/` and `docs/leaderboards/structure/`.
+- Leaderboard snapshots: `docs/leaderboards/activity/`.
 - Before quoting rank, gap, or "best", check the latest snapshot and `lb_submissions` / `lb_submission_history`. Rank changes quickly.
 
 ## Workflow Rules
@@ -71,14 +71,13 @@ current supported feature names.
 ```text
 data/                         ignored parquet/runtime data
 db/                           schemas, loaders, descriptor/embedding builders
-docs/                         documentation, deepresearch, leaderboard snapshots, track2 notes
+docs/                         documentation, deepresearch, leaderboard snapshots
 track1_activity/src/          shared data loading, features, CV splits, metrics, trainers
 track1_activity/scripts/      training, ensembling, calibration, submission, experiments
 track1_activity/scripts/archive/  older exploratory scripts
 track1_activity/boltz2/       Boltz-2 input, inference, postprocess pipeline
 track1_activity/submissions/  ignored Track 1 CSV submissions
 structures/                   ignored Boltz-2 and structure runtime artifacts
-track2_structure/             Track 2 work area when needed
 ```
 
 ## Track 1 Modeling Conventions

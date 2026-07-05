@@ -5,7 +5,7 @@ Repository for the OpenADMET PXR Blind Challenge (April 1 - July 1, 2026).
 - Challenge page: <https://huggingface.co/spaces/openadmet/pxr-challenge>
 - Track 1 Phase 1 research log: [issue #100](https://github.com/N283T/pxr-iduction-challenge/issues/100)
 - Track 1 Phase 2 research log: [issue #208](https://github.com/N283T/pxr-iduction-challenge/issues/208)
-- Track 2 research log: [issue #129](https://github.com/N283T/pxr-iduction-challenge/issues/129)
+- Track 2 research log: [issue #129](https://github.com/N283T/pxr-iduction-challenge/issues/129) (local Track 2 assets were removed after the competition)
 
 The GitHub issues above are the source of truth for current experiments,
 leaderboard status, null results, and next-step notes. This README is only a
@@ -16,7 +16,7 @@ lightweight orientation guide and may intentionally lag behind active work.
 | Track | Task | Primary metric | Current notes |
 |---|---|---|---|
 | Track 1 Activity | Predict pEC50 for blinded compounds | MAE lower is better | Phase 2 work is in issue #208; Phase 1 chronology is issue #100 |
-| Track 2 Structure | Predict protein-ligand 3D structures | LDDT-PLI higher is better | See issue #129 and `docs/leaderboards/structure/` |
+| Track 2 Structure | Predict protein-ligand 3D structures | LDDT-PLI higher is better | Deferred during the competition; local assets were removed post-competition |
 
 Before quoting a rank, gap, or "best" submission, check the latest leaderboard
 snapshot and local submission history. The public leaderboard changes quickly.
@@ -53,7 +53,6 @@ track1_activity/src/          shared Track 1 loading, features, splits, metrics
 track1_activity/scripts/      Track 1 training, ensembling, calibration, submit tools
 track1_activity/boltz2/       Boltz-2 feature-generation pipeline for Track 1
 track1_activity/submissions/  ignored Track 1 CSV submissions
-track2_structure/             Track 2 structure-prediction pipeline and submissions
 structures/                   ignored Boltz-2 / structure runtime artifacts
 ```
 
@@ -84,14 +83,13 @@ GPU-heavy work was developed on an RTX 5080 with WSL2 CUDA override
 
 ## Submission helpers
 
-Track 1 / Track 2 submissions are handled through `track1_activity/scripts/api.py`.
+Track 1 submissions are handled through `track1_activity/scripts/api.py`.
 The script records local submission metadata in the database when available.
 
 ```bash
 pixi run python track1_activity/scripts/api.py cooldown
 pixi run python track1_activity/scripts/api.py status --track activity
 pixi run python track1_activity/scripts/api.py fetch --track activity
-pixi run python track1_activity/scripts/api.py fetch --track structure
 ```
 
 For Track 1, run a preflight report before spending a cooldown on a material CSV
@@ -119,7 +117,6 @@ kept out of git.
 
 - Track 1 Phase 2 status / decisions: issue #208
 - Track 1 Phase 1 chronology: issue #100
-- Track 2 status / decisions: issue #129
 - Durable agent operating rules: `AGENTS.md`
 - Leaderboard snapshots: `docs/leaderboards/`
 - Detailed docs and archived research notes: `docs/`
