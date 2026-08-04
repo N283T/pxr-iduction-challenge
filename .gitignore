@@ -16,7 +16,8 @@ wheels/
 # PostgreSQL data (local only, re-creatable from db/*.sql + data/)
 db/pgdata/
 
-# Data files (re-downloadable via download_data.py / eda_redo_*.py)
+# Data files (re-downloadable via download_data.py / eda_redo_*.py).
+# A curated lightweight subset is force-tracked; see data/README.md.
 data/*.parquet
 data/**/*.parquet
 data/**/*.h5

@@ -7,19 +7,28 @@ e.g. ``python download_data.py --configs structure`` to refresh Track 2 only.
 import argparse
 from pathlib import Path
 
-from datasets import load_dataset
+import pandas as pd
 
 DATA_DIR = Path(__file__).parent.joinpath("data")
 DATA_DIR.mkdir(exist_ok=True)
+HF_BASE_URL = (
+    "https://huggingface.co/datasets/openadmet/pxr-challenge-train-test/resolve/main"
+)
 
 CONFIGS = {
-    "default": {"splits": ["train", "test"]},
-    "counter_assay": {"splits": ["train"]},
-    "single_concentration": {"splits": ["train"]},
-    "structure": {"splits": ["test"]},
-    "phase_1_unblinded": {"splits": ["test"]},
-    "crudes_htchem": {"splits": ["train"]},
-    "semi_pure_htchem": {"splits": ["train"]},
+    "default": {
+        "train": "pxr-challenge_TRAIN.csv",
+        "test": "pxr-challenge_TEST_BLINDED.csv",
+    },
+    "counter_assay": {"train": "pxr-challenge_counter-assay_TRAIN.csv"},
+    "single_concentration": {"train": "pxr-challenge_single_concentration_TRAIN.csv"},
+    "structure": {"test": "pxr-challenge_structure_TEST_BLINDED.csv"},
+    "phase_1_unblinded": {"test": "pxr-challenge_TEST_PHASE_1_UNBLINDED.csv"},
+    "phase_2_unblinded": {"test": "pxr-challenge_TEST_PHASE_2_UNBLINDED.csv"},
+    "crudes_htchem": {"train": "pxr-challenge_htchem-libraries_TRAIN.csv"},
+    "semi_pure_htchem": {
+        "train": "pxr-challenge_96-compound-uscale-semi-pure_TRAIN.csv"
+    },
 }
 
 
@@ -35,11 +44,9 @@ def main() -> None:
     args = parser.parse_args()
 
     for config_name in args.configs:
-        info = CONFIGS[config_name]
         print(f"Downloading config: {config_name}")
-        ds = load_dataset("openadmet/pxr-challenge-train-test", config_name)
-        for split in info["splits"]:
-            df = ds[split].to_pandas()
+        for split, source_name in CONFIGS[config_name].items():
+            df = pd.read_csv(f"{HF_BASE_URL}/{source_name}")
             filename = f"{config_name}_{split}.parquet"
             output_path = DATA_DIR.joinpath(filename)
             df.to_parquet(output_path, index=False)

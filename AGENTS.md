@@ -19,7 +19,7 @@ https://huggingface.co/spaces/openadmet/pxr-challenge
 
 ## Workflow Rules
 
-- Never commit directly to `main` or `master`; use a `codex/` branch for repository changes.
+- Never commit directly to `main` or `master`; use an `agent/` branch for repository changes. Do not create `codex/` branches.
 - Code, comments, commit messages, PR descriptions, and technical docs must be in English unless the user-facing artifact requires another language.
 - Do not delete git-tracked files unless the user explicitly asks for that deletion.
 - Treat local submission clients such as `track1_activity/scripts/api.py` as ignored because they can contain account-specific details. Do not commit them.
