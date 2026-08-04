@@ -25,12 +25,12 @@ Track 1 Activity: predict pEC50 for 513 blinded compounds.
 ## What Is Here
 
 This repository keeps the reproducible Track 1 code, schemas, lightweight
-documentation, and public leaderboard snapshots. Generated data, checkpoints,
-embeddings, Boltz outputs, model weights, private reports, and submission CSVs
-are intentionally left out of git.
+documentation, public leaderboard snapshots, and a curated lightweight data
+bundle. Large embeddings, Boltz outputs, model weights, private reports, and
+most generated submissions remain outside git.
 
 ```text
-data/                         ignored runtime parquet/data artifacts
+data/                         curated source/derived tables; large artifacts ignored
 db/                           database schemas, loaders, feature builders
 docs/                         documentation, literature notes, leaderboard snapshots
 docs/leaderboards/activity/   timestamped Track 1 leaderboard snapshots
@@ -88,6 +88,11 @@ Challenge data comes from
 [openadmet/pxr-challenge-train-test](https://huggingface.co/datasets/openadmet/pxr-challenge-train-test).
 Fresh clone setup is intentionally script-driven through the database and data
 loading scripts under `db/`.
+
+The small Git-tracked subset is documented in [`data/README.md`](data/README.md).
+It includes the official activity datasets, RDKit descriptors, compact model
+predictions, and presentation-oriented analysis tables. Embeddings and
+structure artifacts remain local-only.
 
 Local submission clients can contain personal account state, so they are ignored
 by git. Recreate them locally rather than committing credentials or API state.
