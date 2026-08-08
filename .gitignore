@@ -31,6 +31,7 @@ data/eda_cv_prep/
 data/chembl/
 data/drugclip_embed_smoke/
 data/optuna_chemprop_pretrain/
+data/chemeleon_raw2048_validation/
 
 # Submission files (generated artifacts)
 track1_activity/submissions/
