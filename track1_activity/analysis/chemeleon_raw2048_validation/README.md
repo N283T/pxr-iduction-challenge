@@ -23,13 +23,18 @@ pretraining. The problem occurred immediately afterward:
    loading predictor weights.
 2. ChemProp's `MPNN.encoding(bmg)` called
    `predictor.encode(model.fingerprint(bmg), i=-1)`.
-3. With the default predictor configuration, that path passed the pretrained
-   2,048-dimensional fingerprint through the freshly initialized
-   2,048-to-300 linear layer and its activation.
+3. ChemProp sliced the predictor's top-level MLP with `ffn[:-1]`. The first
+   block contains only `Linear(2048, 300)`; ReLU, dropout, and the output layer
+   are all in the excluded second block.
+4. The stored legacy vector was therefore the pretrained 2,048-dimensional
+   fingerprint passed through an untrained random affine projection to 300
+   dimensions, before ReLU.
 
 The extractor did not set a Torch seed, so recomputing the legacy table could
-also produce a different 300-dimensional projection. The audit therefore
-keeps `compound_chemeleon` untouched and stores the direct pretrained
+also produce a different 300-dimensional projection. These are not independent
+random vectors per compound: for fixed projection weights they are a
+deterministic compressed view of the pretrained representation. The audit
+therefore keeps `compound_chemeleon` untouched and stores the direct pretrained
 message-passing/mean-aggregation output in a separate 2,048-dimensional table.
 
 ## Commands
@@ -52,6 +57,15 @@ pixi run python \
 pixi run python \
   track1_activity/analysis/chemeleon_raw2048_validation/evaluate_ensemble_swap.py \
   --new-member full
+
+pixi run python \
+  track1_activity/analysis/chemeleon_raw2048_validation/probe_random_linear_fast.py
+
+pixi run python \
+  track1_activity/analysis/chemeleon_raw2048_validation/probe_random_linear_test_fast.py
+
+pixi run python \
+  track1_activity/analysis/chemeleon_raw2048_validation/probe_pca300_fast.py
 ```
 
 The CV runner uses the canonical UMAP split (seed 42, 50 clusters), TabPFN
@@ -133,6 +147,35 @@ by +0.00276 to +0.00476 (mean +0.00368). Reoptimization sharply reduced the
 replacement member's weight, from the baseline slot weight of 0.2704 to 0.0515
 for seed 42, but did not recover the baseline error.
 
+### Fast 300d compression probe
+
+A lightweight follow-up tested whether the saved legacy projection was a
+lucky random draw. It used the same mixed feature set and canonical UMAP
+five-fold split, but reduced TabPFN to five estimators. OOF and all 513 released
+test labels were evaluated separately to keep each run short.
+
+| 300d representation | OOF MAE | Released-test MAE | Test Spearman |
+|---|---:|---:|---:|
+| Saved legacy random linear projection | 0.437576 | 0.453159 | **0.818788** |
+| New random linear projection, seed 0 | 0.438944 | **0.452014** | 0.818716 |
+| New random linear projection, seed 1 | 0.437392 | 0.456174 | 0.814023 |
+| New random linear projection, seed 2 | **0.436700** | 0.455128 | 0.814432 |
+| New random linear projection, mean | 0.437679 | 0.454439 | 0.815724 |
+| Global train-only PCA, 300 components | 0.437865 | 0.455202 | 0.816664 |
+
+The three new random projections averaged within 0.00010 OOF MAE of the saved
+legacy projection. On released-test replay, the saved projection was 0.00128
+better than the three-seed mean, but seed 0 was 0.00115 better than legacy.
+The saved projection is therefore not an obvious exceptional draw, although
+projection seed still moved test MAE by about 0.0042 across this small sample.
+
+PCA retained 92.552% of raw-2048 variance but did not improve OOF or released-
+test MAE. This PCA was fitted once on all training features without labels, not
+inside each CV fold, so it is a lightweight diagnostic rather than a strict
+fold-local estimator. The result supports random linear compression as a
+useful low-dimensional interface for TabPFN rather than evidence that the
+legacy projection learned a task-specific activity axis.
+
 ## Conclusion
 
 The legacy feature path was technically flawed and non-reproducible, but its
@@ -143,4 +186,8 @@ relative to the legacy top-500 member. However, the raw-2,048 top-500 member
 was slightly worse in the fixed canonical ensemble context, and the unselected
 full feature set was substantially worse both standalone and as a slot swap.
 The useful signal is concentrated enough that feature selection is essential;
-simply increasing the dimensionality does not improve the ensemble.
+simply increasing the dimensionality does not improve the ensemble. The fast
+compression probe further suggests that most of the legacy 300d benefit came
+from compression itself, not from a uniquely lucky random seed. In this mixed
+model, the compressed CheMeleon representation is best understood as a weak
+complement to the dominant predicted-log2fc/activity features.
