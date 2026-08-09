@@ -95,7 +95,6 @@ def run_variant(
         "input_dim": int(X_train.shape[1]),
         "n_estimators": N_ESTIMATORS,
         "released_test": metrics(y_test, prediction),
-        "prediction": prediction,
     }
     print(
         f"  MAE={result['released_test']['mae']:.6f} "
@@ -113,7 +112,6 @@ def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     json_path = OUTPUT_DIR.joinpath(f"random_linear_test_fast_{stamp}.json")
-    npz_path = OUTPUT_DIR.joinpath(f"random_linear_test_predictions_{stamp}.npz")
 
     train_df = load_train_smiles_target()
     test_df = load_test_smiles()
@@ -170,15 +168,7 @@ def main() -> None:
             model_path,
         )
         results.append(result)
-        serializable = [
-            {key: value for key, value in item.items() if key != "prediction"}
-            for item in results
-        ]
-        save_checkpoint(json_path, serializable)
-        np.savez_compressed(
-            npz_path,
-            **{item["label"]: item["prediction"] for item in results},
-        )
+        save_checkpoint(json_path, results)
         print(f"  checkpoint={json_path}", flush=True)
 
     print("\nSummary", flush=True)

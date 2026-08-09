@@ -58,7 +58,6 @@ def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     json_path = OUTPUT_DIR.joinpath(f"pca300_fast_{stamp}.json")
-    npz_path = OUTPUT_DIR.joinpath(f"pca300_fast_predictions_{stamp}.npz")
 
     train_df = load_train_smiles_target()
     test_df = load_test_smiles()
@@ -154,7 +153,6 @@ def main() -> None:
         )
         + "\n"
     )
-    np.savez_compressed(npz_path, oof=oof, test=test_prediction)
     print(
         f"OOF MAE={overall_oof['MAE']:.6f} Sp={overall_oof['Spearman_R']:.6f}",
         flush=True,
