@@ -1,6 +1,7 @@
 """Cross-validation split strategies for Track 1."""
 
 from collections import defaultdict
+from dataclasses import dataclass
 
 import numpy as np
 from rdkit import Chem, DataStructs
@@ -86,6 +87,68 @@ def _morgan_fp_matrix(smiles_list: list[str]) -> np.ndarray:
     )
 
 
+@dataclass
+class UmapSplitResult:
+    """Intermediate artifacts and final folds from a UMAP cluster split."""
+
+    splits: list[tuple[np.ndarray, np.ndarray]]
+    embedding: np.ndarray
+    cluster_labels: np.ndarray
+    fold_labels: np.ndarray
+
+
+def build_umap_split(
+    smiles_list: list[str],
+    n_splits: int = 5,
+    n_clusters: int = 50,
+    seed: int = 42,
+    features: np.ndarray | None = None,
+    metric: str = "jaccard",
+) -> UmapSplitResult:
+    """Build a UMAP + KMeans split and retain its intermediate artifacts.
+
+    The defaults are the canonical Track 1 CV recipe. Callers that only need
+    train/validation indices should continue to use :func:`umap_split_indices`.
+    """
+    import umap
+    from sklearn.cluster import KMeans
+
+    rng = np.random.RandomState(seed)
+
+    if features is None:
+        features = _morgan_fp_matrix(smiles_list)
+    elif len(features) != len(smiles_list):
+        raise ValueError(
+            f"features length {len(features)} != smiles_list length {len(smiles_list)}"
+        )
+
+    reducer = umap.UMAP(
+        n_components=10, metric=metric, random_state=seed, n_neighbors=30
+    )
+    embedding = reducer.fit_transform(features)
+
+    km = KMeans(n_clusters=n_clusters, random_state=seed, n_init=10)
+    cluster_labels = km.fit_predict(embedding)
+
+    cluster_to_indices = defaultdict(list)
+    for i, cl in enumerate(cluster_labels):
+        cluster_to_indices[cl].append(i)
+
+    splits = _groups_to_splits(list(cluster_to_indices.values()), n_splits, rng)
+    fold_labels = np.full(len(smiles_list), -1, dtype=np.int64)
+    for fold, (_, val_idx) in enumerate(splits):
+        fold_labels[val_idx] = fold
+    if np.any(fold_labels < 0):
+        raise RuntimeError("UMAP split did not assign every row to a validation fold")
+
+    return UmapSplitResult(
+        splits=splits,
+        embedding=embedding,
+        cluster_labels=cluster_labels,
+        fold_labels=fold_labels,
+    )
+
+
 def umap_split_indices(
     smiles_list: list[str],
     n_splits: int = 5,
@@ -119,31 +182,14 @@ def umap_split_indices(
         ``"cosine"`` (or ``"euclidean"``) -- Jaccard is undefined for
         non-binary features and will give meaningless neighbours.
     """
-    import umap
-    from sklearn.cluster import KMeans
-
-    rng = np.random.RandomState(seed)
-
-    if features is None:
-        features = _morgan_fp_matrix(smiles_list)
-    elif len(features) != len(smiles_list):
-        raise ValueError(
-            f"features length {len(features)} != smiles_list length {len(smiles_list)}"
-        )
-
-    reducer = umap.UMAP(
-        n_components=10, metric=metric, random_state=seed, n_neighbors=30
-    )
-    embedding = reducer.fit_transform(features)
-
-    km = KMeans(n_clusters=n_clusters, random_state=seed, n_init=10)
-    cluster_labels = km.fit_predict(embedding)
-
-    cluster_to_indices = defaultdict(list)
-    for i, cl in enumerate(cluster_labels):
-        cluster_to_indices[cl].append(i)
-
-    return _groups_to_splits(list(cluster_to_indices.values()), n_splits, rng)
+    return build_umap_split(
+        smiles_list=smiles_list,
+        n_splits=n_splits,
+        n_clusters=n_clusters,
+        seed=seed,
+        features=features,
+        metric=metric,
+    ).splits
 
 
 def analog_aware_split_indices(

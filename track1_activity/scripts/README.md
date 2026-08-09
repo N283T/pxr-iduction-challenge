@@ -17,6 +17,16 @@ The normal Track 1 flow is:
 4. Submit through the local ignored submission client and
    `scheduled_submit.sh`.
 
+The canonical Morgan/Jaccard UMAP split can be rebuilt and audited with:
+
+```bash
+pixi run python track1_activity/scripts/save_canonical_umap_split.py
+```
+
+This writes the local generated files `data/cv_splits/canonical_umap_split.parquet`
+and `canonical_umap_split_meta.json`. The Parquet contains the ordered train
+IDs, fold and KMeans cluster assignments, and all ten UMAP coordinates.
+
 ## Local-Only Scripts
 
 `api.py` and `submit.py` are intentionally ignored by git. They can contain

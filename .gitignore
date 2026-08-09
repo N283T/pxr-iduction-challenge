@@ -25,6 +25,7 @@ data/**/*.db
 data/*.csv
 data/*.bak_*
 data/**/*_meta.json
+data/cv_splits/*.tar.gz
 data/hf_pxr_challenge_train_test/
 data/eda_redo/
 data/eda_cv_prep/
@@ -110,6 +111,9 @@ track1_activity/reports/*.log
 # Raw LiteParse output for external papers (regenerable; md
 # summaries are checked in separately under docs/papers/)
 docs/papers/*_raw/
+
+# Downloaded challenge model reports (external, large, and re-downloadable)
+docs/model_reports/
 
 # Lightning checkpoints/logs
 checkpoints/
