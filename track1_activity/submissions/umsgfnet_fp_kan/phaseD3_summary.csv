@@ -1,0 +1,2 @@
+phase,model,fp_dim,atom_dim,avg_motifs,mae,rae,spearman
+D3,hier(atom+motif+super) + b1_kan,6311,9,5.433574879227053,0.5270325541496277,0.5792014002799988,0.7055851518500281

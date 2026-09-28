@@ -1,0 +1,20 @@
+{
+  "pool": "/home/nagaet/pxr-iduction-challenge/track1_activity/analysis/phase2_classifier_gate/outputs/composite_pairrank_chemprop/pool_composite_scores.csv",
+  "folds": "/home/nagaet/pxr-iduction-challenge/track1_activity/analysis/phase2_validation_matrix/outputs/phase2_labeled_pool_with_folds.csv",
+  "oof": "/home/nagaet/pxr-iduction-challenge/track1_activity/analysis/phase2_validation_matrix/outputs/phase2_lgbm_topk_oof_predictions.csv",
+  "best_gate": {
+    "score": "pairrank_htchem",
+    "mode": "low_drop",
+    "q": 0.85,
+    "shift": -0.1,
+    "mae": 0.4068793798941755,
+    "delta": -0.0010922700106509309,
+    "n": 661,
+    "high": 7,
+    "low": 346,
+    "as1_flags": 22,
+    "as1_high": 0,
+    "as1_low": 9,
+    "mean_base_error": 0.09875980691502438
+  }
+}

@@ -1,0 +1,3 @@
+class,support,precision,recall,f1
+not_positive,4317,0.982695810564663,0.9997683576557794,0.9911585715926053
+positive,76,0.0,0.0,0.0

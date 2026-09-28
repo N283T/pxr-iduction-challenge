@@ -1,0 +1,3 @@
+split,n,nn_ge_0.25,nn_ge_0.30,nn_max,nn_median,external_molecules
+pool,4393,681,151,1.0,0.20879121124744415,222
+test,513,93,20,0.359375,0.2151898741722107,222

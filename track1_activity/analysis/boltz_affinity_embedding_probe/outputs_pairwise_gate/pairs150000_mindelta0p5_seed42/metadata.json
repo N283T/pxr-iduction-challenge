@@ -1,0 +1,17 @@
+{
+  "n_pairs": 150000,
+  "min_abs_delta": 0.5,
+  "seed": 42,
+  "anchor": "track1_activity/submissions/ens_id51_top500_potent46_t40_soft_g35.csv",
+  "features": [
+    {
+      "name": "pooled_boltz_allpairs",
+      "kind": "run_train"
+    },
+    {
+      "name": "boltz_affinity_g1g2",
+      "kind": "affinity"
+    }
+  ],
+  "note": "Experiment only; no submission files or experiment DB rows written."
+}

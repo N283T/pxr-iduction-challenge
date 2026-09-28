@@ -1,0 +1,2 @@
+phase,model,fp_dim,atom_dim,bond_dim,mae,rae,spearman
+D2,atom_gcn + bond_gcn + b1_kan,6311,9,7,0.5252423286437988,0.5772339701652527,0.7065791193479585

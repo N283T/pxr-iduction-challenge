@@ -1,0 +1,31 @@
+{
+  "args": {
+    "fold_limit": null,
+    "freeze_encoder": true,
+    "learning_rate": null,
+    "lr_ratio": null,
+    "max_epochs": 60,
+    "no_pretrain": false,
+    "oversample": true,
+    "patience": 8,
+    "run_name": "frozen60",
+    "seed": 42,
+    "warmup_epochs": null
+  },
+  "params": {
+    "activation": "relu",
+    "aggregation": "norm",
+    "batch_size": 64,
+    "depth": 4,
+    "ffn_dropout": 0.1,
+    "ffn_hidden_dim": 256,
+    "ffn_num_layers": 1,
+    "learning_rate": 0.0001364559692954765,
+    "lr_ratio": 10.0,
+    "max_epochs": 60,
+    "message_hidden_dim": 256,
+    "mp_dropout": 0.2,
+    "patience": 8,
+    "warmup_epochs": 3
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "ckpt": "track1_activity/checkpoints/chemprop_pairwise_chembl_binding_random250k_100kp5/pairwise_pretrain.pt",
+  "readout": "tabpfn",
+  "pool_shape": [
+    4393,
+    256
+  ],
+  "test_shape": [
+    513,
+    256
+  ],
+  "args": {
+    "ckpt": "track1_activity/checkpoints/chemprop_pairwise_chembl_binding_random250k_100kp5/pairwise_pretrain.pt",
+    "out_dir": "track1_activity/analysis/phase2_classifier_gate/outputs/pairwise_chemprop_embed/binding_seed42_tabpfn",
+    "readout": "tabpfn",
+    "batch_size": "255",
+    "seed": "42",
+    "fold_limit": "None",
+    "device": "cuda",
+    "tabpfn_version": "v3",
+    "n_estimators": "8",
+    "save_embeddings": "True"
+  }
+}

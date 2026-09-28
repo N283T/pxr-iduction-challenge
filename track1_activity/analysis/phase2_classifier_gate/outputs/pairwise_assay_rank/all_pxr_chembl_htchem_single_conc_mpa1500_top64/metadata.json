@@ -1,0 +1,18 @@
+{
+  "add_reverse_pairs": true,
+  "chembl_scope": "all_pxr",
+  "learning_rate": 0.035,
+  "max_pair_weight": 2.0,
+  "max_pairs_per_assay": 1500,
+  "min_assay_n": 5,
+  "min_child_samples": 30,
+  "min_pair_delta": 0.25,
+  "min_std": 0.25,
+  "min_unique": 5,
+  "n_estimators": 300,
+  "num_leaves": 63,
+  "score_chunk_size": 192,
+  "score_top_k": 64,
+  "seed": 42,
+  "sources": "chembl,htchem,single_conc"
+}

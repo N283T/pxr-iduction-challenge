@@ -1,0 +1,26 @@
+{
+  "args": {
+    "feature": "cheme_2d_full_boltz_log2fc_pred_seed10ens",
+    "ckpt": "/home/nagaet/pxr-iduction-challenge/track1_activity/checkpoints/chemprop_pairwise_chembl_binding_random250k_100kp5/pairwise_pretrain.pt",
+    "out_dir": "track1_activity/analysis/phase2_classifier_gate/outputs/pairwise_chemprop_top500_tabpfn/binding_seed42_top500_v2_6",
+    "top_k": "500",
+    "rank_n_estimators": "500",
+    "tabpfn_version": "v2_6",
+    "n_estimators": "8",
+    "softmax_temperature": "0.9",
+    "average_before_softmax": "False",
+    "device": "cuda",
+    "batch_size": "255",
+    "n_splits": "5",
+    "n_clusters": "100",
+    "seed": "42",
+    "force_embeddings": "False"
+  },
+  "feature": "cheme_2d_full_boltz_log2fc_pred_seed10ens",
+  "matrix_shape": [
+    4393,
+    2359
+  ],
+  "pairchem_start": 2103,
+  "n_pairchem_features": 256
+}

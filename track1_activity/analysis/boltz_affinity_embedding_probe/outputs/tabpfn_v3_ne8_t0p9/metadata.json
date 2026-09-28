@@ -1,0 +1,33 @@
+{
+  "tabpfn_version": "v3",
+  "n_estimators": 8,
+  "softmax_temperature": 0.9,
+  "average_before_softmax": false,
+  "device": "cuda",
+  "seed": 42,
+  "features": [
+    {
+      "name": "boltz_affinity_g1g2",
+      "kind": "affinity"
+    },
+    {
+      "name": "boltz_affinity_g1g2_scalars",
+      "kind": "affinity"
+    },
+    {
+      "name": "boltz_affinity_gmean",
+      "kind": "affinity"
+    },
+    {
+      "name": "pooled_boltz",
+      "kind": "run_train"
+    },
+    {
+      "name": "pooled_boltz_allpairs",
+      "kind": "run_train"
+    }
+  ],
+  "train_rows": 4140,
+  "as1_rows": 253,
+  "note": "Experiment only; no submission files or experiment DB rows written."
+}

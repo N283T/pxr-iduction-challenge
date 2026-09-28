@@ -1,0 +1,144 @@
+{
+  "n_rows": 4653,
+  "n_train": 4140,
+  "n_test": 513,
+  "n_as1": 253,
+  "best_as1_gte6_ap": [
+    {
+      "prompt": "pubchem_aid720659_exact",
+      "description": "qHTS assay for small molecule activators of the human pregnane X receptor (PXR) signaling pathway. The Pregnane X receptor (PXR) plays a critical role in the regulation of genes involved in drug metabolism and transporters. DPX-2 HepG2 cells are co-transfected with a PXR response element and a luciferase construct containing CYP3A4 promoter. Increase in luciferase activity identifies compounds that activate the PXR pathway.",
+      "group": "as1",
+      "n": 253,
+      "spearman": -0.08567678470991533,
+      "fit_mae": 0.7938049549419547,
+      "gte6_n": 10,
+      "gte6_auc": 0.5469135802469136,
+      "gte6_ap": 0.05880355595396093,
+      "lt3_n": 24,
+      "lt3_auc": 0.413391557496361,
+      "lt3_ap": 0.12277345899812672
+    }
+  ],
+  "best_gate": [
+    {
+      "prompt": "pubchem_aid720659_exact",
+      "mode": "high_lift",
+      "q": 0.95,
+      "gamma": 0.2,
+      "n_flag": 13,
+      "mae": 0.4051063964294017,
+      "delta_mae": -0.0014595890009284629,
+      "flag_true_high": 1,
+      "flag_true_low": 2,
+      "flag_anchor_error_mean": -0.09097999327988404
+    },
+    {
+      "prompt": "pubchem_aid720659_exact",
+      "mode": "high_lift",
+      "q": 0.95,
+      "gamma": 0.15,
+      "n_flag": 13,
+      "mae": 0.40530402488789974,
+      "delta_mae": -0.0012619605424304403,
+      "flag_true_high": 1,
+      "flag_true_low": 2,
+      "flag_anchor_error_mean": -0.09097999327988404
+    },
+    {
+      "prompt": "pubchem_aid720659_exact",
+      "mode": "high_lift",
+      "q": 0.95,
+      "gamma": 0.3,
+      "n_flag": 13,
+      "mae": 0.4053948649056693,
+      "delta_mae": -0.0011711205246608958,
+      "flag_true_high": 1,
+      "flag_true_low": 2,
+      "flag_anchor_error_mean": -0.09097999327988404
+    },
+    {
+      "prompt": "pubchem_aid720659_exact",
+      "mode": "high_lift",
+      "q": 0.95,
+      "gamma": 0.1,
+      "n_flag": 13,
+      "mae": 0.4055016533463977,
+      "delta_mae": -0.0010643320839324732,
+      "flag_true_high": 1,
+      "flag_true_low": 2,
+      "flag_anchor_error_mean": -0.09097999327988404
+    },
+    {
+      "prompt": "pubchem_aid720659_exact",
+      "mode": "high_lift",
+      "q": 0.97,
+      "gamma": 0.1,
+      "n_flag": 8,
+      "mae": 0.40589691026339375,
+      "delta_mae": -0.0006690751669364281,
+      "flag_true_high": 0,
+      "flag_true_low": 1,
+      "flag_anchor_error_mean": -0.1111816846366474
+    },
+    {
+      "prompt": "pubchem_aid720659_exact",
+      "mode": "high_lift",
+      "q": 0.97,
+      "gamma": 0.15,
+      "n_flag": 8,
+      "mae": 0.4058969102633938,
+      "delta_mae": -0.0006690751669363726,
+      "flag_true_high": 0,
+      "flag_true_low": 1,
+      "flag_anchor_error_mean": -0.1111816846366474
+    },
+    {
+      "prompt": "pubchem_aid720659_exact",
+      "mode": "high_lift",
+      "q": 0.97,
+      "gamma": 0.2,
+      "n_flag": 8,
+      "mae": 0.4058969102633938,
+      "delta_mae": -0.0006690751669363726,
+      "flag_true_high": 0,
+      "flag_true_low": 1,
+      "flag_anchor_error_mean": -0.1111816846366474
+    },
+    {
+      "prompt": "pubchem_aid720659_exact",
+      "mode": "high_lift",
+      "q": 0.95,
+      "gamma": 0.05,
+      "n_flag": 13,
+      "mae": 0.4059731000548361,
+      "delta_mae": -0.0005928853754940677,
+      "flag_true_high": 1,
+      "flag_true_low": 2,
+      "flag_anchor_error_mean": -0.09097999327988404
+    },
+    {
+      "prompt": "pubchem_aid720659_exact",
+      "mode": "high_lift",
+      "q": 0.97,
+      "gamma": 0.3,
+      "n_flag": 8,
+      "mae": 0.4061520115688678,
+      "delta_mae": -0.0004139738614623578,
+      "flag_true_high": 0,
+      "flag_true_low": 1,
+      "flag_anchor_error_mean": -0.1111816846366474
+    },
+    {
+      "prompt": "pubchem_aid720659_exact",
+      "mode": "high_lift",
+      "q": 0.97,
+      "gamma": 0.05,
+      "n_flag": 8,
+      "mae": 0.4061707285133342,
+      "delta_mae": -0.00039525691699598964,
+      "flag_true_high": 0,
+      "flag_true_low": 1,
+      "flag_anchor_error_mean": -0.1111816846366474
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+,pred_lt3,pred_3to4,pred_4to5,pred_5to6,pred_gte6
+true_lt3,496,190,35,0,7
+true_3to4,146,314,96,11,12
+true_4to5,20,246,932,405,58
+true_5to6,11,27,351,701,259
+true_gte6,4,2,8,17,45

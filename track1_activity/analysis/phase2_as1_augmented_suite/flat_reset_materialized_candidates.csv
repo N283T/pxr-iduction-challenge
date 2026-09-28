@@ -1,0 +1,2 @@
+candidate,model_only_proxy,alpha,w_top500,w_boltz,pairrank_threshold,pairrank_shift,n_as2_pairrank_flags
+track1_activity/submissions/phase2_flat_reset_augens_top90_boltz10_id55blend_a0p6_pairrank_q95_g0p15_labels_as1.csv,track1_activity/submissions/phase2_flat_reset_augens_top90_boltz10_id55blend_a0p6_pairrank_q95_g0p15_model_only_proxy.csv,0.6,0.9,0.1,0.58878,0.15,32

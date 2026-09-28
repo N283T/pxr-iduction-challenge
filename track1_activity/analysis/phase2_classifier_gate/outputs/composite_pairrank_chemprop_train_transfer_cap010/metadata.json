@@ -1,0 +1,20 @@
+{
+  "pool": "/home/nagaet/pxr-iduction-challenge/track1_activity/analysis/phase2_classifier_gate/outputs/composite_pairrank_chemprop/pool_composite_scores.csv",
+  "test": "/home/nagaet/pxr-iduction-challenge/track1_activity/analysis/phase2_classifier_gate/outputs/composite_pairrank_chemprop/test_composite_scores.csv",
+  "oof": "/home/nagaet/pxr-iduction-challenge/track1_activity/analysis/phase2_validation_matrix/outputs/phase2_lgbm_topk_oof_predictions.csv",
+  "anchor": "/home/nagaet/pxr-iduction-challenge/track1_activity/submissions/ens_id51_top500_potent46_t40_soft_g35.csv",
+  "cap": 0.1,
+  "seed": 42,
+  "features": [
+    "pairrank_chembl",
+    "pairrank_htchem",
+    "pairrank_all",
+    "pairrank_single_conc",
+    "cp_abs005",
+    "cp_abs01",
+    "cp_abs02",
+    "combo_high_chembl_cp01",
+    "combo_high_chembl_cp02",
+    "combo_high_htchem_cp02"
+  ]
+}

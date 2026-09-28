@@ -1,0 +1,34 @@
+{
+  "n_pairs": 150000,
+  "min_abs_delta": 0.0,
+  "eval_thresholds": [
+    0.0,
+    0.25,
+    0.5,
+    1.0
+  ],
+  "seed": 42,
+  "features": [
+    {
+      "name": "boltz_affinity_g1g2",
+      "kind": "affinity"
+    },
+    {
+      "name": "boltz_affinity_g1g2_scalars",
+      "kind": "affinity"
+    },
+    {
+      "name": "boltz_affinity_gmean",
+      "kind": "affinity"
+    },
+    {
+      "name": "pooled_boltz",
+      "kind": "run_train"
+    },
+    {
+      "name": "pooled_boltz_allpairs",
+      "kind": "run_train"
+    }
+  ],
+  "note": "Experiment only; no submission files or experiment DB rows written."
+}
