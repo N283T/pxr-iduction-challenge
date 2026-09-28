@@ -1,0 +1,27 @@
+{
+  "variant": "a",
+  "input_dim": 1024,
+  "hidden_dim": 256,
+  "n_targets": 2,
+  "n_total": 13134,
+  "n_train": 11821,
+  "n_val": 1313,
+  "n_valid_8p25": 10751,
+  "n_valid_33": 9526,
+  "target_means": [
+    0.336696594953537,
+    0.6396986842155457
+  ],
+  "target_stds": [
+    0.4093538224697113,
+    0.570441722869873
+  ],
+  "epochs_run": 50,
+  "best_epoch": 48,
+  "best_val_loss": 0.44795476893583935,
+  "final_val_loss": 0.45005885263284046,
+  "seed": 42,
+  "lr": 0.001,
+  "batch_size": 256,
+  "weight_decay": 0.0001
+}

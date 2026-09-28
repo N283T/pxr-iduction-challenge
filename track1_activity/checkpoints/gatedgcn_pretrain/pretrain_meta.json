@@ -1,0 +1,24 @@
+{
+  "params": {
+    "hidden_dim": 512,
+    "num_layers": 4,
+    "dropout": 0.05,
+    "learning_rate": 0.0006655177988301952,
+    "batch_size": 64,
+    "max_epochs": 120,
+    "patience": 12
+  },
+  "target_means": [
+    0.33667129278182983,
+    0.6396387815475464
+  ],
+  "target_stds": [
+    0.4093432128429413,
+    0.570441722869873
+  ],
+  "task_weights_8p25_33": [
+    1.0,
+    0.5
+  ],
+  "best_val_loss": 0.7477596132528215
+}

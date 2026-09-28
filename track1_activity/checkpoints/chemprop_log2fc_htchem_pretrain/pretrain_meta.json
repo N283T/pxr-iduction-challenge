@@ -1,0 +1,47 @@
+{
+  "params": {
+    "message_hidden_dim": 256,
+    "depth": 4,
+    "mp_dropout": 0.2,
+    "activation": "relu",
+    "aggregation": "norm",
+    "ffn_hidden_dim": 256,
+    "ffn_num_layers": 1,
+    "ffn_dropout": 0.1,
+    "warmup_epochs": 3,
+    "learning_rate": 0.0001364559692954765,
+    "lr_ratio": 10.0,
+    "batch_size": 128,
+    "max_epochs": 80,
+    "patience": 10
+  },
+  "target_names": [
+    "log2fc_8p25",
+    "log2fc_33",
+    "htchem_corrected_pec50"
+  ],
+  "target_means": [
+    0.33667129278182983,
+    0.6396387815475464,
+    4.853332042694092
+  ],
+  "target_stds": [
+    0.4093432128429413,
+    0.570441722869873,
+    1.1769307851791382
+  ],
+  "task_weights": [
+    1.0,
+    0.5,
+    0.25
+  ],
+  "valid_counts": {
+    "log2fc_8p25": 10752,
+    "log2fc_33": 9527,
+    "htchem_corrected_pec50": 441
+  },
+  "n_train": 12319,
+  "n_val": 1368,
+  "final_val_loss": 0.3582180142402649,
+  "best_ckpt_path": "/home/nagaet/pxr-iduction-challenge/track1_activity/checkpoints/chemprop_log2fc_htchem_pretrain/pretrain_best.ckpt"
+}

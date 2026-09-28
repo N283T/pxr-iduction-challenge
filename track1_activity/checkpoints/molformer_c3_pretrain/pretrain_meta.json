@@ -1,0 +1,32 @@
+{
+  "params": {
+    "lora_rank": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.1,
+    "lora_target": "qkvo",
+    "head_hidden_dim": 256,
+    "head_dropout": 0.1,
+    "backbone_lr": 0.0002,
+    "head_lr": 0.001,
+    "weight_decay": 0.001,
+    "batch_size": 64,
+    "max_epochs": 50,
+    "patience": 10
+  },
+  "backbone": "molformer_c3_1_1b",
+  "target_means": [
+    0.33667129278182983,
+    0.6396387815475464
+  ],
+  "target_stds": [
+    0.4093432128429413,
+    0.570441722869873
+  ],
+  "n_valid_target": {
+    "8.25uM": 10752,
+    "33uM": 9527
+  },
+  "n_train_compounds": 11823,
+  "n_val_compounds": 1313,
+  "best_val_loss": 0.5064956616787684
+}

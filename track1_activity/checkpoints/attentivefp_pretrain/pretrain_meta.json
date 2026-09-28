@@ -1,0 +1,27 @@
+{
+  "params": {
+    "hidden_channels": 512,
+    "num_layers": 4,
+    "num_timesteps": 3,
+    "dropout": 0.1,
+    "learning_rate": 0.00033232775773741117,
+    "batch_size": 128,
+    "max_epochs": 100,
+    "patience": 12
+  },
+  "target_means": [
+    0.33667129278182983,
+    0.6396387815475464
+  ],
+  "target_stds": [
+    0.4093432128429413,
+    0.570441722869873
+  ],
+  "task_weights_8p25_33": [
+    1.0,
+    0.5
+  ],
+  "n_train": 11823,
+  "n_val": 1313,
+  "best_val_loss": 0.7011593688618053
+}

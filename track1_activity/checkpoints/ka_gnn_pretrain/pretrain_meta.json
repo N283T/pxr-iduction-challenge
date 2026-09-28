@@ -1,0 +1,44 @@
+{
+  "params": {
+    "model_type": "fourier",
+    "hidden_dim": 128,
+    "out_dim": 64,
+    "grid_size": 3,
+    "spline_order": 3,
+    "kan_bottleneck": 5,
+    "num_layers": 3,
+    "pooling": "mean",
+    "aggr": "mean",
+    "dropout": 0.1,
+    "head_dropout": 0.1,
+    "lr": 0.001,
+    "min_lr": 1e-06,
+    "weight_decay": 0.0001,
+    "batch_size": 256,
+    "max_epochs": 80,
+    "patience": 12,
+    "val_frac": 0.1,
+    "w_8p25": 1.0,
+    "w_33": 0.5,
+    "seed": 42,
+    "device": "cuda",
+    "ckpt_dir": "/home/nagaet/pxr-iduction-challenge/track1_activity/checkpoints/ka_gnn_pretrain",
+    "limit": null,
+    "in_dim": 9,
+    "edge_dim": 3
+  },
+  "target_means": [
+    0.33667129278182983,
+    0.6396387815475464
+  ],
+  "target_stds": [
+    0.4093432128429413,
+    0.570441722869873
+  ],
+  "best_val_loss": 0.3816889350612958,
+  "epochs_run": 51,
+  "n_compounds": 13136,
+  "n_train": 11823,
+  "n_val": 1313,
+  "state_path": "/home/nagaet/pxr-iduction-challenge/track1_activity/checkpoints/ka_gnn_pretrain/pretrain.pt"
+}

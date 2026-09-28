@@ -1,0 +1,69 @@
+{
+  "params": {
+    "message_hidden_dim": 256,
+    "depth": 4,
+    "mp_dropout": 0.2,
+    "activation": "relu",
+    "aggregation": "norm",
+    "ffn_hidden_dim": 256,
+    "ffn_num_layers": 1,
+    "ffn_dropout": 0.1,
+    "warmup_epochs": 3,
+    "learning_rate": 0.0001364559692954765,
+    "lr_ratio": 10.0,
+    "batch_size": 128,
+    "max_epochs": 150,
+    "patience": 15
+  },
+  "tasks": [
+    "counter_present",
+    "counter_pec50",
+    "counter_emax",
+    "counter_emax_vs_pos_ctrl",
+    "log2fc_8p25",
+    "log2fc_33",
+    "log2fc_99"
+  ],
+  "target_means": [
+    1.0,
+    3.1306698322296143,
+    1.5378121137619019,
+    0.8437950015068054,
+    0.33667129278182983,
+    0.6396387815475464,
+    1.2148925065994263
+  ],
+  "target_stds": [
+    1.0,
+    1.1201553344726562,
+    0.2523233890533447,
+    1.0802723169326782,
+    0.4093432128429413,
+    0.570441722869873,
+    0.616799533367157
+  ],
+  "target_counts": [
+    2860,
+    2648,
+    2648,
+    2648,
+    10752,
+    9527,
+    706
+  ],
+  "task_weights": {
+    "counter_present": 0.20000000298023224,
+    "counter_pec50": 0.5,
+    "counter_emax": 0.25,
+    "counter_emax_vs_pos_ctrl": 0.25,
+    "log2fc_8p25": 1.0,
+    "log2fc_33": 0.5,
+    "log2fc_99": 0.15000000596046448
+  },
+  "n_valid_rows": 11375,
+  "n_train": 10238,
+  "n_val": 1137,
+  "include_pxr_targets": false,
+  "final_val_loss": 0.3390832543373108,
+  "best_ckpt_path": "/home/nagaet/pxr-iduction-challenge/track1_activity/checkpoints/chemprop_assay_shape_pretrain_seed42/pretrain_best.ckpt"
+}

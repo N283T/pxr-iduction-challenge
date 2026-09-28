@@ -1,0 +1,38 @@
+{
+  "data_dir": "data/chembl/pairwise_deep_pilot50k",
+  "ckpt_dir": "track1_activity/checkpoints/chemprop_pairwise_chembl_pilot50k",
+  "params": {
+    "message_hidden_dim": 256,
+    "depth": 4,
+    "mp_dropout": 0.2,
+    "activation": "relu",
+    "aggregation": "norm",
+    "ffn_hidden_dim": 256,
+    "ffn_num_layers": 1,
+    "ffn_dropout": 0.1,
+    "batch_size": 128,
+    "max_epochs": 5,
+    "patience": 5,
+    "learning_rate": 0.0002,
+    "weight_decay": 1e-05
+  },
+  "delta_mean": -0.0006239997545878092,
+  "delta_std": 1.2838802132378297,
+  "n_train_pairs": 45000,
+  "n_val_pairs": 5000,
+  "best_ckpt_path": "/home/nagaet/pxr-iduction-challenge/track1_activity/checkpoints/chemprop_pairwise_chembl_pilot50k/pairwise_best.ckpt",
+  "final_metrics": {
+    "train_loss": 0.7120974063873291,
+    "train_loss_step": 0.7080081701278687,
+    "train_mae_z": 0.7526699900627136,
+    "train_mae_z_step": 0.7129383087158203,
+    "train_sign_acc": 0.6237333416938782,
+    "train_sign_acc_step": 0.6805555820465088,
+    "val_loss": 0.7522910833358765,
+    "val_mae_z": 0.771388053894043,
+    "val_sign_acc": 0.600600004196167,
+    "train_loss_epoch": 0.7120974063873291,
+    "train_mae_z_epoch": 0.7526699900627136,
+    "train_sign_acc_epoch": 0.6237333416938782
+  }
+}
